@@ -1,0 +1,56 @@
+<!-- InstanceBegin template="/Templates/template.dwt" codeOutsideHTMLIsLocked="false" --><head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<!-- InstanceBeginEditable name="doctitle" -->
+<title>VPython Help</title>
+<!-- InstanceEndEditable -->
+<!-- InstanceBeginEditable name="head" -->
+<link href="VisualRef.css" rel="stylesheet" type="text/css" />
+<!-- InstanceEndEditable -->
+</head>
+
+<body>
+<div id="wrapper">
+	<div id="leftmenu">
+		<p class="Normal"><a href="index.html">&nbsp;&nbsp;Home</a></p>
+		<p class="Normal">&nbsp;&nbsp;If you're new to Python <br />
+		   &nbsp;&nbsp;and VPython: <a href="VisualIntro.html">Introduction</a></p>
+		<p class="Normal">&nbsp;&nbsp;A VPython <a href="VPython_Intro.pdf" target="_blank">tutorial</a></p>
+		<p class="Normal"><a href="videos.html">&nbsp;&nbsp;Introductory Videos</a></p>
+		<p class="Normal"><a href="primitives.html">&nbsp;&nbsp;Pictures</a> of 3D objects</p>
+		<p>&nbsp;&nbsp;<select id="menu1" onChange="jumpMenu(this)"></select></p>
+		<p>&nbsp;&nbsp;<select id="menu2" onChange="jumpMenu(this)"></select></p>
+		<p>&nbsp;&nbsp;<select id="menu3" onChange="jumpMenu(this)"></select></p>
+		<p class="Normal"><a href="https://vpython.org" target="_blank">&nbsp; VPython 7 web site</a><br />
+		  <a href="license.txt" target="_blank">&nbsp;&nbsp;VPython license</a><br />
+		  <br />
+		</p>
+		</td>
+	</div>
+
+	<div id="content">
+		<!-- InstanceBeginEditable name="content" -->
+      <div>
+        <h1 class="Heading-1"> <font color="#0000A0">Limiting the Animation Rate</font></h1>
+      </div>
+      <div>
+        <div>
+          <p class="program"> rate( frequency )</p>
+          <p class="Normal"> Halts computations until 1.0/frequency seconds after the previous 
+            
+            call to <span class="attribute">rate()</span>.</p>
+          <p class="Normal"> For example, <span class="attribute">rate(50)</span> will 
+            halt computations long enough to make sure that at least 1.0/50.0 = 0.02 second 
+            has elapsed. If this much time has already elapsed, no halt is performed. 
+            If you place <span class="attribute">rate(50)</span> inside a computational 
+            loop, the loop will execute at a maximum of 50 times per second, even if 
+            the computer can run faster than this. This makes animations look about 
+            the same on computers of different speeds, as long as the computers are 
+            capable of carrying out 50 computations per second.</p>
+          <p class="Normal">It is obligatory to place a rate statement in an animation loop. Without it, no screen updates or processing of mouse or keyboard events are possible.</p>
+          <p class="Normal">Another option is to use the function <span class="attribute">sleep</span>: sleep(0.02) means &quot;don't do anything for 0.02 seconds&quot; and is equivalent to rate(50). The sleep function periodically renders the scene and processes mouse events, making it possible to continue using zoom and rotate, whereas the standard Python function time.sleep(t) does not do this.</p>
+          <!-- InstanceEndEditable -->		
+    </div>
+</div>
+</body>
+<script type="text/javascript" language="javascript" src="navigation.js"></script>
+<!-- InstanceEnd --></html>

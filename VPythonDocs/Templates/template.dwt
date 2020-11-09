@@ -1,0 +1,35 @@
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<!-- TemplateBeginEditable name="doctitle" -->
+<title>Template</title>
+<!-- TemplateEndEditable -->
+<!-- TemplateBeginEditable name="head" --><!-- TemplateEndEditable -->
+</head>
+
+<body>
+<div id="wrapper">
+	<div id="leftmenu">
+		<p class="Normal"><a href="index.html">&nbsp;&nbsp;Home</a></p>
+		<p class="Normal">&nbsp;&nbsp;If you're new to Python <br />
+		   &nbsp;&nbsp;and VPython: <a href="VisualIntro.html">Introduction</a></p>
+		<p class="Normal">&nbsp;&nbsp;A VPython <a href="VPython_Intro.pdf" target="_blank">tutorial</a></p>
+		<p class="Normal"><a href="videos.html">&nbsp;&nbsp;Introductory Videos</a></p>
+		<p class="Normal"><a href="primitives.html">&nbsp;&nbsp;Pictures</a> of 3D objects</p>
+		<p>&nbsp;&nbsp;<select id="menu1" onChange="jumpMenu(this)"></select></p>
+		<p>&nbsp;&nbsp;<select id="menu2" onChange="jumpMenu(this)"></select></p>
+		<p>&nbsp;&nbsp;<select id="menu3" onChange="jumpMenu(this)"></select></p>
+		<p class="Normal"><a href="https://vpython.org" target="_blank">&nbsp; VPython 7 web site</a><br />
+		  <a href="license.txt" target="_blank">&nbsp;&nbsp;VPython license</a><br />
+		  <br />
+		</p>
+		</td>
+	</div>
+
+	<div id="content">
+		<!-- TemplateBeginEditable name="content" -->
+		<!-- TemplateEndEditable -->		
+    </div>
+</div>
+</body>
+<script type="text/javascript" language="javascript" src="navigation.js"></script>
+</html>
