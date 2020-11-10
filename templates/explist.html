@@ -1,0 +1,30 @@
+{% extends 'template.html' %}
+
+{% block header %}
+<meta name="description" content="CCTP - Experiments">
+<title>Experiments - CCTP</title>
+{% endblock %}
+{% block content %}
+  <h1 style="text-align: center;"><strong> CCTP Experiments </strong></h1>
+  <br/><br/><br/>
+  <div class="cctp-exp-index">
+  <div class="row top-buffer align-item-center" style="text-align: center;">
+  {%for exp in elist%}
+    <div class="col-sm-6">
+      <div class="card" style="width: 18rem; display: inline-block">
+	      <br/><h5 class="card-title">Experiment {{loop.index}}</h5>
+              <a href="/experiment/{{exp[2]}}" class="stretched-link stub"></a>
+        <div class="card-body">
+          <a href="#" class="card-link">View Experiment</a>
+        </div>
+      </div>
+    </div>
+    {% if loop.index % 2 == 0 %}
+      <br/><br/><br/>
+      </div>
+      <div class="row top-buffer align-item-center" style="text-align: center;">
+    {%endif%}
+  {%endfor%}
+  </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,171 @@
+<!doctype html>
+<meta charset=utf-8>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<style>
+<style>
+  html {
+    overflow-x: hidden;
+    backface-visibility: hidden;
+  }
+  .center-csim {
+    margin: 0 auto;
+  }
+
+  .stub:hover {
+    transform: scale(1.015); /* (150% zoom - Note: if the zoom is too large, it will go outside of the viewport) */
+    transition: 0.456s ease;
+    backface-visibility: hidden;
+  }
+
+  .list-group:hover,
+  .card:hover {
+     transform: scale(1.017);
+     transition: 0.456s ease;
+     backface-visibility: hidden;
+  }
+  //.card:hover {
+  //  transform: scale(1.015); /* (150% zoom - Note: if the zoom is too large, it will go outside of the viewport) */
+  //  }
+    .black {
+      color: black;
+    }
+
+    .black:hover {
+      color: black;
+    }
+
+    .top-buffer {
+      margin-top:30px;
+      margin-bottom: 30px;
+    }
+
+@media screen and (max-width:480px) {
+    p { padding: 0 1em; }
+}
+.a {
+    display: inline;
+}
+.b {
+    display: flex; justify-content: flex-end;
+}
+ /* Style buttons */
+.btns {
+  background-color: white; /* Blue background */
+  border: none; /* Remove borders */
+  color: black; /* White text */
+  padding: 7px 8px; /* Some padding */
+  font-size: 12px; /* Set a font size */
+  cursor: pointer; /* Mouse pointer on hover */
+  border-radius: 100px;
+  width: fit-content;
+  margin: 1px;
+}
+
+/* Darker background on mouse-over */
+.btns:hover {
+  background-color: rgb(239, 243, 241);
+  color: black;
+  transform: scale(1.015);
+  transition: 0.456s ease;
+  backface-visibility: hidden;
+}
+.btns-lg {
+  border-color: black;
+  background-color: white; /* Blue background */
+  color: black; /* White text */
+  padding: 14px 8px; /* Some padding */
+  font-size: 16px; /* Set a font size */
+  cursor: pointer; /* Mouse pointer on hover */
+  border-radius: 100px;
+  width: fit-content;
+  margin: 1px;
+}
+
+.btns-lg:hover {
+  border-color: black;
+  background-color: rgb(239, 243, 241);
+  color: black;
+  transform: scale(1.015);
+  transition: 0.456s ease;
+  backface-visibility: hidden;
+}
+.bot-page {
+  text-align: center;
+}
+.bot-long-desc {
+  position: absolute;
+  display: inline-block;
+  border-radius: 4px;
+  border-style: solid;
+  height: calc(100vh - 110px);
+  margin: 2px;
+}
+.ab-button {
+  clear: both;
+  position: relative;
+  margin: 2px;
+}
+.ab-button-n {
+  position: relative;
+}
+.bt-styles {
+  text-align: center;
+  margin:auto;
+  display: block;
+}
+.bt-styles-mini {
+  text-align: center;
+}
+.api-ref {
+  margin: 2px;
+
+}
+.ild {
+  text-align: left;
+}
+li {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+.footerWrap {
+  text-align: center;
+}
+</style>
+<nav class="navbar navbar-light bg-light">
+  {%if username%}
+  <a class="navbar-brand" href="/">
+    {{ username }}
+  </a>
+  <li class="nav-item">
+    <a class="nav-link a" href="/dashboard">Dashboard</a>
+    <a class="nav-link a" href="/logout">Logout</a>
+    <a class="nav-link a" href="https://paypal.me/pools/c/8tgL4WtfY1">Donate</a>
+    <a class="nav-link a" href="/experiments">Experiments</a>
+  </li>
+  {%else%}
+    <a class="navbar-brand" href="/">
+      Not Logged In
+    </a>
+  <li class="nav-item">
+	  <a class="nav-link a" href="/login" style="text-align: right; float:right;">Login</a>
+    	  <a class="nav-link a" href="https://paypal.me/pools/c/8tgL4WtfY1" style="text-align: right; float:right;">Donate</a>
+    	  <a class="nav-link a" href="/experiments" style="text-align: right; float:right;">Experiments</a>
+  </li>
+  {%endif%}
+</nav>
+
+<section class="content">
+  <header>
+    {% block header %}{% endblock %}
+  </header>
+  {% for message in get_flashed_messages() %}
+    <div class="flash">{{ message }}</div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</section>
+	<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
