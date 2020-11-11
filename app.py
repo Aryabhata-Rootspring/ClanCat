@@ -8,6 +8,7 @@ from hypercorn.asyncio import serve
 import requests
 app = Quart(__name__, static_url_path="/static")
 app.config["SECRET_KEY"] = "qEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Dd"
+app.config['SESSION_COOKIE_SAMESITE'] = "Strict"
 csrf = CSRFProtect(app) # CSRF Form Protection
 api = "http://localhost:3000"
 
@@ -18,24 +19,53 @@ def get_token(length):
     secure_str = ''.join((secrets.choice(string.ascii_letters) for i in range(length)))
     return secure_str
 
+# Only for testing
+@app.route("/admin")
+async def admin():
+    if session.get("token") == None:
+        session['redirect'] = "/admin"
+        return redirect("/login")
+    return await render_template("admin_console.html", username = session.get("username"))
+
+@app.route("/favicon.ico")
+async def favicon():
+    print("Got favicon request")
+    return await send_file('static/favicon.ico')
+
 @app.route('/edit/text')
-async def hello_world():
+async def edit_txt():
     if session.get("token") == None:
         session['redirect'] = "/edit/text"
         return redirect("/login")
     session['expid'] = get_token(101) 
     return await render_template("expedit.html")
 
-@app.route('/<folder>/js/<path:fn>')
-async def js_server(fn, folder):
-    print("got here " + fn)
+@app.route('/edit/text/ccpl')
+async def edit_ccpl():
+    if session.get("token") == None:
+        session['redirect'] = "/edit/text/ccpl"
+        return redirect("/login")
+    session['expid'] = get_token(101)
+    return await render_template("ccpl.html")
+
+@app.route('/<folder1>/js/<path:fn>')
+@app.route('/<folder1>/<folder2>/js/<path:fn>')
+async def js_server(fn, folder1=None, folder2=None):
+    print(fn)
+    if fn.__contains__(".."):
+        return abort(403)
     return await send_file('static/' + fn)
 
 @app.route("/redir")
 async def redir():
     if session.get("redirect") == None:
         return redirect("/")
-    return redirect(session.get("redirect"))
+    rdir = session.get("redirect")
+    try:
+        del session['redirect']
+    except:
+        pass
+    return redirect(rdir)
 
 @app.route('/save', methods=["POST"])
 @csrf.exempt # This must be exempt in order for saving to work

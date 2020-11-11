@@ -1,31 +1,47 @@
-{% extends 'template.html' %}
-{%block reg%}
-<!--<link type="text/css" href="js/jquery-ui.custom.css" rel="stylesheet" /> -->
-<!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
--->
+<!DOCTYPE html>
+<html>
+<head>
+<title>Clan Cat Simulator</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+</head>
+
+<body class="GlowScriptBody">
+<link type="text/css" href="js/jquery-ui.custom.css" rel="stylesheet" />
+<link type="text/css" href="js/ide.css" rel="stylesheet" />
 <script type="text/javascript" src="js/jquery.min.js"></script>
 <script type="text/javascript" src="js/jquery-ui.custom.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" crossorigin="anonymous"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" integrity="sha512-UxcTlYsLkcuGZL9JNnMsfo3p7VFSmcgBjH1VUSM82Okk5ni52bk7vz9f2p+D1VnMcNUmMzbzgWqWcdJ2j8Svow==" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" integrity="sha512-xIf9AdJauwKIVtrVRZ0i4nHP61Ogx9fSRAkCLecmE2dL/U8ioWpDvFCAy4dcfecN72HHB9+7FfQj3aiO68aaaw==" crossorigin="anonymous" />
+<!-- CodeMirror Modes -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" integrity="sha512-LQqQqrlbxr5f0zVBIhGD9h6+0NpZH2OL9tH3yhD6NDpdI+amJYnnftmD/ulW1Wk55YEE76lvFEs6+XTvtSQj+A==" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/python/python.min.js" integrity="sha512-DS+asaww1mE0V/N6YGVgoNIRj+yXB9hAV68vM6rVeWs0G+OyMd24LKrnS4Z+g26rgghU7qvGeEnRVUArV7nVog==" crossorigin="anonymous"></script>
 <script type="text/javascript" src="js/RSrun.3.0.min.js"></script>
 <script type="text/javascript" src="js/glow.3.0.min.js" charset="UTF-8"></script>
-<!--<script type="text/javascript" src="js/Roboto_Medium_ttf_sans.js"></script>
+<!--<script type="text/javascript" src="js/split.min.js"></script>-->
+<script type="text/javascript" src="js/Roboto_Medium_ttf_sans.js"></script>
 <script type="text/javascript" src="js/NimbusRomNo9L_Med_otf_serif.js"></script>
--->
+</body>
+
 <button onclick="runCode()" class="btn btn-success">Run</button>
-<!-- This is the code for the experiment -->
-<div id="exp-code" code="{{code}}">
-
-
-
-
+<button onclick="saveCode()" class="btn btn-primary">Save Experiment</button>
+<div class="form-group">
+  <label for="editor">Write your simulation here!</label>
+  <textarea class="form-control rounded-0" id="editor" rows="10"></textarea>
+</div>
 <script>
 var gsversion = '3.0'
 var printpane = false
 var exporting = false // not currently in export mode
 var lastprintwidth = null
-
+var editorTextArea = document.querySelector("#editor")
+console.log(CodeMirror.modes)
+var editor = CodeMirror.fromTextArea(editorTextArea, {
+    lineNumbers: true,
+    mode: "python",
+  }); // Create a CodeMirror editor
 var glowscript_run = undefined
+setInterval(editor.refresh(), 3)
 window.Jupyter_VPython = undefined
 
 if (!navigator.onLine) window.Jupyter_VPython = 'glowscript_data/' // get textures when offline
@@ -74,6 +90,13 @@ function localCompile(header, compReady, errordiv) {
     })
 }
 
+function saveCode() {
+	post_url = "http://" + window.location.hostname + ":8000/save";
+	post_data = {"owner": "Aryabhata", "code":  editor.getValue()};
+	$.post(post_url, post_data, function(data, status, jqXHR) {});
+	return
+}
+
 function parseVersionHeader( source ) {
     var sourceLines = source.split("\n")
     var header = sourceLines[0]
@@ -114,8 +137,7 @@ function parseVersionHeader( source ) {
 }
 
 function getHeader(exporting) {
-    var text = document.querySelector("#exp-code").getAttribute("code")
-    console.log(text);
+    var text = editor.getValue()
     var end = text.indexOf('\n')
     var i = text.slice(0,end).indexOf("GlowScript") // Look for "GlowScipt" in first line
     var j = text.slice(0,end).indexOf("vpython")    // Look for "vpython" in first line
@@ -146,7 +168,7 @@ var gsErrordiv
 
 
 function runCode() {
-    var header = getHeader(false)
+	var header = getHeader(false)
     gsErrordiv = $("#gserrors")[0]
     localCompile(header, ready, gsErrordiv, false)
 }
@@ -313,10 +335,8 @@ function reportScriptError(program, err) { // This machinery only gives trace in
     gsErrordiv = $("#gserrors")[0]
     gsErrorHandler(feedback)
 }
-window.addEventListener('load', function () {
-  runCode();
-})
+
 </script>
 <!-- Bootstrap comes with Popper, but not jquery which is anyways OK-->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
-{%endblock%}
+</html>
