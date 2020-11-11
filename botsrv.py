@@ -4,6 +4,12 @@ import asyncpg
 import secrets
 import string
 from hashlib import sha512
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+surl = "http://127.0.0.1:8000" # Main Server URL
+
 def get_token(length):
     secure_str = ''.join((secrets.choice(string.ascii_letters) for i in range(length)))
     return secure_str
@@ -24,6 +30,11 @@ db = loop.run_until_complete(setup_db())
 print(db)
 app = web.Application()
 routes = web.RouteTableDef()
+
+resetDict = {} # resetDict is a dictionary of password reset requests currently present
+
+sender = "sandhoners123@gmail.com"
+spass = "Ravenpaw11,"
 
 @routes.post("/save")
 async def save_file(request):
@@ -95,6 +106,73 @@ async def get_exp(request):
         return web.json_response({"error": "0002"}) # 0002 = No Experiments Found
     experiments = {"code": experiments[0]["code"], "versions": len(experiments)}
     return web.json_response(experiments)
+
+# Change the actual password (stage3 auth)
+@routes.post("/auth/reset/change")
+async def reset_passwd_change(request):
+    print("Got a password change request")
+    data = await request.json()
+    if "token" not in data.keys() or "password" not in data.keys():
+        return web.json_response({"error": "0001"}) # No Reset Token Specified Or No Password Given
+    if data.get("token") not in resetDict.values():
+        return web.json_response({"error": "1001"}) # Reset Token Not Authorized
+    # Change the password of the field related to that users account
+    print("Request passed sanity checks\nSHA512ing password")
+    password = sha512(data['password'].encode()).hexdigest() # New password
+    print("Getting token from resetDict")
+    token = None
+    for item in resetDict.items():
+        if item[1] == data.get("token"):
+            print("Got user token")
+            token = item[0]
+            break
+    if token == None:
+        return web.json_response({"error": "1002"}) # Internal Server Error
+    resetDict[token] = None # Make sure we cant use the same token again
+    await db.execute("UPDATE login SET password = $1 WHERE token = $2", password, token)
+    return web.json_response({"error": "1000"}) # Success
+
+# Send a reset email (stage2 auth)
+@routes.post("/auth/reset/send")
+async def reset_passwd_send(request):
+    data = await request.json()
+    if "email" not in data.keys():
+        return web.json_response({"error": "0001"}) # No Email Specified
+    print("Got password reset request\nGetting SHA512 hash of email...")
+    email = sha512(data['email'].encode()).hexdigest()
+    print("Checking email")
+    a = await db.fetch("SELECT token from login WHERE email = $1", email)
+    print(f"Email is correct")
+    if len(a) == 0:
+        print("User does not exist. Could not reset password")
+        return web.json_response({"error": "1001"}) # Invalid Username Or Password
+    t = True # Flag to check if we have a good url id yet
+    while(t):
+        atok = get_token(101)
+        print(atok)
+        if atok not in resetDict.values():
+            t = False
+        print("Itering")
+    print(f"Got reset token {atok}. Adding to resetDict")
+    resetDict[a[0]['token']] = atok
+    # Now send an email to the user
+    resetLink = surl + "/reset/stage2?token=" + atok
+    eMsg = f"Subject: CCTP Password Reset\n\nCCTP Password Reset\nPlease use {resetLink} to reset your password.\n\nIf you didn't authorize this action. Please disregard this email and change your password immediately"
+    eSession = smtplib.SMTP('smtp.gmail.com', 587)
+    eSession.starttls() # TLS for security
+    eSession.login(sender, spass) # Email Auth
+    eSession.sendmail(sender, data['email'], eMsg)
+    eSession.close()
+    return web.json_response({"error": "1000"}) # Success
+
+# This checks if the reset request is in resetDict and returns the result
+@routes.get("/auth/gset")
+async def gset(request):
+    a = request.rel_url.query.get("token")
+    if a == None or a not in resetDict.values():
+        return web.json_response({"status": "0"})
+    else:
+        return web.json_response({"status": "1"})
 
 @routes.post("/auth/login")
 async def login(request):

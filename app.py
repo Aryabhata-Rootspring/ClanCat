@@ -56,6 +56,18 @@ async def js_server(fn, folder1=None, folder2=None):
         return abort(403)
     return await send_file('static/' + fn)
 
+@app.route('/<folder1>/authjs/<path:fn>')
+@app.route('/<folder1>/<folder2>/authjs/<path:fn>')
+async def js_server_auth(fn, folder1=None, folder2=None):
+    if "token" not in session.keys():
+        abort(403) # Not authorized
+    print(fn)
+    if fn.__contains__(".."):
+        return abort(403)
+    return await send_file('authstatic/' + fn)
+
+
+
 @app.route("/redir")
 async def redir():
     if session.get("redirect") == None:
@@ -66,6 +78,46 @@ async def redir():
     except:
         pass
     return redirect(rdir)
+
+# Stage 1 (sending the email)
+@app.route('/reset', methods = ["GET", "POST"])
+async def reset_pwd_s1():
+    # GET
+    if request.method == "GET":
+        return await render_template("/reset_gen.html", username = session.get("username"))
+    # POST
+    form = await request.form
+    if form.get("email") == None or form.get("email") == "":
+        return await render_template("/reset_gen.html", username = session.get("username"), error = "You must provide an email address.")
+    x = requests.post(api + "/auth/reset/send", json = {"email": form.get("email")}).json()
+    return x
+
+@app.route('/reset/stage2', methods=["GET", "POST"])
+async def reset_pwd():
+    # GET
+    if request.method == "GET":
+        token = request.args.get("token")
+        if token == None:
+            return await render_template("/reset_fail.html", username = session.get("username")), 403
+        a = requests.get(api + f"/auth/gset?token={token}").json()
+        if a['status'] == "0":
+            return await render_template("/reset_fail.html", username = session.get("username")), 403
+        session["reset-token"] = token
+        return await render_template("/reset.html", username = session.get("username"))
+    # POST
+    form = await request.form
+    pwd = form.get("password") # PWD = New Password
+    cpwd = form.get("cpassword") # CPWD = Confirm New Password
+    print(form, pwd, cpwd)
+    if pwd == None or cpwd == None:
+        return await render_template("/reset.html", username = session.get("username"), error = "You must input a new password")
+    elif pwd != cpwd:
+        return await render_template("/reset.html", username = session.get("username"), error = "The passwords do not match")
+    print(f"Reset Form is {form}")
+    if session.get("reset-token") == None:
+        return await render_template("/reset_fail.html", username = session.get("username")), 403
+    x = requests.post(api + "/auth/reset/change", json = {"token": session["reset-token"], "password": pwd}).json()
+    return x
 
 @app.route('/save', methods=["POST"])
 @csrf.exempt # This must be exempt in order for saving to work

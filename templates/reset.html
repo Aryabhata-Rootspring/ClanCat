@@ -1,0 +1,27 @@
+{% extends 'template.html' %}
+{% block header %}
+<title>CCTP - Reset Password</title>
+<meta name="description" content="Aryabhata Inc - CCTP Login">
+{% endblock %}
+{% block content %}
+  <h1 style="text-align: center;"><strong> Reset Password </strong></h1>
+  {% if error %}
+  	<p style="text-align: center; color: red;"><strong>{{error}}</strong></p>
+  {%endif%}
+  <br/>
+  <div style="text-align: center;">
+	<form method='post'>
+	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+	<div class="form-group">
+    		<label for="password">New Password</label>
+    		<input type="password" name='password' class="form-control" id="password" placeholder="Password" required>
+  	</div>
+  	<div class="form-group">
+    		<label for="cpassword">Confirm Password</label>
+    		<input type="password" name='cpassword' class="form-control" id="cpassword" placeholder="Confirm Password" required>
+  	</div>
+  	<button type="submit" class="btn btn-primary">Reset Password</button>
+	</form>	
+  </div>
+{% endblock %}
+
