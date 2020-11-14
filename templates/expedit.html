@@ -88,9 +88,15 @@ function localCompile(header, compReady, errordiv) {
 }
 
 function saveCode() {
-	post_url = "http://" + window.location.hostname + ":8000/save";
-	post_data = {"username": "{{username}}", "token": "{{token}}", "code":  editor.getValue()};
-	$.post(post_url, post_data, function(data, status, jqXHR) {});
+	var n = prompt("Please enter the name for this experiment");
+	console.log(n);
+	if(n != null) {
+		post_url = "http://" + window.location.hostname + ":8000/save";
+		console.log(post_url);
+		post_data = {"username": "{{username}}", "token": "{{token}}", "code":  editor.getValue(), "name": n};
+		$.post(post_url, post_data, function(data, status, jqXHR) {});
+		alert("Saved experiment successfully")
+	}
 	return
 }
 

@@ -79,7 +79,11 @@ async def reset_pwd_s1():
     if form.get("email") == None or form.get("email") == "":
         return await render_template("/reset_gen.html", username = session.get("username"), error = "You must provide an email address.")
     x = requests.post(api + "/auth/reset/send", json = {"email": form.get("email")}).json()
-    return x
+    if x['error'] == "1000":
+        msg = "We have sent a confirmation email to the email you provided. Please check your spam folder if you did not recieve one"
+    else:
+        msg = "Something has went wrong. Please recheck your email and make sure it is correct"
+    return await render_template("/reset_confirm.html", username = session.get("username"), msg = msg)
 
 @app.route('/reset/stage2', methods=["GET", "POST"])
 async def reset_pwd():
@@ -104,17 +108,22 @@ async def reset_pwd():
     if session.get("reset-token") == None:
         return await render_template("/reset_fail.html", username = session.get("username")), 403
     x = requests.post(api + "/auth/reset/change", json = {"token": session["reset-token"], "password": pwd}).json()
-    return x
+    if x['error'] == "1000":
+        msg = "Your password has been reset successfully."
+    else:
+        msg = "Something has went wrong while we were trying to reset your password. Please try again later."
+    return await render_template("/reset_confirm.html", username = session.get("username"), msg = msg)
 
 @app.route('/save', methods=["POST"])
 @csrf.exempt # This must be exempt in order for saving to work
 async def save_simu():
     data = await request.form
+    print(data)
     if session.get("expid") == None:
         session['expid'] = get_token(101) 
-    if "username" not in data.keys() or "token" not in data.keys() or "code" not in data.keys():
+    if "username" not in data.keys() or "token" not in data.keys() or "code" not in data.keys() or "name" not in data.keys():
         return {"errpr": "Could not save data as required keys are not present"}
-    a = requests.post(api + "/save", json = {"username": data['username'], "token": data['token'], "code": data['code'], "expid": session['expid']})
+    a = requests.post(api + "/save", json = {"username": data['username'], "token": data['token'], "code": data['code'], "expid": session['expid'], "name": data["name"]})
     a = a.json()
     return {"error": "Done"}
 
@@ -191,7 +200,7 @@ async def experiments():
     elist = [] # ejson as list
     i = 0
     while i < len(ejson.keys()):
-        elist.append([ejson[str(i)]["owner"], ejson[str(i)]["expid"]])
+        elist.append([ejson[str(i)]["owner"], ejson[str(i)]["expid"], ejson[str(i)]["name"]])
         i+=1
     return await render_template("explist.html", elist = elist, username = session.get("username"))
 

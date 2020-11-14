@@ -22,8 +22,8 @@ async def setup_db():
         host="database-1.civhw5bah3rj.us-east-2.rds.amazonaws.com",
         user="postgres",
         password="Waterbot123",
-        database="CatSim") #Login stuff
-    await db.execute("CREATE TABLE IF NOT EXISTS experiment_table (token TEXT, owner TEXT, code TEXT, expid TEXT)") # Represents a simulation on the database
+        database="CatPhi") #Login stuff
+    await db.execute("CREATE TABLE IF NOT EXISTS experiment_table (token TEXT, owner TEXT, code TEXT, expid TEXT, name TEXT)") # Represents a simulation on the database
     await db.execute("CREATE INDEX IF NOT EXISTS experiment_index ON experiment_table (token, owner, code, expid)") # Create an index for the experiments
     await db.execute("CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT)") # Represents a single login in the database
     await db.execute("CREATE INDEX IF NOT EXISTS login_index ON login (token, username, password, email)") # Create an index for login
@@ -35,6 +35,7 @@ app = web.Application()
 routes = web.RouteTableDef()
 
 resetDict = {} # resetDict is a dictionary of password reset requests currently present
+eresetDict = {} # Emails, meow!
 
 sender = "sandhoners123@gmail.com"
 spass = "Ravenpaw11,"
@@ -43,11 +44,11 @@ spass = "Ravenpaw11,"
 async def save_file(request):
     data = await request.json()
     print(data)
-    if "username" not in data.keys() or "token" not in data.keys() or "code" not in data.keys() or "expid" not in data.keys():
+    if "username" not in data.keys() or "token" not in data.keys() or "code" not in data.keys() or "expid" not in data.keys() or "name" not in data.keys():
         return web.json_response({"error": "0001"}) # Invalid Arguments
     print("Got valid post request for saving\nGetting token...")
     flag = True
-    username = sha512(data['username'].encode()).hexdigest() # For every username, password and email, encode it to bytes and SHA512 to get hash 
+    username = data['username'] # For every password and email, encode it to bytes and SHA512 to get hash 
     a = await db.fetch("SELECT username FROM login WHERE token = $1", data["token"]) # Check if the username is even registered with us and if the username given in data.keys() is correct
     if len(a) == 0:
         print("Invalid save request: User does not exist")
@@ -56,14 +57,14 @@ async def save_file(request):
         print("Invalid save request: User is invalid")
         return web.json_response({"error": "1001"}) # Not Authorized
     while(flag):
-        # Keep getting and checking token with DB
+        # Keep getting and checking token with DB, use name as it will be the smallest
         token = get_token(101)
-        a = await db.fetch("SELECT * from experiment_table WHERE token = $1", token)
+        a = await db.fetch("SELECT name from experiment_table WHERE token = $1", token)
         if len(a) != 0:
             continue
         flag = False
     print("Saving data")
-    a = await db.execute("INSERT INTO experiment_table (owner, code, token, expid) VALUES ($1, $2, $3, $4);", data['username'], data['code'], token, data['expid'])
+    a = await db.execute("INSERT INTO experiment_table (owner, code, token, expid, name) VALUES ($1, $2, $3, $4, $5);", data['username'], data['code'], token, data['expid'], data['name'])
     return web.json_response({"error": "0000"})
 
 @routes.post("/auth/register")
@@ -72,7 +73,7 @@ async def register(request):
     if "email" not in data.keys() or "username" not in data.keys() or "password" not in data.keys():
         return web.json_response({"error": "0001"})
     print("Got valid signup request.\nGetting SHA512 of username, password and email")
-    username = sha512(data['username'].encode()).hexdigest() # For every username, password and email, encode it to bytes and SHA512 to get hash
+    username = data['username'] # For every password and email, encode it to bytes and SHA512 to get hash
     password = sha512(("Shadowsight1" + salt + username + data['password']).encode()).hexdigest()
     email = sha512(data['email'].encode()).hexdigest()
     print("Verifying that this account doesn't already exist")
@@ -85,7 +86,7 @@ async def register(request):
     while(flag):
         # Keep getting and checking token with DB
         token = get_token(101)
-        a = await db.fetch("SELECT * from login WHERE token = $1", token)
+        a = await db.fetch("SELECT username from login WHERE token = $1", token)
         if len(a) != 0:
             continue
         flag = False
@@ -99,16 +100,16 @@ async def list_exp(request):
     data = request.rel_url.query
     if data.get("owner") != None:
         # We want to get all people who OWN this experiment
-        experiments = await db.fetch("SELECT DISTINCT expid, owner FROM experiment_table WHERE owner = $1 ORDER BY owner ASC", data['owner'])
+        experiments = await db.fetch("SELECT DISTINCT expid, name, owner FROM experiment_table WHERE owner = $1 ORDER BY owner ASC", data['owner'])
     else:
-        experiments = await db.fetch("SELECT DISTINCT expid, owner FROM experiment_table ORDER BY owner ASC")
+        experiments = await db.fetch("SELECT DISTINCT expid, name, owner FROM experiment_table ORDER BY owner ASC")
     if len(experiments) == 0:
         return web.json_response({"error": "0002"}) # 0002 = No Experiments Found
     ejson = {}
     i = 0 # Counter for eJSON
     for exp in experiments:
         # Add the experiment to the eJSON (experiment JSON)
-        ejson[str(i)] = {"owner": exp["owner"], "expid": exp["expid"]}
+        ejson[str(i)] = {"owner": exp["owner"], "expid": exp["expid"], "name": exp['name']}
         i+=1
     return web.json_response(ejson)
 
@@ -137,15 +138,24 @@ async def reset_passwd_change(request):
     token = None
     for item in resetDict.items():
         if item[1] == data.get("token"):
-            print("Got user token")
             token = item[0]
+            email = eresetDict.get(data.get("token"))
+            print("Got user token: ", token)
             break
     unDB = await db.fetch("SELECT username FROM login WHERE token = $1", token)
+    if len(unDB) == 0:
+        return web.json_response({"error": "1001"})
     username = unDB[0]["username"]
     print("Request passed sanity checks\nSHA512ing password")
     password = sha512(("Shadowsight1" + salt + username + data['password']).encode()).hexdigest() # New password
     resetDict[token] = None # Make sure we cant use the same token again
     await db.execute("UPDATE login SET password = $1 WHERE token = $2", password, token)
+    eMsg = f"Subject: Your CCTP Password Was Just Reset\n\nYour CatPhi password was just reset\n\nIf you didn't authorize this action, please change your password immediately"
+    eSession = smtplib.SMTP('smtp.gmail.com', 587)
+    eSession.starttls() # TLS for security
+    eSession.login(sender, spass) # Email Auth
+    eSession.sendmail(sender, email, eMsg)
+    eSession.close()
     return web.json_response({"error": "1000"}) # Success
 
 # Send a reset email (stage2 auth)
@@ -157,7 +167,7 @@ async def reset_passwd_send(request):
     print("Got password reset request\nGetting SHA512 hash of email...")
     email = sha512(data['email'].encode()).hexdigest()
     print("Checking email")
-    a = await db.fetch("SELECT token from login WHERE email = $1", email)
+    a = await db.fetch("SELECT token, username from login WHERE email = $1", email)
     print(f"Email is correct")
     if len(a) == 0:
         print("User does not exist. Could not reset password")
@@ -171,9 +181,10 @@ async def reset_passwd_send(request):
         print("Itering")
     print(f"Got reset token {atok}. Adding to resetDict")
     resetDict[a[0]['token']] = atok
+    eresetDict[atok] = data['email']
     # Now send an email to the user
     resetLink = surl + "/reset/stage2?token=" + atok
-    eMsg = f"Subject: CCTP Password Reset\n\nCCTP Password Reset\nPlease use {resetLink} to reset your password.\n\nIf you didn't authorize this action. Please disregard this email and change your password immediately"
+    eMsg = f"Subject: CCTP Password Reset\n\nUsername {a[0]['username']}\nPlease use {resetLink} to reset your password.\n\nIf you didn't authorize this action, please change your password immediately"
     eSession = smtplib.SMTP('smtp.gmail.com', 587)
     eSession.starttls() # TLS for security
     eSession.login(sender, spass) # Email Auth
@@ -197,19 +208,15 @@ async def login(request):
     if "username" not in data.keys() or "password" not in data.keys():
         return web.json_response({"error": "0001"})
     print("Got valid login request.\nGetting SHA512 of username and password")
-    username = sha512(data['username'].encode()).hexdigest()
+    username = data['username']
     password = sha512(("Shadowsight1" + salt + username + data['password']).encode()).hexdigest()
     print(username, password)
     print("Authorizing User...")
     a = await db.fetch("SELECT token from login WHERE username = $1 and password = $2", username, password)
-    sr = random.SystemRandom()
     if len(a) == 0:
         print("Authorization Failed: Invalid Username Or Password")
-        await asyncio.sleep(3 + 0.21*sr.uniform(1.01, 1.53))
-        print("Slept and going to respond back")
         return web.json_response({"error": "1001"}) # Invalid Username Or Password
     print("User Authorized Successfully\nWaiting for 0.01 seconds to stop login hack attempts")
-    await asyncio.sleep(3 + 0.2*sr.uniform(1.03, 1.54))
     return web.json_response({"error": "1000", "token": a[0]["token"]})
 app.add_routes(routes)
 print("Loading")
