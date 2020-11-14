@@ -29,7 +29,6 @@ async def admin():
 
 @app.route("/favicon.ico")
 async def favicon():
-    print("Got favicon request")
     return await send_file('static/favicon.ico')
 
 @app.route('/edit/text')
@@ -38,7 +37,7 @@ async def edit_txt():
         session['redirect'] = "/edit/text"
         return redirect("/login")
     session['expid'] = get_token(101) 
-    return await render_template("expedit.html")
+    return await render_template("expedit.html", username = session.get('username'), token = session.get("token"))
 
 @app.route('/edit/text/ccpl')
 async def edit_ccpl():
@@ -46,27 +45,14 @@ async def edit_ccpl():
         session['redirect'] = "/edit/text/ccpl"
         return redirect("/login")
     session['expid'] = get_token(101)
-    return await render_template("ccpl.html")
+    return await render_template("ccpl.html", username = session.get('username'), token = session.get("token"))
 
 @app.route('/<folder1>/js/<path:fn>')
 @app.route('/<folder1>/<folder2>/js/<path:fn>')
 async def js_server(fn, folder1=None, folder2=None):
-    print(fn)
     if fn.__contains__(".."):
         return abort(403)
     return await send_file('static/' + fn)
-
-@app.route('/<folder1>/authjs/<path:fn>')
-@app.route('/<folder1>/<folder2>/authjs/<path:fn>')
-async def js_server_auth(fn, folder1=None, folder2=None):
-    if "token" not in session.keys():
-        abort(403) # Not authorized
-    print(fn)
-    if fn.__contains__(".."):
-        return abort(403)
-    return await send_file('authstatic/' + fn)
-
-
 
 @app.route("/redir")
 async def redir():
@@ -82,6 +68,9 @@ async def redir():
 # Stage 1 (sending the email)
 @app.route('/reset', methods = ["GET", "POST"])
 async def reset_pwd_s1():
+    if session.get("token") != None:
+        return redirect("/redir")
+
     # GET
     if request.method == "GET":
         return await render_template("/reset_gen.html", username = session.get("username"))
@@ -108,12 +97,10 @@ async def reset_pwd():
     form = await request.form
     pwd = form.get("password") # PWD = New Password
     cpwd = form.get("cpassword") # CPWD = Confirm New Password
-    print(form, pwd, cpwd)
     if pwd == None or cpwd == None:
         return await render_template("/reset.html", username = session.get("username"), error = "You must input a new password")
     elif pwd != cpwd:
         return await render_template("/reset.html", username = session.get("username"), error = "The passwords do not match")
-    print(f"Reset Form is {form}")
     if session.get("reset-token") == None:
         return await render_template("/reset_fail.html", username = session.get("username")), 403
     x = requests.post(api + "/auth/reset/change", json = {"token": session["reset-token"], "password": pwd}).json()
@@ -122,24 +109,23 @@ async def reset_pwd():
 @app.route('/save', methods=["POST"])
 @csrf.exempt # This must be exempt in order for saving to work
 async def save_simu():
-    print("CODE")
     data = await request.form
     if session.get("expid") == None:
         session['expid'] = get_token(101) 
-    print(f"The data is {data}")
-    if "owner" not in data.keys() or "code" not in data.keys():
+    if "username" not in data.keys() or "token" not in data.keys() or "code" not in data.keys():
         return {"errpr": "Could not save data as required keys are not present"}
-    print(f"Owner: {data['owner']}\nCode: {data['code']}")
-    a = requests.post(api + "/save", json = {"owner": data['owner'], "code": data['code'], "expid": session['expid']})
+    a = requests.post(api + "/save", json = {"username": data['username'], "token": data['token'], "code": data['code'], "expid": session['expid']})
     a = a.json()
     return {"error": "Done"}
 
 @app.route("/register", methods = ["GET", "POST"])
 async def register():
+    if session.get("token") != None:
+        return redirect("/redir")
+
     if request.method == "GET":
         return await render_template("register.html", username = session.get("username"))
     r = await request.form
-    print(r)
     if "email" not in r.keys() or r.get("email") in ["", " "]:
         return await render_template("register.html", username = session.get("username"), error = "Please enter your email")
     if "password" not in r.keys() or r.get("password") in ["", " "]:
@@ -171,7 +157,6 @@ async def login():
         return await render_template("login.html", username = session.get("username"))
 
     r = await request.form
-    print(r)
 
     if "username" not in r.keys() or r.get("username") in ["", " "]:
         return await render_template("login.html", username = session.get("username"), error = "Please enter your username")
@@ -193,7 +178,6 @@ async def handle_csrf_error(e):
 
 @app.errorhandler(404)
 async def handle_404_error(e):
-    print("404")
     return await render_template('404.html', username = session.get("username"))
 
 
@@ -205,16 +189,10 @@ async def index():
 async def experiments():
     ejson = requests.get(api + "/list_exp").json() # Get the eJSON (experiments JSON)
     elist = [] # ejson as list
-    done_expids = [] # Already done experiments
     i = 0
     while i < len(ejson.keys()):
-        if ejson[str(i)]["expid"] in done_expids:
-            i+=1
-            continue
-        elist.append([ejson[str(i)]["owner"], ejson[str(i)]["token"], ejson[str(i)]["expid"]])
-        done_expids.append(ejson[str(i)]["expid"])
+        elist.append([ejson[str(i)]["owner"], ejson[str(i)]["expid"]])
         i+=1
-    print(elist)
     return await render_template("explist.html", elist = elist, username = session.get("username"))
 
 @app.route("/experiment/<id>")
@@ -224,6 +202,6 @@ async def get_exp(id=None):
     ejson = requests.get(api + f"/get_exp?id={id}").json()
     if ejson.get("error"):
         return abort(404)
-    return await render_template("exprun.html", username = session.get("username"), code = ejson["code"])
+    return await render_template("exprun.html", username = session.get("username"), code = ejson["code"], expid = id)
 
 asyncio.run(serve(app, Config()))

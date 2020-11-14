@@ -6,9 +6,6 @@
 </head>
 
 <body class="GlowScriptBody">
-<!--<link type="text/css" href="js/jquery-ui.custom.css" rel="stylesheet" />
-<link type="text/css" href="js/ide.css" rel="stylesheet" />
--->
 <script type="text/javascript" src="js/jquery.min.js"></script>
 <script type="text/javascript" src="js/jquery-ui.custom.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" integrity="sha512-UxcTlYsLkcuGZL9JNnMsfo3p7VFSmcgBjH1VUSM82Okk5ni52bk7vz9f2p+D1VnMcNUmMzbzgWqWcdJ2j8Svow==" crossorigin="anonymous"></script>
@@ -23,7 +20,7 @@
 <script type="text/javascript" src="js/NimbusRomNo9L_Med_otf_serif.js"></script>
 </body>
 
-<button onclick="runCode()" class="btn btn-success">Run</button>
+<button onclick="runCode()" class="btn btn-success" style="margin: 2px;">Run Experiment</button>
 <button onclick="saveCode()" class="btn btn-primary">Save Experiment</button>
 <div class="form-group">
   <label for="editor">Write your simulation in python here!</label>
@@ -92,7 +89,7 @@ function localCompile(header, compReady, errordiv) {
 
 function saveCode() {
 	post_url = "http://" + window.location.hostname + ":8000/save";
-	post_data = {"owner": "Aryabhata", "code":  editor.getValue()};
+	post_data = {"username": "{{username}}", "token": "{{token}}", "code":  editor.getValue()};
 	$.post(post_url, post_data, function(data, status, jqXHR) {});
 	return
 }
@@ -230,7 +227,7 @@ function gsErrorHandler(err) {
 function readSingleFile(evt) { }
 </script>
 
-<div id="gserrors" style="font-family:sans-serif;font-size:13px;color:#c00">
+<div id="gserrors" style="font-family:sans-serif;font-size:13px;color:#c00;margin:2px">
 </div>
 
 <div class='api'>
