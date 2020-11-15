@@ -1,11 +1,12 @@
 import quart.flask_patch # Needed for Flask Extensions to work
-from quart import Quart, render_template, send_from_directory, send_file, request, session, redirect
+from quart import Quart, abort, render_template, send_from_directory, send_file, request, session, redirect
 from flask_wtf.csrf import CSRFProtect, CSRFError # CSRF Form Protection
 import asyncpg
 import asyncio
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
 import requests
+import time
 app = Quart(__name__, static_url_path="/static")
 app.config["SECRET_KEY"] = "qEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Dd"
 app.config['SESSION_COOKIE_SAMESITE'] = "Strict"
@@ -39,25 +40,61 @@ async def edit_txt():
     session['expid'] = get_token(101) 
     return await render_template("expedit.html", username = session.get('username'), token = session.get("token"))
 
-@app.route('/edit/text/ccpl')
-async def edit_ccpl():
-    if session.get("token") == None:
-        session['redirect'] = "/edit/text/ccpl"
+# Profile Operations
+@app.route("/me/make_public")
+async def profile_public_set():
+    if session.get("token") == None or session.get("username") == None:
+        session['redirect'] = "/me/make_public"
         return redirect("/login")
-    session['expid'] = get_token(101)
-    return await render_template("ccpl.html", username = session.get('username'), token = session.get("token"))
+    x = requests.post(api + "/visible", json = {"state": "public", "username": session.get("username"), "token": session.get("token")}).json()
+    return x
 
+@app.route("/me/make_private")
+async def profile_private_set():
+    if session.get("token") == None or session.get("username") == None:
+        session['redirect'] = "/me/make_private"
+        return redirect("/login")
+    x = requests.post(api + "/visible", json = {"state": "private", "username": session.get("username"), "token": session.get("token")}).json()
+    return x
+
+
+@app.route("/profile/<username>")
+async def profile(username = None):
+    if username == None:
+        return abort(404)
+    # TODO: Finish profile
+    if session.get("token") == None:
+        profile = requests.get(api + "/profile?username=" + username).json()
+    else:
+        profile = requests.get(api + "/profile?username=" + username + "&token=" + session.get("token")).json()
+    if profile.get("error") == "1002":
+        return await render_template("generic_error.html", username = session.get('username'), header = "Profile Error", error = "Profile is private")
+    elif profile.get("error") == "1001":
+        return await render_template("generic_error.html", username = session.get('username'), header = "Profile Error", error = "Profile does not exist")
+    p_username = username.capitalize()
+    return await render_template("profile.html", username = session.get('username'), token = session.get("token"), admin = profile['admin'], p_username = p_username, join_date = time.strftime("%dth %b %Y", time.localtime(profile['join'])))
+
+@app.route("/dashboard")
+async def dashref():
+    if "username" not in session:
+        return redirect("/login")
+    return redirect("/profile/" + session.get("username"))
+
+# Actual Code
 @app.route('/<folder1>/js/<path:fn>')
 @app.route('/<folder1>/<folder2>/js/<path:fn>')
 async def js_server(fn, folder1=None, folder2=None):
     if fn.__contains__(".."):
         return abort(403)
-    return await send_file('static/' + fn)
+    try:
+        return await send_file('static/' + fn)
+    except FileNotFoundError:
+        return abort(404)
 
 @app.route("/redir")
 async def redir():
     if session.get("redirect") == None:
-        return redirect("/")
+        return redirect("/dashboard")
     rdir = session.get("redirect")
     try:
         del session['redirect']
@@ -121,11 +158,11 @@ async def save_simu():
     print(data)
     if session.get("expid") == None:
         session['expid'] = get_token(101) 
-    if "username" not in data.keys() or "token" not in data.keys() or "code" not in data.keys() or "name" not in data.keys():
+    if "username" not in data.keys() or "token" not in data.keys() or "code" not in data.keys() or "name" not in data.keys() or "topic" not in data.keys():
         return {"errpr": "Could not save data as required keys are not present"}
-    a = requests.post(api + "/save", json = {"username": data['username'], "token": data['token'], "code": data['code'], "expid": session['expid'], "name": data["name"]})
+    a = requests.post(api + "/save", json = {"username": data['username'], "token": data['token'], "code": data['code'], "expid": session['expid'], "name": data["name"], "topic": data['topic']})
     a = a.json()
-    return {"error": "Done"}
+    return a
 
 @app.route("/register", methods = ["GET", "POST"])
 async def register():
@@ -155,6 +192,7 @@ async def register():
 @app.route('/logout', methods=['GET', 'POST'])
 async def logout():
     session.clear()
+    session['redirect'] = "/"
     return redirect("/redir")
 
 @app.route('/login', methods=["GET", "POST"])
@@ -175,6 +213,11 @@ async def login():
     rc = requests.post(api + "/auth/login", json = {"username": r['username'], "password": r['password']})
     rc = rc.json()
     if rc['error'] == '1000':
+        # Check if the user is an admin
+        if rc['admin'] == 1:
+            session['admin'] = 1
+        else:
+            session['admin'] = 0
         session['username'] = r['username']
         session['token'] = rc['token']
         return redirect("/redir")
@@ -196,21 +239,29 @@ async def index():
 
 @app.route('/experiments')
 async def experiments():
+    if "username" not in session:
+        session['redirect'] = "/experiments"
+        return redirect("/login")
     ejson = requests.get(api + "/list_exp").json() # Get the eJSON (experiments JSON)
     elist = [] # ejson as list
     i = 0
+    if ejson.get("error") != None:
+        return await render_template("explist.html", elist = [], username = session.get("username"))
     while i < len(ejson.keys()):
         elist.append([ejson[str(i)]["owner"], ejson[str(i)]["expid"], ejson[str(i)]["name"]])
         i+=1
     return await render_template("explist.html", elist = elist, username = session.get("username"))
 
 @app.route("/experiment/<id>")
-async def get_exp(id=None):
+async def get_experiment(id=None):
     if id == None:
         return abort(404)
+    if "username" not in session:
+        session['redirect'] = "/experiment/" + id
+        return redirect("/login")
     ejson = requests.get(api + f"/get_exp?id={id}").json()
     if ejson.get("error"):
         return abort(404)
-    return await render_template("exprun.html", username = session.get("username"), code = ejson["code"], expid = id)
+    return await render_template("exprun.html", username = session.get("username"), name = ejson["name"], code = ejson["code"], expid = id)
 
 asyncio.run(serve(app, Config()))

@@ -137,23 +137,21 @@ li {
 </style>
 <nav class="navbar navbar-light bg-light">
   {%if username%}
-  <a class="navbar-brand" href="/">
+  <a class="navbar-brand" href="/dashboard">
     {{ username }}
   </a>
   <li class="nav-item">
-    <a class="nav-link a" href="/admin">Admin Console</a>
     <a class="nav-link a" href="/logout">Logout</a>
     <a class="nav-link a" href="https://paypal.me/pools/c/8tgL4WtfY1">Donate</a>
     <a class="nav-link a" href="/experiments">Experiments</a>
   </li>
   {%else%}
-    <a class="navbar-brand" href="/">
+    <a class="navbar-brand" href="/login">
       Not Logged In
     </a>
   <li class="nav-item">
 	  <a class="nav-link a" href="/login" style="text-align: right; float:right;">Login</a>
     	  <a class="nav-link a" href="https://paypal.me/pools/c/8tgL4WtfY1" style="text-align: right; float:right;">Donate</a>
-    	  <a class="nav-link a" href="/experiments" style="text-align: right; float:right;">Experiments</a>
   </li>
   {%endif%}
 </nav>

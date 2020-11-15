@@ -1,0 +1,31 @@
+{% extends 'template.html' %}
+{% block header %}
+<title>CCTP Index</title>
+<meta name="description" content="Aryabhata Inc - CatPhi Dashboard">
+<style>
+	.dash-important {
+		text-align: center;
+		border-style: solid;
+		background-color: blue;
+		color: white;
+		border-radius: 15px;
+		padding: 4px;
+	}
+	.flex-container {
+  		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+</style>
+{% endblock %} 
+{% block content %}
+  <h1 style="text-align: center;"><strong> {{p_username}}'s Profile</strong></h1>
+  {% if admin == 1 %}
+  <div class="flex-container">
+  	<h3 class="dash-important">Admin<h3>
+  </div>
+  {%endif%}
+  <h2 style="text-align: center;"><strong> Badges </strong></h2>
+  	<h3 style="text-align: center;">Not Yet Done (WIP)</h3><br/><br/><br/>
+	<h4 style="text-align: center;"> This user has been on CatPhi since {{join_date}}</h4>
+{% endblock %}
