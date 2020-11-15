@@ -24,7 +24,7 @@ async def setup_db():
         password="Waterbot123",
         database="CatPhi") #Login stuff
     await db.execute("CREATE TABLE IF NOT EXISTS experiment_table (token TEXT, subject TEXT, topic TEXT, owner TEXT, code TEXT, expid TEXT, name TEXT)") # Represents a simulation on the database
-    await db.execute("CREATE INDEX IF NOT EXISTS experiment_index ON experiment_table (token, owner, code, expid)") # Create an index for the experiments
+    await db.execute("CREATE INDEX IF NOT EXISTS experiment_index ON experiment_table (token, owner, code, expid, subject, topic)") # Create an index for the experiments
     await db.execute("CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT)") # Represents a single login in the database
     await db.execute("CREATE INDEX IF NOT EXISTS login_index ON login (token, username, password, email)") # Create an index for login
     await db.execute("CREATE TABLE IF NOT EXISTS profile (username TEXT, join_epoch BIGINT, public BOOLEAN, exp_points BIGINT)") # A profile of a user
