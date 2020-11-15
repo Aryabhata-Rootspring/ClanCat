@@ -20,25 +20,37 @@ def get_token(length):
     secure_str = ''.join((secrets.choice(string.ascii_letters) for i in range(length)))
     return secure_str
 
-# Only for testing
-@app.route("/admin")
-async def admin():
-    if session.get("token") == None:
-        session['redirect'] = "/admin"
-        return redirect("/login")
-    return await render_template("admin_console.html", username = session.get("username"))
-
 @app.route("/favicon.ico")
 async def favicon():
     return await send_file('static/favicon.ico')
 
-@app.route('/edit/text')
-async def edit_txt():
+@app.route('/concept/<cid>/edit/simulation')
+async def concept_edit_simulation(cid = None):
+    if cid == None:
+        return abort(404)
     if session.get("token") == None:
-        session['redirect'] = "/edit/text"
+        session['redirect'] = "/concept/" + cid + "/edit/simulation"
         return redirect("/login")
-    session['expid'] = get_token(101) 
-    return await render_template("expedit.html", username = session.get('username'), token = session.get("token"))
+    if session.get("admin") in [0, None, "0"]:
+        return abort(401)
+    session['expid'] = cid
+    return await render_template("concept_simulation_editor.html", cid = cid, username = session.get('username'), token = session.get("token"))
+
+@app.route("/topics/new", methods=['GET', 'POST'])
+async def new_topic():
+    if request.method == "GET":
+        if session.get("token") == None:
+            session['redirect'] = "/topics/new"
+            return redirect("/login")
+        if session.get("admin") in [0, None, "0"]:
+            return abort(401)
+        return await render_template("topic_new.html", username = session.get('username'), token = session.get("token"))
+    form = await request.form
+    print(form)
+    if "topic" not in form.keys():
+        return await render_template("topic_new.html", username = session.get('username'), token = session.get("token"), error = "Invalid Topic Name")
+    x = requests.post(api + "/topics/new", json = {"username": session.get("username"), "token": session.get("token"), "topic": form['topic']}).json()
+    return x
 
 # Profile Operations
 @app.route("/me/make_public")
@@ -83,9 +95,17 @@ async def dashref():
 # Actual Code
 @app.route('/<folder1>/js/<path:fn>')
 @app.route('/<folder1>/<folder2>/js/<path:fn>')
-async def js_server(fn, folder1=None, folder2=None):
+@app.route('/<folder1>/<folder2>/<folder3>/js/<path:fn>')
+@app.route('/<folder1>/<folder2>/<folder3>/<folder4>/js/<path:fn>')
+async def js_server(fn, folder1=None, folder2=None, folder3=None, folder4=None):
+    if fn == "glow.js":
+        return redirect("/cdn/js/glow.3.0.min.js")
+    print(fn)
     if fn.__contains__(".."):
         return abort(403)
+    elif fn == "jquery.min.js":
+        print("Got jquery request")
+        return redirect("https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js")
     try:
         return await send_file('static/' + fn)
     except FileNotFoundError:
@@ -144,6 +164,8 @@ async def reset_pwd():
         return await render_template("/reset.html", username = session.get("username"), error = "The passwords do not match")
     if session.get("reset-token") == None:
         return await render_template("/reset_fail.html", username = session.get("username")), 403
+    if len(pwd) < 9:
+        return await render_template("register.html", username = session.get("username"), error = "Your password must be at least 9 characters long")
     x = requests.post(api + "/auth/reset/change", json = {"token": session["reset-token"], "password": pwd}).json()
     if x['error'] == "1000":
         msg = "Your password has been reset successfully."
@@ -151,16 +173,17 @@ async def reset_pwd():
         msg = "Something has went wrong while we were trying to reset your password. Please try again later."
     return await render_template("/reset_confirm.html", username = session.get("username"), msg = msg)
 
-@app.route('/save', methods=["POST"])
-@csrf.exempt # This must be exempt in order for saving to work
-async def save_simu():
+@app.route('/save/<cid>', methods=["POST"])
+async def save_simu(cid = None):
+    if cid == None:
+        return {"error": "Invalid Concept Specified"}
     data = await request.form
     print(data)
     if session.get("expid") == None:
         session['expid'] = get_token(101) 
-    if "username" not in data.keys() or "token" not in data.keys() or "code" not in data.keys() or "name" not in data.keys() or "topic" not in data.keys():
+    if "username" not in data.keys() or "token" not in data.keys() or "code" not in data.keys():
         return {"errpr": "Could not save data as required keys are not present"}
-    a = requests.post(api + "/save", json = {"username": data['username'], "token": data['token'], "code": data['code'], "expid": session['expid'], "name": data["name"], "topic": data['topic']})
+    a = requests.post(api + "/save", json = {"username": data['username'], "token": data['token'], "code": data['code'], "expid": cid})
     a = a.json()
     return a
 
@@ -180,6 +203,8 @@ async def register():
         return await render_template("register.html", username = session.get("username"), error = "Please enter a proper username")
     if r.get("password") != r.get("cpassword"):
         return await render_template("register.html", username = session.get("username"), error = "Your retyped password does not match")
+    if len(r.get("password")) < 9:
+        return await render_template("register.html", username = session.get("username"), error = "Your password must be at least 9 characters long")
     rc = requests.post(api + "/auth/register", json = {"email": r['email'], "username": r['username'], "password": r['password']})
     rc = rc.json()
     if rc['error'] == '1000':
@@ -237,31 +262,52 @@ async def handle_404_error(e):
 async def index():
     return await render_template("index.html", username = session.get("username"))
 
-@app.route('/experiments')
-async def experiments():
+@app.route('/topic/<topic>')
+async def topic(topic):
     if "username" not in session:
-        session['redirect'] = "/experiments"
+        session['redirect'] = "/topic/" + topic
         return redirect("/login")
-    ejson = requests.get(api + "/list_exp").json() # Get the eJSON (experiments JSON)
+    ejson = requests.get(api + "/list_concepts?topic=" + topic).json() # Get the e/cJSON (exp/concepts JSON)
+    ejson = ejson[topic] # Get the proper json
     elist = [] # ejson as list
     i = 0
     if ejson.get("error") != None:
-        return await render_template("explist.html", elist = [], username = session.get("username"))
+        return await render_template("concept_list.html", topic = topic, elist = [], username = session.get("username"))
     while i < len(ejson.keys()):
-        elist.append([ejson[str(i)]["owner"], ejson[str(i)]["expid"], ejson[str(i)]["name"]])
+        if ejson[str(i)]["cid"] == "default":
+            i+=1
+            continue
+        elist.append([ejson[str(i)]["cid"], ejson[str(i)]["name"]])
         i+=1
-    return await render_template("explist.html", elist = elist, username = session.get("username"))
+    return await render_template("concept_list.html", topic = topic, elist = elist, username = session.get("username"), admin = session.get("admin"))
 
-@app.route("/experiment/<id>")
+@app.route("/topics/")
+@app.route("/topics")
+async def topics():
+    if "username" not in session:
+        session['redirect'] = "/topics"
+        return redirect("/login")
+    ejson = requests.get(api + "/list_topics").json() # Get the list of topics in JSON
+    elist = [] # ejson as list
+    i = 0
+    if ejson.get("error") != None:
+        return await render_template("topic_list.html", elist = [], username = session.get("username"))
+    for topic in ejson.values():
+        elist.append(topic)
+        i+=1
+    del elist[-1] # Remove last element
+    return await render_template("topic_list.html", elist = elist, username = session.get("username"), admin = session.get("admin"))
+
+@app.route("/concept/<id>")
 async def get_experiment(id=None):
     if id == None:
         return abort(404)
     if "username" not in session:
-        session['redirect'] = "/experiment/" + id
+        session['redirect'] = "/concept/" + id
         return redirect("/login")
-    ejson = requests.get(api + f"/get_exp?id={id}").json()
+    ejson = requests.get(api + f"/get_concept_exp?id={id}").json() # Get the experiment pertaining to the concept
     if ejson.get("error"):
         return abort(404)
-    return await render_template("exprun.html", username = session.get("username"), name = ejson["name"], code = ejson["code"], expid = id)
+    return await render_template("concept_simulation.html", username = session.get("username"), name = ejson["name"], code = ejson["code"], expid = id, admin = session.get("admin"))
 
 asyncio.run(serve(app, Config()))

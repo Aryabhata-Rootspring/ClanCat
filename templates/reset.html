@@ -14,11 +14,11 @@
 	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 	<div class="form-group">
     		<label for="password">New Password</label>
-    		<input type="password" name='password' class="form-control" id="password" placeholder="Password" required>
-  	</div>
+    		<input type="password" name='password' class="form-control" id="password" placeholder="Password" minlength=9 required>
+	</div>
   	<div class="form-group">
     		<label for="cpassword">Confirm Password</label>
-    		<input type="password" name='cpassword' class="form-control" id="cpassword" placeholder="Confirm Password" required>
+    		<input type="password" name='cpassword' class="form-control" id="cpassword" placeholder="Confirm Password" minlength=9 required>
   	</div>
   	<button type="submit" class="btn btn-primary">Reset Password</button>
 	</form>	

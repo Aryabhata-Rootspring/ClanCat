@@ -1,21 +1,26 @@
 {% extends 'template.html' %}
 
 {% block header %}
-<meta name="description" content="CCTP - Experiments">
-<title>Experiments - CCTP</title>
+<meta name="description" content="CCTP - Topics">
+<title>Topics - CCTP</title>
 {% endblock %}
 {% block content %}
-  <h1 style="text-align: center;"><strong> CCTP Experiments </strong></h1>
+  <h1 style="text-align: center;"><strong> CatPhi Topics </strong></h1>
   <br/><br/><br/>
+  {% if admin %}
+  	<div style="text-align: center;">
+  		<a href="/topics/new"><button class="btn btn-primary">New Topic</button></a>
+  	</div>
+  {%endif%}
   <div class="cctp-exp-index">
   <div class="row top-buffer align-item-center" style="text-align: center;">
   {%for exp in elist%}
     <div class="col-sm-6">
       <div class="card" style="width: 18rem; display: inline-block">
-	      <br/><h5 class="card-title">{{exp[2]}}</h5>
-              <a href="/experiment/{{exp[1]}}" class="stretched-link stub"></a>
+	      <br/><h5 class="card-title">{{exp}}</h5>
+              <a href="/topic/{{exp}}" class="stretched-link stub"></a>
         <div class="card-body">
-          <a href="#" class="card-link">View Experiment</a>
+          <a href="#" class="card-link">View</a>
         </div>
       </div>
     </div>
