@@ -24,6 +24,21 @@ def get_token(length):
 async def favicon():
     return await send_file('static/favicon.ico')
 
+@app.route('/concept/<cid>/edit')
+async def concept_edit_menu(cid = None):
+    if cid == None:
+        return abort(404)
+    elif session.get("token") == None:
+        session['redirect'] = "/concept/" + cid + "/edit/simulation"
+        return redirect("/login")
+    elif session.get("admin") in [0, None, "0"]:
+        return abort(401)
+    ejson = requests.get(api + f"/get_concept_exp?id={cid}").json() # Get the experiment pertaining to the concept
+    print(ejson)
+    if ejson.get("error"):
+        return abort(404)
+    return await render_template("concept_edit_menu.html", cid = cid, username = session.get('username'), token = session.get("token"))
+
 @app.route('/concept/<cid>/edit/simulation')
 async def concept_edit_simulation(cid = None):
     if cid == None:
@@ -53,6 +68,28 @@ async def new_topic():
     if "topic" not in form.keys():
         return await render_template("topic_new.html", username = session.get('username'), token = session.get("token"), error = "Invalid Topic Name")
     x = requests.post(api + "/topics/new", json = {"username": session.get("username"), "token": session.get("token"), "topic": form['topic']}).json()
+    if x.get("error") == "1000":
+        return redirect(f"/topic/{form['topic']}")
+    return x
+
+@app.route("/topic/<topic>/concepts/new", methods=['GET', 'POST'])
+async def new_concept(topic = None):
+    if topic == None:
+        return abort(404)
+    if request.method == "GET":
+        if session.get("token") == None:
+            session['redirect'] = "/topics/new"
+            return redirect("/login")
+        if session.get("admin") in [0, None, "0"]:
+            return abort(401)
+        return await render_template("concept_new.html", username = session.get('username'), token = session.get("token"))
+    form = await request.form
+    print(form)
+    if "concept" not in form.keys():
+        return await render_template("concept_new.html", username = session.get('username'), token = session.get("token"), error = "Invalid Concept Name")
+    x = requests.post(api + "/concepts/new", json = {"username": session.get("username"), "token": session.get("token"), "topic": topic, "concept": form['concept']}).json()
+    if x.get("error") == "1000":
+        return redirect(f"/concept/{x['cid']}")
     return x
 
 # Profile Operations

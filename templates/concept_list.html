@@ -7,6 +7,11 @@
 {% block content %}
 <h1 style="text-align: center;"><strong>Concepts In {{topic}}</strong></h1>
   <br/><br/><br/>
+  {% if admin %}
+        <div style="text-align: center;">
+		<a href="/topic/{{topic}}/concepts/new"><button class="btn btn-primary">New Concept</button></a>
+        </div>
+  {% endif %}
   <div class="cctp-exp-index">
   <div class="row top-buffer align-item-center" style="text-align: center;">
   {%for exp in elist%}

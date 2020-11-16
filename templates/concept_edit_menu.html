@@ -1,0 +1,13 @@
+{% extends 'template.html' %}
+
+{% block header %}
+<meta name="description" content="CatPhi Concept Editor">
+<title>Concept Editor - CatPhi</title>
+{% endblock %}
+{% block content %}
+  <h1 style="text-align: center;"><strong> CatPhi Concept Editor </strong></h1>
+  <br/><br/><br/>
+  <div style="text-align: center;">
+	<a href="/concept/{{cid}}/edit/simulation"><button class="btn btn-primary">Edit Simulation</button></a>
+  </div>
+{% endblock %}

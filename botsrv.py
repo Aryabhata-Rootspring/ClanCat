@@ -8,7 +8,8 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import time
-surl = "http://127.0.0.1:8000" # Main Server URL
+
+surl = "https://127.0.0.1:443" # Main Server URL
 salt = "66801b86-06ff-49c7-a163-eeda39b8cba9_66bc6c6c-24e3-11eb-adc1-0242ac120002_66bc6c6c-24e3-11eb-adc1-0242ac120002"
 
 
@@ -89,6 +90,17 @@ async def new_concept(request):
     if data['token'] not in adminDict.values():
         print("Invalid save request: Unauthorized")
         return web.json_response({"error": "Not Authorized"}) # Not Authorized
+
+    # Firstly, make sure the topic actually exists
+    tcheck = await db.fetch("SELECT subject FROM experiment_table WHERE topic = $1", data['topic'])
+    if len(tcheck) == 0:
+        return web.json_response({"error": "Topic Does Not Exist"})
+
+    ccheck = await db.fetch("SELECT subject FROM experiment_table WHERE topic = $1 AND name = $2", data['topic'], data['concept'])
+    if len(ccheck) != 0:
+        return web.json_response({"error": "Topic/Concept Combination Already Exists"}) 
+
+
     flag = True
     while(flag):
         cid = get_token(101)
@@ -96,8 +108,9 @@ async def new_concept(request):
         if len(a) == 0:
             flag = False
         continue
-    a = await db.execute("INSERT INTO experiment_table (subject, topic, cid, name) VALUES ($1, $2, $3, $4)", "Physics", data['topic'], cid, data['concept'])
-    return web.json_response({"error": "1000"})
+
+    a = await db.execute("INSERT INTO experiment_table (subject, topic, cid, name, code) VALUES ($1, $2, $3, $4, $5)", "Physics", data['topic'], cid, data['concept'], 'alert("This concept is not yet setup yet");')
+    return web.json_response({"error": "1000", "cid": cid})
 
 
 @routes.post("/topics/new")
@@ -111,15 +124,16 @@ async def new_topic(request):
     username = data['username'] # For every password and email, encode it to bytes and SHA512 to get hash 
     a = await db.fetch("SELECT username FROM login WHERE token = $1", data["token"]) # Check if the username is even registered with us and if the username given in data.keys() is correct
     if len(a) == 0:
-        print("Invalid save request: User does not exist")
         return web.json_response({"error": "Not Authorized"}) # Not Authorized
     elif a[0]["username"] != username:
-        print("Invalid save request: User is invalid")
         return web.json_response({"error": "Not Authorized"}) # Not Authorized
     elif data['token'] not in adminDict.values():
-        print("Invalid save request: Unauthorized")
         return web.json_response({"error": "Not Authorized"}) # Not Authorized
-    a = await db.execute("INSERT INTO experiment_table (subject, topic, cid, name) VALUES ($1, $2, $3, $4)", "Physics", data['topic'], "default", "default")
+    # Make sure it doesn't already exist
+    tcheck = await db.fetch("SELECT subject FROM experiment_table WHERE topic = $1", data['topic'])
+    if len(tcheck) != 0:
+        return web.json_response({"error": "Topic Already Exists"})
+    await db.execute("INSERT INTO experiment_table (subject, topic, cid, name) VALUES ($1, $2, $3, $4)", "Physics", data['topic'], "default", "default")
     return web.json_response({"error": "1000"})
 
 @routes.post("/auth/register")
