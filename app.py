@@ -92,6 +92,10 @@ async def dashref():
         return redirect("/login")
     return redirect("/profile/" + session.get("username"))
 
+@app.route("/nojs")
+async def nojs():
+    return 'CatPhi unfortunately needs JavaScript to work. Please follow <a href="https://support.google.com/adsense/answer/12654?hl=en">this guide</a> for more information'
+
 # Actual Code
 @app.route('/<folder1>/js/<path:fn>')
 @app.route('/<folder1>/<folder2>/js/<path:fn>')
