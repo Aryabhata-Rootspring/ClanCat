@@ -1,0 +1,2 @@
+hypercorn --certfile cert.pem --keyfile key.pem --bind localhost:443 app:app
+

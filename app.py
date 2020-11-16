@@ -1,12 +1,12 @@
+# USE "daphne app:app" TO RUN THE APP
+
 import quart.flask_patch # Needed for Flask Extensions to work
-from quart import Quart, abort, render_template, send_from_directory, send_file, request, session, redirect
+from quart import Quart, abort, render_template, send_from_directory, send_file, request, session, redirect, make_push_promise, url_for
 from flask_wtf.csrf import CSRFProtect, CSRFError # CSRF Form Protection
-import asyncpg
 import asyncio
-from hypercorn.config import Config
-from hypercorn.asyncio import serve
 import requests
 import time
+import re
 app = Quart(__name__, static_url_path="/static")
 app.config["SECRET_KEY"] = "qEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Dd"
 app.config['SESSION_COOKIE_SAMESITE'] = "Strict"
@@ -28,13 +28,16 @@ async def favicon():
 async def concept_edit_simulation(cid = None):
     if cid == None:
         return abort(404)
-    if session.get("token") == None:
+    elif session.get("token") == None:
         session['redirect'] = "/concept/" + cid + "/edit/simulation"
         return redirect("/login")
-    if session.get("admin") in [0, None, "0"]:
+    elif session.get("admin") in [0, None, "0"]:
         return abort(401)
-    session['expid'] = cid
-    return await render_template("concept_simulation_editor.html", cid = cid, username = session.get('username'), token = session.get("token"))
+    ejson = requests.get(api + f"/get_concept_exp?id={cid}").json() # Get the experiment pertaining to the concept
+    print(ejson)
+    if ejson.get("error"):
+        return abort(404)
+    return await render_template("concept_simulation_editor.html", cid = cid, username = session.get('username'), token = session.get("token"), code = ejson['code'])
 
 @app.route("/topics/new", methods=['GET', 'POST'])
 async def new_topic():
@@ -96,24 +99,32 @@ async def dashref():
 async def nojs():
     return 'CatPhi unfortunately needs JavaScript to work. Please follow <a href="https://support.google.com/adsense/answer/12654?hl=en">this guide</a> for more information'
 
+cache_time = 60*5
+
 # Actual Code
+@app.route('/js/<path:fn>')
 @app.route('/<folder1>/js/<path:fn>')
 @app.route('/<folder1>/<folder2>/js/<path:fn>')
 @app.route('/<folder1>/<folder2>/<folder3>/js/<path:fn>')
 @app.route('/<folder1>/<folder2>/<folder3>/<folder4>/js/<path:fn>')
 async def js_server(fn, folder1=None, folder2=None, folder3=None, folder4=None):
+    if session.get("newuser") == None or time.time() - session.get("newuser") > 10:
+        print("Doing server push")
+        await make_push_promise(url_for('static', filename='RSrun.3.0.min.js'))
+        await make_push_promise(url_for('static', filename='RScompiler.3.0.min.js'))
+        await make_push_promise(url_for('static', filename='glow.3.0.min.js'))
+    session['newuser'] = time.time() # We have now served this user
     if fn == "glow.js":
-        return redirect("/cdn/js/glow.3.0.min.js")
-    print(fn)
-    if fn.__contains__(".."):
-        return abort(403)
+        return redirect("/js/glow.3.0.min.js") # Go to minified for this particular file
+    if re.match(r'^\w+$', fn) == False:
+        return abort(403) # Using .. or <> in this route
     elif fn == "jquery.min.js":
         print("Got jquery request")
         return redirect("https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js")
     try:
-        return await send_file('static/' + fn)
+        return await send_from_directory('static', fn, cache_timeout = 300)
     except FileNotFoundError:
-        return abort(404)
+        return abort(304) # Try to fail gracefully in case they already have the file in cache
 
 @app.route("/redir")
 async def redir():
@@ -183,11 +194,9 @@ async def save_simu(cid = None):
         return {"error": "Invalid Concept Specified"}
     data = await request.form
     print(data)
-    if session.get("expid") == None:
-        session['expid'] = get_token(101) 
     if "username" not in data.keys() or "token" not in data.keys() or "code" not in data.keys():
         return {"errpr": "Could not save data as required keys are not present"}
-    a = requests.post(api + "/save", json = {"username": data['username'], "token": data['token'], "code": data['code'], "expid": cid})
+    a = requests.post(api + "/save", json = {"username": data['username'], "token": data['token'], "code": data['code'], "cid": cid})
     a = a.json()
     return a
 
@@ -312,6 +321,8 @@ async def get_experiment(id=None):
     ejson = requests.get(api + f"/get_concept_exp?id={id}").json() # Get the experiment pertaining to the concept
     if ejson.get("error"):
         return abort(404)
-    return await render_template("concept_simulation.html", username = session.get("username"), name = ejson["name"], code = ejson["code"], expid = id, admin = session.get("admin"))
+    await make_push_promise(url_for('static', filename='RSrun.3.0.min.js'))
+    await make_push_promise(url_for('static', filename='glow.3.0.min.js'))
+    return await render_template("concept_simulation.html", username = session.get("username"), name = ejson["name"], code = ejson["code"], cid = id, admin = session.get("admin"))
 
-asyncio.run(serve(app, Config()))
+#asyncio.run(serve(app, config))

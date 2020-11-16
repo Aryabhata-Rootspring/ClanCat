@@ -25,8 +25,8 @@ async def setup_db():
         database="CatPhi") #Login stuff
 
     # The EXPID is the concept's ID as well
-    await db.execute("CREATE TABLE IF NOT EXISTS experiment_table (token TEXT, subject TEXT, topic TEXT, owner TEXT, code TEXT, expid TEXT, name TEXT)") # Represents a simulation on the database
-    await db.execute("CREATE INDEX IF NOT EXISTS experiment_index ON experiment_table (token, owner, code, expid, subject, topic)") # Create an index for the experiments
+    await db.execute("CREATE TABLE IF NOT EXISTS experiment_table (subject TEXT, topic TEXT, owner TEXT, code TEXT, cid TEXT, name TEXT)") # Represents a simulation on the database.
+    await db.execute("CREATE INDEX IF NOT EXISTS experiment_index ON experiment_table (owner, code, cid, subject, topic)") # Create an index for the experiments
     await db.execute("CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT)") # Represents a single login in the database
     await db.execute("CREATE INDEX IF NOT EXISTS login_index ON login (token, username, password, email)") # Create an index for login
     await db.execute("CREATE TABLE IF NOT EXISTS profile (username TEXT, join_epoch BIGINT, public BOOLEAN, exp_points BIGINT)") # A profile of a user
@@ -52,7 +52,7 @@ adminDict = {
 async def save_file(request):
     data = await request.json()
     print(data)
-    if "username" not in data.keys() or "token" not in data.keys() or "code" not in data.keys() or "expid" not in data.keys():
+    if "username" not in data.keys() or "token" not in data.keys() or "code" not in data.keys() or "cid" not in data.keys():
         return web.json_response({"error": "0001"}) # Invalid Arguments
     print("Got valid post request for saving\nGetting token...")
     username = data['username'] # For every password and email, encode it to bytes and SHA512 to get hash 
@@ -67,16 +67,17 @@ async def save_file(request):
         print("Invalid save request: Unauthorized")
         return web.json_response({"error": "Not Authorized"}) # Not Authorized
     print("Saving data")
-    a = await db.execute("UPDATE experiment_table SET code = $1 WHERE expid = $2", data['code'], data['expid'])
+    a = await db.execute("UPDATE experiment_table SET code = $1 WHERE cid = $2", data['code'], data['cid'])
     return web.json_response({"error": "Successfully saved experiment"})
 
-@routes.post("/topics/new")
-async def new_topic(request):
+@routes.post("/concepts/new")
+@routes.post("/concepts/add")
+async def new_concept(request):
     data = await request.json()
     print(data)
-    if "username" not in data.keys() or "token" not in data.keys() or "topic" not in data.keys():
+    if "username" not in data.keys() or "token" not in data.keys() or "topic" not in data.keys() or "concept" not in data.keys():
         return web.json_response({"error": "0001"}) # Invalid Arguments
-    print("Got valid post request for saving\nGetting token...")
+    print("Got valid post request for adding a new topic\nGetting token...")
     username = data['username'] # For every password and email, encode it to bytes and SHA512 to get hash 
     a = await db.fetch("SELECT username FROM login WHERE token = $1", data["token"]) # Check if the username is even registered with us and if the username given in data.keys() is correct
     if len(a) == 0:
@@ -88,7 +89,37 @@ async def new_topic(request):
     if data['token'] not in adminDict.values():
         print("Invalid save request: Unauthorized")
         return web.json_response({"error": "Not Authorized"}) # Not Authorized
-    a = await db.execute("INSERT INTO experiment_table (token, subject, topic, expid, name) VALUES ($1, $2, $3, $4, $5)", "default", "Physics", data['topic'], "default", "default")
+    flag = True
+    while(flag):
+        cid = get_token(101)
+        a = await db.fetch("SELECT subject FROM experiment_table WHERE cid = $1", cid)
+        if len(a) == 0:
+            flag = False
+        continue
+    a = await db.execute("INSERT INTO experiment_table (subject, topic, cid, name) VALUES ($1, $2, $3, $4)", "Physics", data['topic'], cid, data['concept'])
+    return web.json_response({"error": "1000"})
+
+
+@routes.post("/topics/new")
+@routes.post("/topics/add")
+async def new_topic(request):
+    data = await request.json()
+    print(data)
+    if "username" not in data.keys() or "token" not in data.keys() or "topic" not in data.keys():
+        return web.json_response({"error": "0001"}) # Invalid Arguments
+    print("Got valid post request for adding a new topic\nGetting token...")
+    username = data['username'] # For every password and email, encode it to bytes and SHA512 to get hash 
+    a = await db.fetch("SELECT username FROM login WHERE token = $1", data["token"]) # Check if the username is even registered with us and if the username given in data.keys() is correct
+    if len(a) == 0:
+        print("Invalid save request: User does not exist")
+        return web.json_response({"error": "Not Authorized"}) # Not Authorized
+    elif a[0]["username"] != username:
+        print("Invalid save request: User is invalid")
+        return web.json_response({"error": "Not Authorized"}) # Not Authorized
+    elif data['token'] not in adminDict.values():
+        print("Invalid save request: Unauthorized")
+        return web.json_response({"error": "Not Authorized"}) # Not Authorized
+    a = await db.execute("INSERT INTO experiment_table (subject, topic, cid, name) VALUES ($1, $2, $3, $4)", "Physics", data['topic'], "default", "default")
     return web.json_response({"error": "1000"})
 
 @routes.post("/auth/register")
@@ -132,14 +163,13 @@ async def list_topics(request):
 
 # Route that will get all experiment/concept IDs
 @routes.get("/list_concepts")
-@routes.get("/list_exp")
-async def list_exp(request):
+async def list_concepts(request):
     data = request.rel_url.query
     if data.get("topic") != None:
         # We want to get all experiments/concepts with a specific topic
-        experiments = await db.fetch("SELECT DISTINCT expid, name, owner, topic FROM experiment_table WHERE topic = $1 ORDER BY name DESC", data['topic'])
+        experiments = await db.fetch("SELECT DISTINCT cid, name, topic FROM experiment_table WHERE topic = $1 ORDER BY name DESC", data['topic'])
     else:
-        return web.json_response({"error": "0002"}) # 0002 = No Experiments Found. You must provide a topic in order to use this
+        return web.json_response({"error": "0003"}) # 0003 = No Experiments Found. You must provide a topic in order to use this
     if len(experiments) == 0:
         return web.json_response({"error": "0002"}) # 0002 = No Experiments Found
     ejson = {}
@@ -148,22 +178,23 @@ async def list_exp(request):
         # Add the experiment to the eJSON (experiment JSON)
         if ejson.get(exp['topic']) == None:
             ejson[exp["topic"]] = {} # Initial value
-            ejson[exp["topic"]]['0'] = { "cid": exp["expid"], "name": exp['name']}
+            ejson[exp["topic"]]['0'] = {"cid": exp["cid"], "name": exp['name']}
             counters[exp['topic']] = 1
         else:
-            ejson[exp["topic"]][str(counters[exp['topic']])] = {"owner": exp["owner"], "cid": exp["expid"], "name": exp['name']}
+            ejson[exp["topic"]][str(counters[exp['topic']])] = {"cid": exp["cid"], "name": exp['name']}
             counters[exp['topic']] += 1
     return web.json_response(ejson)
 
 @routes.get("/get_concept_exp")
-async def get_exp(request):
-    expid = request.rel_url.query.get("id")
-    if expid == None:
+async def get_concept_exp(request):
+    cid = request.rel_url.query.get("id")
+    if cid == None:
+        print("No experiment found")
         return web.json_response({"error": "0002"}) # 0002 = No Experiments Found
-    experiments = await db.fetch("SELECT name, code FROM experiment_table WHERE expid = $1", expid)
+    experiments = await db.fetch("SELECT name, code FROM experiment_table WHERE cid = $1", cid)
     if len(experiments) == 0:
         return web.json_response({"error": "0002"}) # 0002 = No Experiments Found
-    experiments = {"name": experiments[0]["name"], "code": experiments[0]["code"], "versions": len(experiments)}
+    experiments = {"name": experiments[0]["name"], "code": experiments[0]["code"]}
     return web.json_response(experiments)
 
 # Change the actual password (stage3 auth)
@@ -238,7 +269,7 @@ async def get_profile(request):
         token = request.rel_url.query.get("token")
         if token == None:
             return web.json_response({"error": "1002"}) # Private
-        if usertok[0]['token'] == token:
+        elif usertok[0]['token'] == token:
             pass
         else:
             return web.json_response({"error": "1002"}) # Private
@@ -306,14 +337,10 @@ async def login(request):
     data = await request.json()
     if "username" not in data.keys() or "password" not in data.keys():
         return web.json_response({"error": "0001"})
-    print("Got valid login request.\nGetting SHA512 of username and password")
     username = data['username']
     password = sha512(("Shadowsight1" + salt + username + data['password']).encode()).hexdigest()
-    print(username, password)
-    print("Authorizing User...")
     a = await db.fetch("SELECT token from login WHERE username = $1 and password = $2", username, password)
     if len(a) == 0:
-        print("Authorization Failed: Invalid Username Or Password")
         return web.json_response({"error": "1001"}) # Invalid Username Or Password
     if a[0]['token'] in adminDict.values():
         is_admin = 1
@@ -321,5 +348,4 @@ async def login(request):
         is_admin = 0
     return web.json_response({"error": "1000", "token": a[0]["token"], "admin": is_admin})
 app.add_routes(routes)
-print("Loading")
 asyncio.ensure_future(web.run_app(app, port=3000)) # Run the on-bot web server
