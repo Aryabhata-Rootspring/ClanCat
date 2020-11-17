@@ -1,0 +1,22 @@
+{% extends 'template.html' %}
+{% block header %}
+<title>CatPhi Admin Interface</title>
+<meta name="description" content="Aryabhata Inc - CatPhi Login">
+{% endblock %}
+{% block content %}
+  <h1 style="text-align: center;"><strong>  CatPhi Admin Interface </strong></h1>
+  {% if error %}
+  	<p style="text-align: center; color: red;"><strong>{{error}}</strong></p>
+  {%endif%}
+  <br/>
+  <div style="text-align: center;">
+	<form method='post'>
+	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+	<div class="form-group">
+    		<label for="concept">Page Title</label>
+    		<input type="text" name='title' class="form-control" id='concept' aria-describedby="userHelp" placeholder='title'>
+  	</div>
+  	<button type="submit" class="btn btn-primary">Create New Page</button>
+	</form>	
+  </div>
+{% endblock %}

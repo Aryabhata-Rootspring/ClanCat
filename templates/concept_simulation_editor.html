@@ -93,7 +93,7 @@ function localCompile(header, compReady, errordiv) {
 }
 
 function saveCode() {
-	post_url = "https://" + window.location.hostname + ":443/save/{{cid}}";
+	post_url = "https://" + window.location.hostname + ":443/save/{{cid}}/experiments/title";
 	console.log(post_url);
 	post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "code":  editor.getValue()};
 	$.post(post_url, post_data, function(data, status, jqXHR) {alert(data.error)});
