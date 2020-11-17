@@ -255,11 +255,13 @@ async def concept_page_edit(request):
     )
     if int(page_count[0]["count"]) < int(data["page_number"]):
         return web.json_response({"error": "0002"})  # Invalid Arguments
+    pages = await db.fetch("SELECT page_number FROM concept_page_table WHERE cid = $1 ORDER BY page_number ASC", data['cid'])  # Get all the page numbers in ascending order
+    page_number = pages[int(data['page_number']) - 1]["page_number"] # Calculate the absolute page number
     await db.execute(
         "UPDATE concept_page_table SET content = $1 WHERE cid = $2 AND page_number = $3",
         data["content"],
         data["cid"],
-        int(data["page_number"]),
+        int(page_number),
     )
     return web.json_response({"error": "Successfully saved page!"})
 
@@ -393,15 +395,14 @@ async def get_concept_page(request):
     cid = request.rel_url.query.get("id")
     page_number = request.rel_url.query.get("page_number")
     if cid is None or page_number is None:
-        return web.json_response({"error": "0002"})
+        return web.json_response({"error": "0003"})
     page = await db.fetch(
-        "SELECT title, content FROM concept_page_table WHERE cid = $1AND page_number = $2", 
+        "SELECT title, content FROM concept_page_table WHERE cid = $1 ORDER BY page_number ASC",
         cid, 
-        int(page_number)
     )
-    if len(page) == 0:
+    if len(page) == 0 or len(page) < int(page_number) or int(page_number) <= 0:
         return web.json_response({"error": "0002"}) # Invalid Parameters
-    page_count_json = {"title": page[0]["title"], "content": page[0]["content"]}
+    page_count_json = {"title": page[int(page_number) - 1]["title"], "content": page[int(page_number) - 1]["content"]}
     return web.json_response(page_count_json)
 
 

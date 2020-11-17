@@ -20,6 +20,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/xml/xml.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/css/css.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/htmlmixed/htmlmixed.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"></script>
 </body>
 
 <button onclick="saveCode()" class="btn btn-primary">Save Page</button>
@@ -29,7 +30,7 @@
 </div>
 <script>
 var editorTextArea = document.querySelector("#editor")
-var currentCode = `{{code}}`;
+var currentCode = _.unescape(`{{content}}`);
 console.log(CodeMirror.modes)
 var editor = CodeMirror.fromTextArea(editorTextArea, {
     lineNumbers: true,

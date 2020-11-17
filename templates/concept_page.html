@@ -33,7 +33,7 @@ footer {
 	{% if page - 1 > 0 %}
 		<a href="/concept/{{cid}}/learn/{{page - 1}}"><button class="btn btn-success">Back</button></a>
 	{% endif %}
-	{% if page + 1 < page_count %}
+	{% if page + 1 <= page_count %}
 		<a href="/concept/{{cid}}/learn/{{page + 1}}"><button class="btn btn-success">Next</button></a>
 	{% endif %}
 	<br/><br/>

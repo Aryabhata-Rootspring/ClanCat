@@ -60,7 +60,7 @@ async def concept_edit_menu(cid=None):
     )
 
 
-@app.route("/concept/<cid>/edit/page/<page>")
+@app.route("/concept/<cid>/edit/page/<int:page>")
 async def concept_edit_page(cid=None, page=None):
     if cid is None or page is None:
         return abort(404)
@@ -72,12 +72,16 @@ async def concept_edit_page(cid=None, page=None):
     pjson = requests.get(
         api + f"/concepts/get/page/count?id={cid}"
     ).json()  # Get the page count of a concept
-    if pjson.get("error") or int(pjson.get("page_count")) < int(page) or int(page) < 0:
+    page_json = requests.get(api + f"/concepts/get/page?id={cid}&page_number={page}").json()
+    if page_json.get("error"):
+        return abort(404)
+    elif int(page) < 0:
         return abort(404)
     return await render_template(
         "concept_page_editor.html",
         cid=cid,
         page=page,
+        content = Markup(page_json.get("content")),
         username=session.get("username"),
         token=session.get("token"),
     )
@@ -711,7 +715,7 @@ async def concept_page_view(id=None, page=None):
     pjson = requests.get(
         api + f"/concepts/get/page/count?id={id}"
     ).json()  # Get the page count of a concept
-    pages = [i for i in range(1, pjson['page_count'])]
+    pages = [i for i in range(1, pjson['page_count'] + 1)]
     return await render_template(
         "concept_page.html",
         username=session.get("username"),
