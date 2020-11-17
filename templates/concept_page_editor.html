@@ -1,0 +1,51 @@
+{%extends 'template.html'%}
+{%block reg %}
+<head>
+<title>Clan Cat Simulator</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style>
+.CodeMirror {
+      resize: vertical;
+    }
+</style>
+</head>
+
+<body class="GlowScriptBody">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" integrity="sha512-UxcTlYsLkcuGZL9JNnMsfo3p7VFSmcgBjH1VUSM82Okk5ni52bk7vz9f2p+D1VnMcNUmMzbzgWqWcdJ2j8Svow==" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" integrity="sha512-xIf9AdJauwKIVtrVRZ0i4nHP61Ogx9fSRAkCLecmE2dL/U8ioWpDvFCAy4dcfecN72HHB9+7FfQj3aiO68aaaw==" crossorigin="anonymous" />
+<!-- CodeMirror Modes -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/xml/xml.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/css/css.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/htmlmixed/htmlmixed.min.js" crossorigin="anonymous"></script>
+</body>
+
+<button onclick="saveCode()" class="btn btn-primary">Save Page</button>
+<div class="form-group">
+  <label for="editor">Page Edit View</label>
+  <textarea class="form-control rounded-0" id="editor" rows="15"></textarea>
+</div>
+<script>
+var editorTextArea = document.querySelector("#editor")
+var currentCode = `{{code}}`;
+console.log(CodeMirror.modes)
+var editor = CodeMirror.fromTextArea(editorTextArea, {
+    lineNumbers: true,
+    mode: "htmlmixed",
+  })
+editor.setValue(currentCode);
+setInterval(editor.refresh(), 3)
+
+function saveCode() {
+	post_url = "https://" + window.location.hostname + ":443/save/{{cid}}/page/{{page}}";
+	console.log(post_url);
+	post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "code":  editor.getValue()};
+	$.post(post_url, post_data, function(data, status, jqXHR) {alert(data.error)});
+	return
+}
+</script>
+<!-- Bootstrap comes with Popper, but not jquery which is anyways OK-->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
+{%endblock%}

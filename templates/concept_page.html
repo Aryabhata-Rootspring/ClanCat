@@ -1,0 +1,44 @@
+{% extends 'template.html' %}
+
+{% block header %}
+<meta name="description" content="CatPhi Concept Editor">
+<title>Concept Editor - CatPhi</title>
+<style>
+body {
+    /* bottom = footer height */
+    padding-bottom: 15px;
+}
+
+footer {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 100px;
+    width: 100%;
+    overflow: hidden;
+    text-align: center;
+    padding: 5px;
+    margin: 5px;
+    word-spacing: 10px;
+}
+</style>
+{% endblock %}
+{% block content %}
+<h1 style="text-align: center;"><strong> {{title}} </strong></h1><br/><br/><br/>
+
+<div style="margin: 2px; padding: 3px" class="catphi_page_content">
+	{{content|safe}}
+</div>
+<footer>
+	{% if page - 1 > 0 %}
+		<a href="/concept/{{cid}}/learn/{{page - 1}}"><button class="btn btn-success">Back</button></a>
+	{% endif %}
+	{% if page + 1 < page_count %}
+		<a href="/concept/{{cid}}/learn/{{page + 1}}"><button class="btn btn-success">Next</button></a>
+	{% endif %}
+	<br/><br/>
+	{% for a_page in pages %}
+	<a href="/concept/{{cid}}/learn/{{a_page}}">{{a_page}}</a>
+	{%endfor%}
+</footer>
+{% endblock %}
