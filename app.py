@@ -220,6 +220,7 @@ async def new_concept(topic=None):
 
 
 # Profile Operations
+@app.route("/profile/me/")
 @app.route("/profile/me")
 async def profile_me():
     if session.get("token") == None or session.get("username") == None:
@@ -227,37 +228,33 @@ async def profile_me():
         return redirect("/login")
     return redirect("/profile/" + session.get("username"))
 
-
-@app.route("/profile/me/make_public")
-async def profile_public_set():
+@app.route("/profile/me/<state>")
+async def profile_redir_1(state = "private"):
     if session.get("token") == None or session.get("username") == None:
-        session["redirect"] = "/profile/me/make_public"
+        session["redirect"] = "/profile/me/" + state
         return redirect("/login")
-    x = requests.post(
-        api + "/profile/visible",
-        json={
-            "state": "public",
-            "username": session.get("username"),
-            "token": session.get("token"),
-        },
-    ).json()
-    return x
+    return redirect("/profile/" + session.get("username") + "/me" + state)
 
-
-@app.route("/profile/me/make_private")
-async def profile_private_set():
+@app.route("/profile/<username>/me/<state>")
+async def profile_public_set(username = None, state = "private"):
     if session.get("token") == None or session.get("username") == None:
-        session["redirect"] = "/profile/me/make_private"
-        return redirect("/profile/login")
+        session["redirect"] = "/profile/me/" + state
+        return redirect("/login")
+    elif state not in ["public", "private"]:
+        return abort(404)
+    if username == session.get("username") or session.get("admin") == 1:
+        pass
+    else:
+        return abort(401)
     x = requests.post(
         api + "/profile/visible",
         json={
-            "state": "private",
-            "username": session.get("username"),
+            "state": state,
+            "username": username,
             "token": session.get("token"),
         },
     ).json()
-    return x
+    return redirect("/profile/" + username)
 
 
 @app.route("/profile/<username>")
@@ -285,6 +282,13 @@ async def profile(username=None):
             header="Profile Error",
             error="Profile does not exist",
         )
+    
+    profile_owner = (session.get("username") == username or session.get("admin") == 1)
+    priv = profile['priv']
+    if int(priv) == 0:
+        priv = "Public"
+    else:
+        priv = "Private"
     return await render_template(
         "profile.html",
         username=session.get("username"),
@@ -292,6 +296,8 @@ async def profile(username=None):
         token=session.get("token"),
         admin=profile["admin"],
         join_date=time.strftime("%dth %b %Y", time.localtime(profile["join"])),
+        profile_owner = profile_owner,
+        private = priv
     )
 
 
@@ -503,11 +509,11 @@ async def register():
             username=session.get("username"),
             error="Please enter your password",
         )
-    if "username" not in r.keys() or r.get("username") in ["", " "]:
+    if "username" not in r.keys() or r.get("username") in ["", " ", "me"]:
         return await render_template(
             "register.html",
             username=session.get("username"),
-            error="Please enter a proper username",
+            error="Please enter a proper username that is not reserved (me etc.)",
         )
     if r.get("password") != r.get("cpassword"):
         return await render_template(
@@ -560,7 +566,7 @@ async def login():
         return await render_template("login.html", username=session.get("username"))
 
     r = await request.form
-
+    print(r)
     if "username" not in r.keys() or r.get("username") in ["", " "]:
         return await render_template(
             "login.html",
@@ -593,7 +599,7 @@ async def login():
             username=session.get("username"),
             error="Invalid Username Or Password",
         )
-
+    return rc
 
 @app.errorhandler(CSRFError)
 async def handle_csrf_error(e):
@@ -669,7 +675,7 @@ async def topics():
         admin=session.get("admin"),
     )
 
-
+@app.route("/concept/<id>/")
 @app.route("/concept/<id>")
 async def get_concept_index(id=None):
     if id is None:
@@ -715,6 +721,22 @@ async def concept_page_view(id=None, page=None):
     pjson = requests.get(
         api + f"/concepts/get/page/count?id={id}"
     ).json()  # Get the page count of a concept
+    
+    track = False
+
+
+    # Tracking code
+
+    pn = requests.get(api + "/profile/track?username=" + session.get("username") + "&cid=" + id + "&status=LP").json()
+    done = (pn['done'] == '1')
+    pg = pn['page']
+    if int(pg) < int(page):
+        print("Enabling tracker for cid " + id + " with page " + page)
+        track = True
+
+    if track:
+        tracker = requests.post("http://127.0.0.1:3000/profile/track", json = {"username": session.get("username"), "status": "LP", "cid": id, "page": page}).json() # Track the fact that he went here in this case
+
     pages = [i for i in range(1, pjson['page_count'] + 1)]
     return await render_template(
         "concept_page.html",

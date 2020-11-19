@@ -28,4 +28,17 @@
   <h2 style="text-align: center;"><strong> Badges </strong></h2>
   	<h3 style="text-align: center;">Not Yet Done (WIP)</h3><br/><br/><br/>
 	<h4 style="text-align: center;"> This user has been on CatPhi since {{join_date}}</h4>
+
+  {%if profile_owner%}
+  	<div style="text-align: center;" class="profile_settings" role="profile_settings">
+  	<h2><strong> Settings </strong></h2>
+                <h3><strong> Profile Status: </strong>{{private}}</h3>
+			{% if private == "Private" %}
+			<a href="/profile/{{p_username}}/me/public"><button class="btn btn-primary">Make Public</button></a><br/>
+			{% else %}
+				<a href="/profile/{{p_username}}/me/private"><button class="btn btn-primary">Make Private</button></a><br/>
+			{% endif %}
+		<br/><a href="/profile/me/delete"><button class="btn btn-danger">Delete Account</button></a><br/>
+  	</div>
+  {%endif%}
 {% endblock %}

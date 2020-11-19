@@ -12,6 +12,7 @@ import asyncpg
 
 SERVER_URL = "https://127.0.0.1:443"  # Main Server URL
 HASH_SALT = "66801b86-06ff-49c7-a163-eeda39b8cba9_66bc6c6c-24e3-11eb-adc1-0242ac120002_66bc6c6c-24e3-11eb-adc1-0242ac120002"
+EXP_RATE = 11 # This is the rate at which users will get experience per concept (11 exp points per completed concept)
 
 
 def get_token(length):
@@ -46,20 +47,27 @@ async def setup_db():
     )
     # Represents a single login in the database
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT)"
+        "CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT, status INTEGER)"
     )
     # Create an index for login
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS login_index ON login (token, username, password, email)"
+        "CREATE INDEX IF NOT EXISTS login_index ON login (token, username, password, email, status)"
     )
     # A profile of a user
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS profile (username TEXT, join_epoch BIGINT, public BOOLEAN, exp_points BIGINT)"
+        "CREATE TABLE IF NOT EXISTS profile (username TEXT, join_epoch BIGINT, public BOOLEAN, exp_points BIGINT, badges TEXT)"
     )
     # Create an index for the three things that will never/rarely change,
     # namely join date , username and public/private profile
     await __db.execute(
         "CREATE INDEX IF NOT EXISTS profile_index ON profile (username, join_epoch, public)"
+    )
+    # All the concepts a user has completed or is working on
+    await __db.execute(
+        "CREATE TABLE IF NOT EXISTS profile_concept (username TEXT, cid TEXT, progress TEXT, done BOOLEAN)"
+    )
+    await __db.execute(
+        "CREATE INDEX IF NOT EXISTS profile_concept_index ON profile_concept (username, cid, done)"
     )
     return __db
 
@@ -419,7 +427,7 @@ async def change_visibility(request):
         return web.json_response({"error": "1001"})
     usertok = await db.fetch("SELECT token FROM login WHERE username = $1", username)
     # Check if username and token match
-    if usertok[0]["token"] == token:
+    if usertok[0]["token"] == token or token in adminDict.values():
         pass
     else:
         return web.json_response({"error": "1002"})
@@ -448,7 +456,7 @@ async def get_profile(request):
         token = request.rel_url.query.get("token")
         if token is None:
             return web.json_response({"error": "1002"})  # Private
-        elif usertok[0]["token"] == token:
+        elif usertok[0]["token"] == token or token in adminDict.values():
             pass
         else:
             return web.json_response({"error": "1002"})  # Private
@@ -468,6 +476,74 @@ async def get_profile(request):
             "experience": profile_db[0]["exp_points"],
         }
     )
+
+
+# Track users progress 
+# TODO: Add quizzes and other things
+@routes.post("/profile/track")
+async def profile_track_writer(request):
+    try:
+        data = await request.json()
+    except:
+        return web.json_response({"error": "0001"})  # Invalid arguments
+    cid = data.get("cid")
+    username = data.get("username")
+    status = data.get("status")
+    if cid is None or username is None or status is None:
+        return web.json_response({"error": "0001"})  # Invalid arguments
+    elif status == "LP": # Learn Page Change
+        mode = 0 # Do nothing mode
+        page = data.get("page")
+        if page is None:
+            return web.json_response({"error": "0001"})  # Invalid arguments
+        entry = await db.fetch("SELECT done FROM profile_concept WHERE cid = $1", cid)
+        if len(entry) == 0:
+            mode = 1 # Don't update, use insert statement mode
+        elif entry[0]["done"] is not True:
+            mode = 2 # Update mode
+        if mode == 0:
+            return web.json_response({"error": "1000", "debug": mode})
+        elif mode == 1:
+            await db.execute("INSERT INTO profile_concept (username, cid, progress, done) VALUES ($1, $2, $3, $4)", username, cid, "LP" + page, False)
+            return web.json_response({"error": "1000", "debug": mode})
+        elif mode == 2:
+            await db.execute("UPDATE profile_concept SET progress = $3 WHERE username = $1 AND cid = $2", username, cid, "LP" + page)
+            return web.json_response({"error": "1000", "debug": mode})
+    return web.json_response({"error": "0001"})  # Invalid arguments (Default)
+
+
+@routes.get("/profile/track")
+async def profile_track_reader(request):
+    data = request.rel_url.query
+    cid = data.get("cid")
+    username = data.get("username")
+    status = data.get("status")
+    if cid is None or username is None or status is None:
+        return web.json_response({"error": "0001"})  # Invalid arguments
+    elif status == "LP": # Learn Page Status/Target
+        info = await db.fetch("SELECT progress, done FROM profile_concept WHERE username = $1 AND cid = $2", username, cid) # Get the page info
+        if len(info) == 0:
+            return web.json_response(
+                {
+                    "page": '1',
+                    "done": '0',
+                }
+            )
+        page = info[0]["progress"].split("LP")[1] # Get the page number from LPXYZ string
+        done = info[0]["done"]
+        if done is not True:
+            done = '0'
+        else:
+            done = '1'
+        return web.json_response(
+            {
+                    "page": page,
+                    "done": done,
+            }
+        )
+    return web.json_response({"error": "0001"})  # Invalid arguments (Default)
+
+
 
 
 # Authentication Code #
@@ -567,7 +643,7 @@ async def login(request):
         ("Shadowsight1" + HASH_SALT + username + data["password"]).encode()
     ).hexdigest()
     login_creds = await db.fetch(
-        "SELECT token from login WHERE username = $1 and password = $2",
+        "SELECT token, status from login WHERE username = $1 and password = $2",
         username,
         password,
     )
@@ -578,6 +654,11 @@ async def login(request):
         is_admin = 1
     else:
         is_admin = 0
+    if login_creds[0]["status"] in [None, 0]:
+        pass
+    else:
+        # This account is disabled
+        return web.json_response({"error": "1002", "status": login_creds[0]["status"]}) # Flagged Account
     # Add you to the list of logged in users
     loginDict[username] = login_creds[0]["token"]
     return web.json_response(
@@ -632,7 +713,7 @@ async def register(request):
             continue
         flag = False
     await db.execute(
-        "INSERT INTO login (token, username, password, email) VALUES ($1, $2, $3, $4);",
+        "INSERT INTO login (token, username, password, email, status) VALUES ($1, $2, $3, $4, 0);",
         token,
         username,
         password,
