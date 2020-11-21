@@ -14,7 +14,7 @@
 	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 	<div class="form-group">
     		<label for="concept">Concept Name</label>
-    		<input type="text" name='concept' class="form-control" id='concept' aria-describedby="userHelp" placeholder='Concept Name'>
+    		<input type="text" name='concept' class="form-control" id='concept' aria-describedby="userHelp" placeholder='Concept Name' required aria-required="true">
   	</div>
   	<button type="submit" class="btn btn-primary">Add Concept</button>
 	</form>	

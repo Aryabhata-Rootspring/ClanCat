@@ -1,47 +1,31 @@
-{% extends 'template.html' %}
-{%block reg%}
-<title>{{name}}</title>
-<div style="text-align: center;">
-<!--<link type="text/css" href="js/jquery-ui.custom.css" rel="stylesheet" /> -->
-<!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
--->
-<style>
-	canvas, html, .overlay {
-		text-align: center !important;
-	};
-</style>
+<title>IFrame Simulation</title>
+<div id="iframe-simulation">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script> 
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" crossorigin="anonymous"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
 <script type="text/javascript" src="js/RSrun.3.0.min.js" async></script>
 <script type="text/javascript" src="js/glow.3.0.min.js" charset="UTF-8" async></script>
 <!--<script type="text/javascript" src="js/Roboto_Medium_ttf_sans.js"></script>
 <script type="text/javascript" src="js/NimbusRomNo9L_Med_otf_serif.js"></script>
 -->
-<h3 style="text-align: center;"><strong>{{name}}</strong><br/><br/>
-<button onclick="runCode()" class="btn btn-primary" style="margin: 2px;">Restart Experiment</button>
+<h3><strong>{{name}}</strong>
+	<!--<button onclick="runCode()" class="btn btn-primary" style="text-align: center; margin: 2px;">Restart Experiment</button><br/>-->
 <!-- This is the code for the experiment -->
 <div id="exp-code" code="{{code}}">
-
-
-
-
 <script>
 var gsversion = '3.0'
 var printpane = false
 var exporting = false // not currently in export mode
 var lastprintwidth = null
-
 var glowscript_run = undefined
 window.Jupyter_VPython = undefined
-
 if (!navigator.onLine) window.Jupyter_VPython = 'glowscript_data/' // get textures when offline
-// TAB at end of line should lengthen the line; implement Ctrl-1 and Ctrl-2
-
 // localCompile is a modification of https://github.com/vpython/glowscript/blob/master/ide/ide.js
 function localCompile(header, compReady, errordiv) {
     header.source = 'GlowScript '+gsversion+' VPython\n'+header.source
-	errordiv.innerHTML = ""
+    errordiv.innerHTML = ""
     var compiler_url
     if (header.lang == 'vpython') {
         compiler_url = "js/RScompiler." + header.version + ".min.js"
@@ -153,6 +137,11 @@ var gsErrordiv
 
 
 function runCode() {
+    // First remove all canvases
+    canvases = document.querySelectorAll("canvas");
+    for(let i = 0; i < canvases.length; i++) {
+	canvases[i].remove();
+    }
     var header = getHeader(false)
     gsErrordiv = $("#gserrors")[0]
     localCompile(header, ready, gsErrordiv, false)
@@ -170,7 +159,7 @@ async function runprog(prog) {
 function ready(program) {
     var w = $("#glows")
     w[0].innerHTML = "" // Comment this and the next if get a solution for too many WebGL contexts
-    w[0].innerHTML = '<div id="glowscript" class="glowscript" style="text-align: center;"></div>'
+    w[0].innerHTML = '<div id="glowscript" class="glowscript"></div>'
 
     window.__context = { glowscript_container: $("#glowscript") }
     runprog(program)
@@ -329,14 +318,5 @@ window.addEventListener('load', function () {
 
 })
 </script>
-<style>
-        canvas, html, .overlay {
-                text-align: center !important;
-        };
-</style>
-<a href="/concept/{{cid}}/learn"><button class="btn btn-success">Learn!</button></a>
-{% if admin %}
-<a href="/concept/{{cid}}/edit"><button class="btn btn-success">Edit!</button></a>
-{%endif%}
+<p id="simu-desc"><small><strong>Simulation of {{desc}}</strong></small></p>
 </div>
-{%endblock%}

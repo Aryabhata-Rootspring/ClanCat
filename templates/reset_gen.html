@@ -1,7 +1,7 @@
 {% extends 'template.html' %}
 {% block header %}
-<title>CCTP - Reset Password</title>
-<meta name="description" content="Aryabhata Inc - CCTP Login">
+<title>CatPhi - Reset Password</title>
+<meta name="description" content="Aryabhata Inc - CatPhi Reset Password">
 {% endblock %}
 {% block content %}
   <h1 style="text-align: center;"><strong> Forgot Your Password? </strong></h1>
@@ -9,7 +9,7 @@
   	<p style="text-align: center; color: red;"><strong>{{error}}</strong></p>
   {%endif%}
   <br/>
-  <p style = "text-align: center;">It's OK. Mistakes happen. In order to reset your password, we need to know your email address.<br/><strong>We store your username as a SHA512 hash. You cannot use that for a password reset</strong></p>
+  <p style = "text-align: center;">It's OK. Mistakes happen. In order to reset your password, we need to know your email address.<br/></p>
   <div style="text-align: center;">
 	<form method='post'>
 	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>

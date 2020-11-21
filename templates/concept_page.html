@@ -2,43 +2,57 @@
 
 {% block header %}
 <meta name="description" content="CatPhi Concept Editor">
-<title>Concept Editor - CatPhi</title>
+<title>Concept Page - CatPhi</title>
 <style>
 body {
     /* bottom = footer height */
     padding-bottom: 15px;
+    overflow-y: visible;
 }
 
-footer {
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    height: 100px;
-    width: 100%;
-    overflow: hidden;
-    text-align: center;
-    padding: 5px;
-    margin: 5px;
-    word-spacing: 10px;
+iframe {
+	width: 700px;
+	height: 550px;
+	border: hidden;
 }
 </style>
 {% endblock %}
 {% block content %}
-<h1 style="text-align: center;"><strong> {{title}} </strong></h1><br/><br/><br/>
+<br/>
+<div>
+<h1 style="text-align: center;"><strong> {{title}} </strong></h1><br/>
+
+<div id="concept-page-navigation">
+{% if page - 1 > 0 %}
+<a href="/concept/{{cid}}/learn/{{page - 1}}"><button style="float: left;" class="btn btn-success" aria-label="Back">Back</button></a>
+{% endif %}
+
+{% if page + 1 <= page_count %}
+<a href="/concept/{{cid}}/learn/{{page + 1}}"><button style="float: right;" class="btn btn-success" aria-label="Next">Next</button></a>
+{% else %}
+<a href="/concept/{{cid}}/practice"><button style="float: right;" class="btn btn-success round" aria-label="Lets Practice">Let's Practice!</button></a>
+{% endif %}
+</div>
+<br/><br/>
+
 
 <div style="margin: 2px; padding: 3px" class="catphi_page_content">
 	{{content|safe}}
 </div>
+<!--<div style="text-align: center;">
+{% for a_page in pages %}
+        <a style='text-align: center; padding-left: 6px;' class="bottom" href="/concept/{{cid}}/learn/{{a_page}}">{{a_page}}</a>
+{%endfor%}
+</div>-->
+<div class="footerWrap">
 <footer>
-	{% if page - 1 > 0 %}
-		<a href="/concept/{{cid}}/learn/{{page - 1}}"><button class="btn btn-success">Back</button></a>
-	{% endif %}
-	{% if page + 1 <= page_count %}
-		<a href="/concept/{{cid}}/learn/{{page + 1}}"><button class="btn btn-success">Next</button></a>
-	{% endif %}
-	<br/><br/>
-	{% for a_page in pages %}
-	<a href="/concept/{{cid}}/learn/{{a_page}}">{{a_page}}</a>
-	{%endfor%}
+  <nav aria-label="Pages" class="navbar navbar-light bg-light navbar-default mx-auto justify-content-center" role="navigation" style="display: flex; align-items: center;">
+    <li class="nav-item justify-content-center" style="display: flex; align-items: center;">
+      {%for a_page in pages%}
+      <a class="nav-link a" href="/concept/{{cid}}/learn/{{a_page}}">{{a_page}}</a>
+      {%endfor%}
+    </li>
+  </nav>
 </footer>
+</div>
 {% endblock %}

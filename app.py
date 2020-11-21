@@ -22,14 +22,15 @@ import time
 import re
 import secrets
 import string
-
+import logging
+logging.captureWarnings(True)
 """ Configuration """
 
 app = Quart(__name__, static_url_path="/static")
 app.config["SECRET_KEY"] = "qEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Dd"
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 csrf = CSRFProtect(app)  # CSRF Form Protection
-api = "http://localhost:3000"
+api = "https://127.0.0.1:3000"
 """ Favicon """
 
 
@@ -48,7 +49,7 @@ async def concept_edit_menu(cid=None):
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
     ejson = requests.get(
-        api + f"/concepts/get/experiments/title?id={cid}"
+        api + f"/concepts/get/experiment?id={cid}&username={session['username']}"
     ).json()  # Get the experiment pertaining to the concept
     if ejson.get("error"):
         return abort(404)
@@ -59,29 +60,64 @@ async def concept_edit_menu(cid=None):
         token=session.get("token"),
     )
 
-
-@app.route("/concept/<cid>/edit/page/<int:page>")
-async def concept_edit_page(cid=None, page=None):
-    if cid is None or page is None:
+@app.route("/concept/<cid>/edit/pages")
+async def concept_edit_pages(cid=None):
+    if cid == None:
         return abort(404)
     elif session.get("token") == None:
-        session["redirect"] = "/concept/" + cid + "/edit/page/" + page
+        session["redirect"] = "/concept/" + cid + "/edit"
+        return redirect("/login")
+    elif session.get("admin") in [0, None, "0"]:
+        return abort(401)
+    ejson = requests.get(
+        api + f"/concepts/get/experiment?id={cid}&username={session['username']}"
+    ).json()  # Get the experiment pertaining to the concept
+    if ejson.get("error"):
+        return abort(404)
+    pjson = requests.get(
+        api + f"/concepts/get/page/count?id={cid}"
+    ).json()  # Get the page count of a concept
+    page_count = pjson["page_count"]
+    pages = [i for i in range(1, page_count + 1)]
+    return await render_template(
+        "concept_edit_pages.html",
+        cid=cid,
+        username=session.get("username"),
+        token=session.get("token"),
+        page_count = pages
+    )
+
+
+@app.route("/concept/<cid>/edit/page/<int:_page>")
+async def concept_edit_page(cid=None, _page=None):
+    if cid is None or _page is None:
+        return abort(404)
+    elif session.get("token") == None:
+        session["redirect"] = "/concept/" + cid + "/edit/page/" + str(_page)
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
     pjson = requests.get(
         api + f"/concepts/get/page/count?id={cid}"
     ).json()  # Get the page count of a concept
-    page_json = requests.get(api + f"/concepts/get/page?id={cid}&page_number={page}").json()
-    if page_json.get("error"):
+    page_json = requests.get(api + f"/concepts/get/page?id={cid}&page_number={_page}&username={session['username']}").json()
+    print(page_json)
+        
+    # Login check
+    if page_json.get("error") == "0003":
+        print(_page)
+        session['redirect'] = "/concept/" + cid + "/edit/page/" + str(_page)
+        session['newlogout'] = 1
+        return redirect("/logout")
+    elif page_json.get("error"):
         return abort(404)
-    elif int(page) < 0:
+    elif int(_page) < 0:
         return abort(404)
     return await render_template(
         "concept_page_editor.html",
         cid=cid,
-        page=page,
-        content = Markup(page_json.get("content")),
+        page=_page,
+        content = Markup(page_json.get("content").replace("<script", "").replace("</script", "")),
         username=session.get("username"),
         token=session.get("token"),
     )
@@ -97,7 +133,7 @@ async def concept_new_page(cid=None):
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
     ejson = requests.get(
-        api + f"/concepts/get/experiments/title?id={cid}"
+        api + f"/concepts/get/experiment?id={cid}&username={session['username']}"
     ).json()  # Get the experiment pertaining to the concept
     if ejson.get("error"):
         return abort(404)
@@ -114,7 +150,7 @@ async def concept_new_page(cid=None):
         if form.get("title") == None:
             return abort(400)
         a = requests.post(
-            api + "/concepts/page/add",
+            api + "/concepts/page/new",
             json={
                 "username": session.get("username"),
                 "token": session.get("token"),
@@ -125,8 +161,8 @@ async def concept_new_page(cid=None):
         return a
 
 
-@app.route("/concept/<cid>/edit/simulation/title")
-async def concept_edit_simulation_title(cid=None):
+@app.route("/concept/<cid>/edit/simulation")
+async def concept_edit_simulation(cid=None):
     if cid == None:
         return abort(404)
     elif session.get("token") == None:
@@ -135,7 +171,7 @@ async def concept_edit_simulation_title(cid=None):
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
     ejson = requests.get(
-        api + f"/concepts/get/experiments/title?id={cid}"
+        api + f"/concepts/get/experiment?id={cid}&username={session['username']}"
     ).json()  # Get the experiment pertaining to the concept
     if ejson.get("error"):
         return abort(404)
@@ -145,6 +181,65 @@ async def concept_edit_simulation_title(cid=None):
         username=session.get("username"),
         token=session.get("token"),
         code=ejson["code"],
+    )
+
+
+@app.route("/experiment/<sid>/edit")
+async def experiment_edit_simulation(sid=None):
+    if sid == None:
+        return abort(404)
+    elif session.get("token") == None:
+        session["redirect"] = "/experiment/" + sid + "/edit"
+        return redirect("/login")
+    elif session.get("admin") in [0, None, "0"]:
+        return abort(401)
+    ejson = requests.get(
+        api + f"/experiment/get?sid={sid}&username={session['username']}"
+    ).json()  # Get the experiment pertaining to the concept
+    if ejson.get("error"):
+        return abort(404)
+    return await render_template(
+        "generic_simulation_editor.html",
+        sid=sid,
+        username=session.get("username"),
+        token=session.get("token"),
+        code=ejson["code"],
+    )
+
+
+@app.route("/experiment/new", methods=["GET", "POST"])
+async def new_simulation():
+    if request.method == "POST":
+        form = await request.form
+        poster = requests.post(api + "/experiment/new", json = {
+            "username": session.get("username"),
+            "token": session.get("token"),
+            "description": form['description']
+        }).json()
+        return poster
+    if session.get("token") == None:
+        session["redirect"] = "/experiment/new"
+        return redirect("/login")
+    elif session.get("admin") in [0, None, "0"]:
+        return abort(401)
+    return await render_template(
+        "admin_simulation_new.html",
+        username=session.get("username"),
+        token=session.get("token"),
+    )
+
+
+@app.route("/iframe/<sid>")
+async def iframe_simulation(sid = None):
+    if sid == None:
+        return abort(404)
+    simulation = requests.get(api + "/experiment/get?sid=" + sid).json()
+    if simulation.get("error"):
+        return abort(404)
+    return await render_template(
+        "iframe_simulation.html",
+        desc = simulation.get("description"),
+        code = simulation.get("code")
     )
 
 
@@ -240,20 +335,29 @@ async def profile_public_set(username = None, state = "private"):
     if session.get("token") == None or session.get("username") == None:
         session["redirect"] = "/profile/me/" + state
         return redirect("/login")
-    elif state not in ["public", "private"]:
+    elif state not in ["public", "private", "disable", "enable", "disable_admin"]:
         return abort(404)
     if username == session.get("username") or session.get("admin") == 1:
         pass
     else:
         return abort(401)
+
+    post_data = {
+        "state": state,
+        "username": username,
+        "token": session.get("token"),
+    }
+
+    if state == "disable_admin":
+        post_data["state"] = "disable"
+        post_data["disable_state"] = 2
+
     x = requests.post(
         api + "/profile/visible",
-        json={
-            "state": state,
-            "username": username,
-            "token": session.get("token"),
-        },
-    ).json()
+        json=post_data
+        ).json()
+    if state in ["disable", "disable_admin"] and session.get("admin") != 1:
+        return redirect("/logout")
     return redirect("/profile/" + username)
 
 
@@ -434,13 +538,16 @@ async def reset_pwd():
     if x["error"] == "1000":
         msg = "Your password has been reset successfully."
     else:
-        msg = "Something has went wrong while we were trying to reset your password. Please try again later."
+        if x["error"] == "1101":
+            msg = "Your account has been disabled by an administrator. It may not have its password reset."
+        else:
+            msg = "Something has went wrong while we were trying to reset your password. Please try again later."
     return await render_template(
         "/reset_confirm.html", username=session.get("username"), msg=msg
     )
 
 
-@app.route("/save/<cid>/experiments/title", methods=["POST"])
+@app.route("/concept/<cid>/experiment/save", methods=["POST"])
 async def save_simu(cid=None):
     if cid == None:
         return {"error": "Invalid Concept Specified"}
@@ -452,7 +559,7 @@ async def save_simu(cid=None):
     ):
         return {"errpr": "Could not save data as required keys are not present"}
     a = requests.post(
-        api + "/save/concepts/experiments/title",
+        api + "/concept/experiment/save",
         json={
             "username": data["username"],
             "token": data["token"],
@@ -464,7 +571,31 @@ async def save_simu(cid=None):
     return a
 
 
-@app.route("/save/<cid>/page/<page>", methods=["POST"])
+@app.route("/experiment/<sid>/save", methods=["POST"])
+async def experiment_save(sid = None):
+    if sid == None:
+        return {"error": "Invalid Concept Specified"}
+    data = await request.form
+    if (
+        "username" not in data.keys()
+        or "token" not in data.keys()
+        or "code" not in data.keys()
+    ):
+        return {"errpr": "Could not save data as required keys are not present"}
+    a = requests.post(
+        api + "/experiment/save",
+        json={
+            "username": data["username"],
+            "token": data["token"],
+            "code": data["code"],
+            "sid": sid,
+        },
+    )
+    a = a.json()
+    return a
+
+
+@app.route("/concept/<cid>/page/<page>/save", methods=["POST"])
 async def save_page(cid=None, page=None):
     if cid == None or page == None:
         return {"error": "Invalid Concept Or Page Specified"}
@@ -476,13 +607,13 @@ async def save_page(cid=None, page=None):
     ):
         return {"errpr": "Could not save data as required keys are not present"}
     a = requests.post(
-        api + "/save/concepts/page",
+        api + "/concepts/page/save",
         json={
             "username": data["username"],
             "token": data["token"],
-            "content": data["code"],
+            "code": data["code"],
             "cid": cid,
-            "page_number": page
+            "page_number": int(page)
         },
     )
     a = a.json()
@@ -542,9 +673,9 @@ async def register():
         return redirect("/redir")
     if rc["error"] == "1001":
         return await render_template(
-            "login.html",
+            "register.html",
             username=session.get("username"),
-            error="An Unknown Error Has Occurred. Please Try Again Later",
+            error="That username or email is in use right now.",
         )
 
 
@@ -552,9 +683,17 @@ async def register():
 async def logout():
     if "username" in session.keys():
         requests.post(api + "/auth/logout", json={"username": session["username"]})
-    session.clear()
-    session["redirect"] = "/"
-    return redirect("/redir")
+    if session.get("newlogout"): # In Special "new logout" case, allow redir to path on login using logout feature
+        redir = session.get("redirect")
+        session.clear()
+        session["defmsg"] = "You need to log in again in order to continue using CatPhi.\nWe are sorry for the inconvenience"
+        session["redirect"] = redir
+        return redirect("/login")
+    else:
+        redir = "/"
+        session.clear()
+        session["redirect"] = redir
+        return redirect("/redir")
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -563,8 +702,12 @@ async def login():
         return redirect("/redir")
 
     if request.method == "GET":
-        return await render_template("login.html", username=session.get("username"))
-
+        if session.get("defmsg") == None:
+            return await render_template("login.html", username=session.get("username"))
+        else:
+            defmsg = session.get("defmsg")
+            del session['defmsg']
+            return await render_template("login.html", username=session.get("username"), error = defmsg)
     r = await request.form
     print(r)
     if "username" not in r.keys() or r.get("username") in ["", " "]:
@@ -598,6 +741,18 @@ async def login():
             "login.html",
             username=session.get("username"),
             error="Invalid Username Or Password",
+        )
+    if rc["error"] in "1002":
+        if rc["status"] == 1:
+            msg = "We could not log you in as you have disabled your account. Please click <a href='/reset'>here</a> to reset your password and re-enable your account"
+        elif rc["status"] == 2:
+            msg = "We could not log you in as an admin has disabled your account. Please click <a href='/contactus'>here</a> to contact our customer support"
+        else:
+            msg = f"Unknown account state {state}. Please click <a href='/contactus'>here</a> to contact our customer support"
+        return await render_template(
+            "login.html",
+            username=session.get("username"),
+            error=msg,
         )
     return rc
 
@@ -684,9 +839,18 @@ async def get_concept_index(id=None):
         session["redirect"] = "/concept/" + id
         return redirect("/login")
     ejson = requests.get(
-        api + f"/concepts/get/experiments/title?id={id}"
+        api + f"/concepts/get/experiment?id={id}&username={session['username']}"
     ).json()  # Get the experiment pertaining to the concept
-    if ejson.get("error"):
+    
+    # Login code
+    try:
+        if ejson.get("error") == "0002" and int(ejson.get("auth")) == 0:
+            session['redirect'] = "/concept/" + id
+            session['newlogout'] = 1
+            return redirect("/logout")
+        elif ejson.get("error") != None:
+            return abort(404)
+    except TypeError:
         return abort(404)
     return await render_template(
         "concept_simulation.html",
@@ -703,9 +867,18 @@ async def redir_concept(id=None):
     if id is None:
         return abort(404)
     elif "username" not in session:
-        session["redirect"] = "/concept/" + id + "/learn/1"
+        session["redirect"] = "/concept/" + id + "/learn"
         return redirect("/login")
-    return redirect("/concept/" + id + "/learn/1")
+    pn = requests.get(api + "/profile/track?username=" + session.get("username") + "&cid=" + id + "&status=LP").json()
+    
+    # Login check
+    if pn.get("error") == "0002" and int(pn.get("auth")) == 0:
+        session['redirect'] = "/concept/" + id + "/learn"
+        session['newlogout'] = 1
+        return redirect("/logout")
+    
+    pg = pn['page']
+    return redirect("/concept/" + id + "/learn/" + pg)
 
 
 @app.route("/concept/<id>/learn/<page>")
@@ -715,9 +888,17 @@ async def concept_page_view(id=None, page=None):
     elif "username" not in session:
         session["redirect"] = "/concept/" + id + "/learn/" + page
         return redirect("/login")
-    page_json = requests.get(api + f"/concepts/get/page?id={id}&page_number={page}").json()
-    if page_json.get("error"):
+    page_json = requests.get(api + f"/concepts/get/page?id={id}&page_number={page}&username={session['username']}").json()
+    
+    # Login check
+    if page_json.get("error") == "0003" and int(page_json.get("auth")) == 0:
+        session['redirect'] = "/concept/" + id
+        session['newlogout'] = 1
+        return redirect("/logout")
+    
+    elif page_json.get("error") != None:
         return abort(404)
+
     pjson = requests.get(
         api + f"/concepts/get/page/count?id={id}"
     ).json()  # Get the page count of a concept
@@ -735,7 +916,16 @@ async def concept_page_view(id=None, page=None):
         track = True
 
     if track:
-        tracker = requests.post("http://127.0.0.1:3000/profile/track", json = {"username": session.get("username"), "status": "LP", "cid": id, "page": page}).json() # Track the fact that he went here in this case
+        tracker = requests.post(api + "/profile/track", json = {"username": session.get("username"), "status": "LP", "cid": id, "page": page}).json() # Track the fact that he went here in this case
+        # Login check
+        if tracker.get("error") == "0002":
+            session['redirect'] = "/concept/" + id + "/learn/" + page
+            session['newlogout'] = 1
+            return redirect("/logout")
+
+    # Sandbox the content
+    content = page_json["content"].replace("<script", "")
+    content = content.replace("</script", "")
 
     pages = [i for i in range(1, pjson['page_count'] + 1)]
     return await render_template(
@@ -745,13 +935,9 @@ async def concept_page_view(id=None, page=None):
         page=int(page),
         pages = pages,
         page_count = pjson['page_count'],
-        content = Markup(page_json["content"]),
+        content = Markup(content),
         title = page_json["title"],
         admin=session.get("admin"),
     )
-
-
-
-
 
 # asyncio.run(serve(app, config))

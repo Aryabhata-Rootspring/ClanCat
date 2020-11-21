@@ -141,23 +141,23 @@ li {
   text-align: center;
 }
 </style>
-<nav class="navbar navbar-light bg-light">
+<nav class="navbar navbar-light bg-light" aria-label="Site Navigation Menu">
   {%if username%}
-  <a class="navbar-brand" href="/profile/{{username}}">
+  <a class="navbar-brand" href="/profile/{{username}}" aria-label="My profile">
     {{ username }}
   </a>
   <li class="nav-item">
-    <a class="nav-link a" href="/logout">Logout</a>
-    <a class="nav-link a" href="https://paypal.me/pools/c/8tgL4WtfY1">Donate</a>
-    <a class="nav-link a" href="/topics">Let's Learn!</a>
+    <a class="nav-link a" href="/logout" aria-label="Logout">Logout</a>
+    <a class="nav-link a" href="https://paypal.me/pools/c/8tgL4WtfY1" aria-label="Donate">Donate</a>
+    <a class="nav-link a" href="/topics" aria-label="Let's Learn!">Let's Learn!</a>
   </li>
   {%else%}
-    <a class="navbar-brand" href="/login">
+    <a class="navbar-brand" href="/login" aria-label="Not Logged In">
       Not Logged In
     </a>
   <li class="nav-item">
-	  <a class="nav-link a" href="/login" style="text-align: right; float:right;">Login</a>
-    	  <a class="nav-link a" href="https://paypal.me/pools/c/8tgL4WtfY1" style="text-align: right; float:right;">Donate</a>
+	  <a class="nav-link a" href="/login" style="text-align: right; float:right;" aria-label="Login">Login</a>
+    	  <a class="nav-link a" href="https://paypal.me/pools/c/8tgL4WtfY1" style="text-align: right; float:right;" aria-label="Donate">Donate</a>
   </li>
   {%endif%}
 </nav>

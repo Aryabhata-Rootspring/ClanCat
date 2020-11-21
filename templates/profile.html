@@ -1,6 +1,6 @@
 {% extends 'template.html' %}
 {% block header %}
-<title>CCTP Index</title>
+<title>{{p_username}}'s profile - CatPhi</title>
 <meta name="description" content="Aryabhata Inc - CatPhi Dashboard">
 <style>
 	.dash-important {
@@ -39,6 +39,10 @@
 				<a href="/profile/{{p_username}}/me/private"><button class="btn btn-primary">Make Private</button></a><br/>
 			{% endif %}
 		<br/><a href="/profile/me/delete"><button class="btn btn-danger">Delete Account</button></a><br/>
-  	</div>
+	  {% if admin == 1 %}
+	  <br/><h2><strong> Admin Stuff </strong></h1>
+	  	<a href="/experiment/new">New General Simulation</a>
+	  {% endif %}
+	</div>
   {%endif%}
 {% endblock %}

@@ -1,7 +1,7 @@
 {%extends 'template.html'%}
 {%block reg %}
 <head>
-<title>Clan Cat Simulator</title>
+<title>CatPhi Page Editor</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <style>
 .CodeMirror {
@@ -24,6 +24,7 @@
 </body>
 
 <button onclick="saveCode()" class="btn btn-primary">Save Page</button>
+<button onclick="addSimu()" class="btn btn-primary">Embed Simulation</button>
 <div class="form-group">
   <label for="editor">Page Edit View</label>
   <textarea class="form-control rounded-0" id="editor" rows="15"></textarea>
@@ -40,11 +41,21 @@ editor.setValue(currentCode);
 setInterval(editor.refresh(), 3)
 
 function saveCode() {
-	post_url = "https://" + window.location.hostname + ":443/save/{{cid}}/page/{{page}}";
+	post_url = "https://" + window.location.hostname + ":443/concept/{{cid}}/page/{{page}}/save";
 	console.log(post_url);
 	post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "code":  editor.getValue()};
 	$.post(post_url, post_data, function(data, status, jqXHR) {alert(data.error)});
 	return
+}
+
+function addSimu() {
+	var sid = prompt("Enter the simulation ID for the experiment you wish to embed")
+	if(sid != null) {
+		var current = editor.getValue();
+		var new_code = '<iframe title="IFrame Simulation" sandbox="allow-scripts allow-pointer-lock" src="https://127.0.0.1/iframe/' + sid + '"></iframe>';
+		current = current + "\n" + new_code;
+		editor.setValue(current);
+	}
 }
 </script>
 <!-- Bootstrap comes with Popper, but not jquery which is anyways OK-->

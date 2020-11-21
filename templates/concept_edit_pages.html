@@ -8,8 +8,8 @@
   <h1 style="text-align: center;"><strong> CatPhi Concept Editor </strong></h1>
   <br/><br/><br/>
   <div style="text-align: center;">
-	  <a href="/concept/{{cid}}/edit/simulation"><button class="btn btn-primary">Edit Simulation</button></a><br/><br/>
-	  <a href="/concept/{{cid}}/edit/pages"><button class="btn btn-primary">Edit Pages</button></a><br/><br/>
-	  <a href="/concept/{{cid}}/pages/new"><button class="btn btn-primary">New Page</button></a><br/>
+  	{% for page in page_count %}
+		<a href="/concept/{{cid}}/edit/page/{{page}}">{{page}}</a>
+	{% endfor %}
   </div>
 {% endblock %}

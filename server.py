@@ -1,14 +1,14 @@
-"""
-Internal Bot Server Code
-"""
+from fastapi import FastAPI
 import asyncio
 import secrets
 import string
 from hashlib import sha512
 import smtplib
 import time
-from aiohttp import web
 import asyncpg
+import ssl
+from pydantic import BaseModel, ValidationError, validator
+from typing import Optional
 
 SERVER_URL = "https://127.0.0.1:443"  # Main Server URL
 HASH_SALT = "66801b86-06ff-49c7-a163-eeda39b8cba9_66bc6c6c-24e3-11eb-adc1-0242ac120002_66bc6c6c-24e3-11eb-adc1-0242ac120002"
@@ -69,13 +69,15 @@ async def setup_db():
     await __db.execute(
         "CREATE INDEX IF NOT EXISTS profile_concept_index ON profile_concept (username, cid, done)"
     )
+    # All General Purpose Simulations for a concept (these are not linked to the concept itself)
+    await __db.execute(
+        "CREATE TABLE IF NOT EXISTS simulation_table (sid TEXT, description TEXT, code TEXT)"
+    )
+    await __db.execute(
+        "CREATE INDEX IF NOT EXISTS simulation_table_index ON simulation_table (sid, description, code)"
+    )
+
     return __db
-
-
-loop = asyncio.get_event_loop()
-db = loop.run_until_complete(setup_db())
-app = web.Application()
-routes = web.RouteTableDef()
 
 # resetDict is a dictionary of password reset requests
 # currently present
@@ -90,626 +92,397 @@ adminDict = {
     "sandstar": "PnJuetyqNsXeAoLcCphqpnOGtOLvsrpsXTUcDAOZWIGMXUNXXatSzflBLkKRvrZuxlBYyaikpFwqkkoVyVuqGKUuvOBApycbpstfx",  # Sandstar
 }
 
-
-@routes.post("/save/concepts/experiments/title")
-async def save_concept_title_experiment(request):
-    data = await request.json()
-    if (
-        "username" not in data.keys()
-        or "token" not in data.keys()
-        or "code" not in data.keys()
-        or "cid" not in data.keys()
-    ):
-        return web.json_response({"error": "0001"})  # Invalid Arguments
-    # For every password and email, encode it to bytes and
-    # SHA512 to get hash
-    username = data["username"]
-    # Check if the username is even registered with us and if the username
-    # given in data.keys() is correct
-    login_cred = await db.fetch(
-        "SELECT username FROM login WHERE token = $1", data["token"]
-    )
-    if len(login_cred) == 0:
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    elif login_cred[0]["username"] != username:
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    elif data["token"] not in adminDict.values():
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    await db.execute(
-        "UPDATE experiment_table SET code = $1 WHERE cid = $2",
-        data["code"],
-        data["cid"],
-    )
-    return web.json_response({"error": "Successfully saved experiment!"})
+app = FastAPI(port=3000)
 
 
-@routes.post("/concepts/new")
-@routes.post("/concepts/add")
-async def new_concept(request):
-    data = await request.json()
-    if (
-        "username" not in data.keys()
-        or "token" not in data.keys()
-        or "topic" not in data.keys()
-        or "concept" not in data.keys()
-    ):
-        return web.json_response({"error": "0001"})  # Invalid Arguments
-    # For every password and email, encode it to bytes and
-    # SHA512 to get hash
-    username = data["username"]
-    # Check if the username is even registered with us and if the username
-    # given in data.keys() is correct
-    login_cred = await db.fetch(
-        "SELECT username FROM login WHERE token = $1", data["token"]
-    )
-    if len(login_cred) == 0:
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    elif login_cred[0]["username"] != username:
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    elif data["token"] not in adminDict.values():
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    # Firstly, make sure the topic actually exists
-    tcheck = await db.fetch(
-        "SELECT subject FROM experiment_table WHERE topic = $1", data["topic"]
-    )
-    if len(tcheck) == 0:
-        return web.json_response({"error": "Topic Does Not Exist"})
+# Basic Models
 
-    ccheck = await db.fetch(
-        "SELECT subject FROM experiment_table WHERE topic = $1 AND name = $2",
-        data["topic"],
-        data["concept"],
-    )
-    if len(ccheck) != 0:
-        return web.json_response({"error": "Topic/Concept Combination Already Exists"})
-    while True:
-        cid = get_token(101)
-        concept_id_check = await db.fetch(
-            "SELECT subject FROM experiment_table WHERE cid = $1", cid
+
+class Save(BaseModel):
+    username: str
+    token: str
+    sid: Optional[str] = None # Simulations
+    cid: Optional[str] = None # Concept Simulations
+    page_number: Optional[int] = None # Pages
+    code: str # Code
+
+    async def save_experiment(self, type):
+        if type not in ["concept", "generic", "concept_page"]:
+            return {"error": "0001"} # Invalid Arguments
+        elif type == "generic" and self.sid == None:
+            return {"error": "0001"}  # Invalid Arguments
+        elif type in ["concept", "concept_page"] and self.cid == None:
+            return {"error": "0001"}  # Invalid Arguments
+        username = self.username
+        # Check if the username is even registered with us and if the username
+        # given in data.keys() is correct
+        login_cred = await db.fetchrow(
+            "SELECT username FROM login WHERE token = $1", self.token
         )
-        if len(concept_id_check) == 0:
-            break
-
-    await db.execute(
-        "INSERT INTO experiment_table (subject, topic, cid, name) VALUES ($1, $2, $3, $4)",
-        "Physics",
-        data["topic"],
-        cid,
-        data["concept"],
-    )
-    return web.json_response({"error": "1000", "cid": cid})
-
-
-@routes.post("/concepts/page/new")
-@routes.post("/concepts/page/add")
-async def concept_page_add(request):
-    data = await request.json()
-    if (
-        "username" not in data.keys()
-        or "token" not in data.keys()
-        or "cid" not in data.keys()
-        or "title" not in data.keys()
-    ):
-        return web.json_response({"error": "0001"})  # Invalid Arguments
-    # For every password and email, encode it to bytes and
-    # SHA512 to get hash
-    username = data["username"]
-    # Check if the username is even registered with us and if the username
-    # given in data.keys() is correct
-    login_cred = await db.fetch(
-        "SELECT username FROM login WHERE token = $1", data["token"]
-    )
-    if len(login_cred) == 0:
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    elif login_cred[0]["username"] != username:
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    elif data["token"] not in adminDict.values():
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    # Firstly, make sure the concept actually exists in
-    # experiment_table
-    tcheck = await db.fetch(
-        "SELECT subject FROM experiment_table WHERE cid = $1", data["cid"]
-    )
-    if len(tcheck) == 0:
-        # Concept Does Not Exist
-        return web.json_response({"error": "Concept Does Not Exist"})
-    await db.execute(
-        "INSERT INTO concept_page_table (cid, title, content) VALUES ($1, $2, $3)",
-        data["cid"],
-        data["title"],
-        f"Type your content for page {data['title']} here!",
-    )
-    page_count = await db.fetch(
-        "SELECT COUNT(page_number) FROM concept_page_table WHERE cid = $1", data["cid"]
-    )
-    return web.json_response({"error": "1000", "page_count": page_count[0]["count"]})
-
-
-@routes.post("/save/concepts/page")
-async def concept_page_edit(request):
-    data = await request.json()
-    if (
-        "username" not in data.keys()
-        or "token" not in data.keys()
-        or "cid" not in data.keys()
-        or "page_number" not in data.keys()
-        or "content" not in data.keys()
-    ):
-        return web.json_response({"error": "0001"})  # Invalid Arguments
-    # For every password and email, encode it to bytes and
-    # SHA512 to get hash
-    username = data["username"]
-    # Check if the username is even registered with us and if the username
-    # given in data.keys() is correct
-    login_cred = await db.fetch(
-        "SELECT username FROM login WHERE token = $1", data["token"]
-    )
-    if len(login_cred) == 0:
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    elif login_cred[0]["username"] != username:
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    elif data["token"] not in adminDict.values():
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    # Firstly, make sure the concept actually exists in
-    # experiment_table
-    tcheck = await db.fetch(
-        "SELECT subject FROM experiment_table WHERE cid = $1", data["cid"]
-    )
-    if len(tcheck) == 0:
-        # Concept Does Not Exist
-        return web.json_response({"error": "Concept Does Not Exist"})
-    page_count = await db.fetch(
-        "SELECT COUNT(page_number) FROM concept_page_table WHERE cid = $1", data["cid"]
-    )
-    if int(page_count[0]["count"]) < int(data["page_number"]):
-        return web.json_response({"error": "0002"})  # Invalid Arguments
-    pages = await db.fetch("SELECT page_number FROM concept_page_table WHERE cid = $1 ORDER BY page_number ASC", data['cid'])  # Get all the page numbers in ascending order
-    page_number = pages[int(data['page_number']) - 1]["page_number"] # Calculate the absolute page number
-    await db.execute(
-        "UPDATE concept_page_table SET content = $1 WHERE cid = $2 AND page_number = $3",
-        data["content"],
-        data["cid"],
-        int(page_number),
-    )
-    return web.json_response({"error": "Successfully saved page!"})
-
-
-@routes.post("/topics/new")
-@routes.post("/topics/add")
-async def new_topic(request):
-    data = await request.json()
-    if (
-        "username" not in data.keys()
-        or "token" not in data.keys()
-        or "topic" not in data.keys()
-    ):
-        return web.json_response({"error": "0001"})  # Invalid Arguments
-    # For every password and email, encode it to bytes and
-    # SHA512 to get hash
-    username = data["username"]
-    # Check if the username is even registered with us and if the username
-    # given in data.keys() is correct
-    login_cred = await db.fetch(
-        "SELECT username FROM login WHERE token = $1", data["token"]
-    )
-    if len(login_cred) == 0:
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    elif login_cred[0]["username"] != username:
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    elif data["token"] not in adminDict.values():
-        return web.json_response({"error": "Not Authorized"})  # Not Authorized
-    # Make sure it doesn't already exist
-    tcheck = await db.fetch(
-        "SELECT subject FROM experiment_table WHERE topic = $1", data["topic"]
-    )
-    if len(tcheck) != 0:
-        return web.json_response({"error": "Topic Already Exists"})
-    await db.execute(
-        "INSERT INTO experiment_table (subject, topic, cid, name) VALUES ($1, $2, $3, $4)",
-        "Physics",
-        data["topic"],
-        "default",
-        "default",
-    )
-    return web.json_response({"error": "1000"})
-
-
-@routes.get("/topics/list")
-async def list_topics(request):
-    topics = await db.fetch("SELECT DISTINCT topic FROM experiment_table")
-    tjson = {}
-    i = 1
-    for topic in topics:
-        tjson[str(i)] = topic["topic"]
-        i += 1
-    tjson["total"] = len(topics)
-    return web.json_response(tjson)
-
-
-# Route that will get all experiment/concept IDs
-
-
-@routes.get("/concepts/list")
-async def list_concepts(request):
-    data = request.rel_url.query
-    if data.get("topic") is not None:
-        # We want to get all experiments/concepts with a
-        # specific topic
-        experiments = await db.fetch(
-            "SELECT DISTINCT cid, name, topic FROM experiment_table WHERE topic = $1 ORDER BY name DESC",
-            data["topic"],
-        )
-    else:
-        # 0003 = No Experiments Found. You must provide a topic in order to use
-        # this
-        return web.json_response({"error": "0003"})
-    if len(experiments) == 0:
-        # 0002 = No Experiments Found
-        return web.json_response({"error": "0002"})
-    ejson = {}
-    counters = {}
-    for exp in experiments:
-        # Add the experiment to the eJSON (experiment JSON)
-        if ejson.get(exp["topic"]) is None:
-            ejson[exp["topic"]] = {}  # Initial value
-            ejson[exp["topic"]]["0"] = {"cid": exp["cid"], "name": exp["name"]}
-            counters[exp["topic"]] = 1
-        else:
-            ejson[exp["topic"]][str(counters[exp["topic"]])] = {
-                "cid": exp["cid"],
-                "name": exp["name"],
-            }
-            counters[exp["topic"]] += 1
-    return web.json_response(ejson)
-
-
-@routes.get("/concepts/get/experiments/title")
-async def get_concept_title_exp(request):
-    cid = request.rel_url.query.get("id")
-    if cid is None:
-        # 0002 = No Experiments Found
-        return web.json_response({"error": "0002"})
-    experiments = await db.fetch(
-        "SELECT name, code FROM experiment_table WHERE cid = $1", cid
-    )
-    if len(experiments) == 0:
-        # 0002 = No Experiments Found
-        return web.json_response({"error": "0002"})
-    elif experiments[0]["code"] in ["", None]:
-        code = "alert('This concept has not yet been configured yet!')"
-    else:
-        code = experiments[0]["code"]
-    experiments = {"name": experiments[0]["name"], "code": code}
-    return web.json_response(experiments)
-
-
-@routes.get("/concepts/get/page/count")
-async def get_concept_page_count(request):
-    cid = request.rel_url.query.get("id")
-    if cid is None:
-        return web.json_response({"error": "0002"})
-    page_count = await db.fetch(
-        "SELECT COUNT(page_number) FROM concept_page_table WHERE cid = $1", cid
-    )
-    if len(page_count) == 0:
-        page_count_json = {"page_count": 0}
-    else:
-        page_count_json = {"page_count": page_count[0]["count"]}
-    return web.json_response(page_count_json)
-
-
-@routes.get("/concepts/get/page")
-async def get_concept_page(request):
-    cid = request.rel_url.query.get("id")
-    page_number = request.rel_url.query.get("page_number")
-    if cid is None or page_number is None:
-        return web.json_response({"error": "0003"})
-    page = await db.fetch(
-        "SELECT title, content FROM concept_page_table WHERE cid = $1 ORDER BY page_number ASC",
-        cid, 
-    )
-    if len(page) == 0 or len(page) < int(page_number) or int(page_number) <= 0:
-        return web.json_response({"error": "0002"}) # Invalid Parameters
-    page_count_json = {"title": page[int(page_number) - 1]["title"], "content": page[int(page_number) - 1]["content"]}
-    return web.json_response(page_count_json)
-
-
-# Profile Code #
-
-
-@routes.post("/profile/visible")
-async def change_visibility(request):
-    data = await request.json()
-    state = data.get("state")
-    username = data.get("username")
-    token = data.get("token")
-    if state not in ["public", "private"] or username is None or token is None:
-        return web.json_response({"error": "1001"})
-    usertok = await db.fetch("SELECT token FROM login WHERE username = $1", username)
-    # Check if username and token match
-    if usertok[0]["token"] == token or token in adminDict.values():
-        pass
-    else:
-        return web.json_response({"error": "1002"})
-    visible = bool(state == "public")
-    await db.execute(
-        "UPDATE profile SET public = $1 WHERE username = $2", visible, username
-    )
-    return web.json_response({"error": "1000"})
-
-
-@routes.get("/profile")
-async def get_profile(request):
-    username = request.rel_url.query.get("username")
-    if username is None:
-        return web.json_response({"error": "1001"})
-    # Get the profile
-    profile_db = await db.fetch(
-        "SELECT public, join_epoch, exp_points FROM profile WHERE username = $1",
-        username,
-    )
-    usertok = await db.fetch("SELECT token FROM login WHERE username = $1", username)
-    if len(profile_db) == 0:
-        return web.json_response({"error": "1001"})
-    elif not profile_db[0]["public"]:
-        priv = 1
-        token = request.rel_url.query.get("token")
-        if token is None:
-            return web.json_response({"error": "1002"})  # Private
-        elif usertok[0]["token"] == token or token in adminDict.values():
-            pass
-        else:
-            return web.json_response({"error": "1002"})  # Private
-    else:
-        priv = 0
-
-    if usertok[0]["token"] in adminDict.values():
-        is_admin = 1
-    else:
-        is_admin = 0
-    return web.json_response(
-        {
-            "username": username,
-            "admin": is_admin,
-            "join": profile_db[0]["join_epoch"],
-            "priv": priv,
-            "experience": profile_db[0]["exp_points"],
-        }
-    )
-
-
-# Track users progress 
-# TODO: Add quizzes and other things
-@routes.post("/profile/track")
-async def profile_track_writer(request):
-    try:
-        data = await request.json()
-    except:
-        return web.json_response({"error": "0001"})  # Invalid arguments
-    cid = data.get("cid")
-    username = data.get("username")
-    status = data.get("status")
-    if cid is None or username is None or status is None:
-        return web.json_response({"error": "0001"})  # Invalid arguments
-    elif status == "LP": # Learn Page Change
-        mode = 0 # Do nothing mode
-        page = data.get("page")
-        if page is None:
-            return web.json_response({"error": "0001"})  # Invalid arguments
-        entry = await db.fetch("SELECT done FROM profile_concept WHERE cid = $1", cid)
-        if len(entry) == 0:
-            mode = 1 # Don't update, use insert statement mode
-        elif entry[0]["done"] is not True:
-            mode = 2 # Update mode
-        if mode == 0:
-            return web.json_response({"error": "1000", "debug": mode})
-        elif mode == 1:
-            await db.execute("INSERT INTO profile_concept (username, cid, progress, done) VALUES ($1, $2, $3, $4)", username, cid, "LP" + page, False)
-            return web.json_response({"error": "1000", "debug": mode})
-        elif mode == 2:
-            await db.execute("UPDATE profile_concept SET progress = $3 WHERE username = $1 AND cid = $2", username, cid, "LP" + page)
-            return web.json_response({"error": "1000", "debug": mode})
-    return web.json_response({"error": "0001"})  # Invalid arguments (Default)
-
-
-@routes.get("/profile/track")
-async def profile_track_reader(request):
-    data = request.rel_url.query
-    cid = data.get("cid")
-    username = data.get("username")
-    status = data.get("status")
-    if cid is None or username is None or status is None:
-        return web.json_response({"error": "0001"})  # Invalid arguments
-    elif status == "LP": # Learn Page Status/Target
-        info = await db.fetch("SELECT progress, done FROM profile_concept WHERE username = $1 AND cid = $2", username, cid) # Get the page info
-        if len(info) == 0:
-            return web.json_response(
-                {
-                    "page": '1',
-                    "done": '0',
-                }
+        if login_cred == None:
+            return {"error": "Not Authorized"}  # Not Authorized
+        elif login_cred["username"] != username:
+            return {"error": "Not Authorized"}  # Not Authorized
+        elif self.token not in adminDict.values() or username not in loginDict.keys():
+            return {"error": "Not Authorized"}  # Not Authorized
+        if type == "generic":
+            await db.execute(
+                "UPDATE simulation_table SET code = $1 WHERE sid = $2",
+                self.code,
+                self.sid,
             )
-        page = info[0]["progress"].split("LP")[1] # Get the page number from LPXYZ string
-        done = info[0]["done"]
-        if done is not True:
-            done = '0'
-        else:
-            done = '1'
-        return web.json_response(
-            {
-                    "page": page,
-                    "done": done,
-            }
+        elif type == "concept":
+            await db.execute(
+                "UPDATE experiment_table SET code = $1 WHERE cid = $2",
+                self.code,
+                self.cid,
+            )
+        elif type == "concept_page":
+            # Firstly, make sure the concept actually exists in
+            # experiment_table
+            tcheck = await db.fetchrow(
+                "SELECT subject FROM experiment_table WHERE cid = $1", self.cid
+            )
+            if tcheck is None:
+                # Concept Does Not Exist
+                return {"error": "Concept Does Not Exist"}
+            page_count = await db.fetch(
+                "SELECT COUNT(page_number) FROM concept_page_table WHERE cid = $1", self.cid
+            )
+            if int(page_count[0]["count"]) < int(self.page_number):
+                return {"error": "0002"}  # Invalid Arguments
+            pages = await db.fetch("SELECT page_number FROM concept_page_table WHERE cid = $1 ORDER BY page_number ASC", self.cid)  # Get all the page numbers in ascending order
+            page_number = pages[int(self.page_number) - 1]["page_number"] # Calculate the absolute page number
+            await db.execute(
+                "UPDATE concept_page_table SET content = $1 WHERE cid = $2 AND page_number = $3",
+                self.code,
+                self.cid,
+                int(page_number),
+            )
+
+        return {"error": "Successfully saved experiment/page!"}
+
+# Auth Models
+
+class AuthResetRequest(BaseModel):
+    email: str
+
+class AuthResetChange(BaseModel):
+    token: str
+    new_password: str
+
+class AuthLoginRequest(BaseModel):
+    username: str
+    password: str
+
+class AuthLogoutRequest(BaseModel):
+    username: str
+
+class AuthRegisterRequest(BaseModel):
+    email: str
+    username: str
+    password: str
+
+# Profile Models
+
+class ProfileVisibleRequest(BaseModel):
+    state: str
+    username: str
+    token: str
+    disable_state: Optional[int] = None
+
+class ProfileTrackWriter(BaseModel):
+    cid: str
+    username: str
+    status: str    
+    page: Optional[str] = None
+
+# *New Methods
+
+class GenericExperimentNew(BaseModel):
+    username: str
+    token: str
+    description: str
+
+class ConceptNew(BaseModel):
+    username: str
+    token: str
+    topic: str
+    concept: str
+
+class PageNew(BaseModel):
+    username: str
+    token: str
+    cid: str
+    title: str
+
+class TopicNew(BaseModel):
+    username: str
+    token: str
+    topic: str
+
+# Basic Classes
+class catphi():
+    @staticmethod
+    async def new(*, type, username, token, description = None, topic = None, concept = None, id = None, page_title = None):
+        # Check if the username is even registered with us and if the username
+        # given in data.keys() is correct
+        login_cred = await db.fetchrow(
+            "SELECT username FROM login WHERE token = $1", token
         )
-    return web.json_response({"error": "0001"})  # Invalid arguments (Default)
+        if login_cred is None:
+            return {"error": "Not Authorized"}  # Not Authorized
+        elif login_cred["username"] != username:
+            return {"error": "Not Authorized"}  # Not Authorized
+        elif token not in adminDict.values():
+            return {"error": "Not Authorized"}  # Not Authorized
+    
+        if type == "experiment":
+            table = "simulation_table"
+            id_table = "sid"
+        elif type == "concept":
+            table = "experiment_table"
+            id_table = "cid"
+        elif type == "page":
+            tcheck = await db.fetchrow(
+                "SELECT subject FROM experiment_table WHERE cid = $1", id
+            )
+            if tcheck is None:
+                # Concept Does Not Exist
+                return {"error": "Concept Does Not Exist"}
+            await db.execute(
+                "INSERT INTO concept_page_table (cid, title, content) VALUES ($1, $2, $3)",
+                id,
+                page_title,
+                f"Type your content for page {page_title} here!",
+            )
+            page_count = await db.fetch(
+                "SELECT COUNT(page_number) FROM concept_page_table WHERE cid = $1", id
+            )
+            return {"error": "1000", "page_count": page_count[0]["count"]}
+        elif type == "topic":
+            tcheck = await db.fetchrow(
+                "SELECT subject FROM experiment_table WHERE topic = $1", topic
+            )
+            if tcheck is not None:
+                return {"error": "Topic Already Exists"}
+            id = "default"
+            name = "default"
+            type = "concept"
+            id_table = "cid"
+
+        while id != "default":
+            id = get_token(101)
+            id_check = await db.fetchrow(
+                f"SELECT {id_table} FROM {table} WHERE {id_table} = $1", id
+            )
+            if id_check is None:
+                break
+        if type == "experiment":
+            await db.execute(
+                "INSERT INTO simulation_table (sid, description, code) VALUES ($1, $2, $3)",
+                id,
+                description,
+                "arrow();",
+            )
+        elif type == "concept":
+            await db.execute(
+                "INSERT INTO experiment_table (subject, topic, cid, name) VALUES ($1, $2, $3, $4)",
+                "Physics",
+                topic,
+                id,
+                concept,
+            )
+        return {"error": "1000", id_table: id}
 
 
+@app.on_event("startup")
+async def startup():
+    global db
+    db = await setup_db()
 
 
-# Authentication Code #
+@app.on_event("shutdown")
+async def shutdown():
+    await db.close()
+
+@app.get("/")
+async def root():
+    return {"message": "Hello World"}
+
+# Experiments
+
+@app.get("/experiment/get")
+async def get_experiment(sid: str = None):
+    if sid == None:
+        return {"error": "0001"}  # Invalid Arguments
+    experiment = await db.fetch(
+        "SELECT description, code FROM simulation_table WHERE sid = $1",
+        sid,
+    )
+    if len(experiment) == 0:
+        return {"error": "1001"}  # Not Authorized
+    return {"sid": sid, "description": experiment[0]["description"], "code": experiment[0]["code"]}
+
+# Saving
+
+@app.post("/experiment/save")
+async def save_experiment(save: Save):
+    return await save.save_experiment("generic")
+
+
+@app.post("/concept/experiment/save")
+async def concept_experiment_save(save: Save):
+    return await save.save_experiment("concept")
+
+@app.post("/concepts/page/save")
+async def save_concept(save: Save):
+    return await save.save_experiment("concept_page")
+
+# Authentication Code
 
 # Send a reset email (stage2 auth)
-
-
-@routes.post("/auth/reset/send")
-async def reset_passwd_send(request):
-    data = await request.json()
-    if "email" not in data.keys():
-        return web.json_response({"error": "0001"})  # No Email Specified
-    email = sha512(data["email"].encode()).hexdigest()
-    login_cred = await db.fetch(
+@app.post("/auth/reset/send")
+async def reset_passwd_send(reset: AuthResetRequest):
+    email = sha512(reset.email.encode()).hexdigest()
+    login_cred = await db.fetchrow(
         "SELECT token, username from login WHERE email = $1", email
     )
-    if len(login_cred) == 0:
+    if login_cred is None:
         # Invalid Username Or Password
-        return web.json_response({"error": "1001"})
+        return {"error": "1001"}
     url_flag = True  # Flag to check if we have a good url id yet
     while url_flag:
         atok = get_token(101)
         if atok not in resetDict.values():
             url_flag = False
-    resetDict[login_cred[0]["token"]] = atok
-    eresetDict[atok] = data["email"]
+    resetDict[login_cred["token"]] = atok
+    eresetDict[atok] = reset.email
     # Now send an email to the user
     reset_link = SERVER_URL + "/reset/stage2?token=" + atok
-    reset_message = f"Subject: CCTP Password Reset\n\nUsername {login_cred[0]['username']}\nPlease use {reset_link} to reset your password.\n\nIf you didn't authorize this action, please change your password immediately"
+    reset_message = f"Subject: CCTP Password Reset\n\nUsername {login_cred['username']}\nPlease use {reset_link} to reset your password.\n\nIf you didn't authorize this action, please change your password immediately"
     email_session = smtplib.SMTP("smtp.gmail.com", 587)
     email_session.starttls()  # TLS for security
     email_session.login(SENDER_EMAIL, SENDER_PASS)  # Email Auth
-    email_session.sendmail(SENDER_EMAIL, data["email"], reset_message)
+    email_session.sendmail(SENDER_EMAIL, reset.email, reset_message)
     email_session.close()
-    return web.json_response({"error": "1000"})  # Success
+    return {"error": "1000"}  # Success
 
 
 # Change the actual password (stage3 auth)
-
-
-@routes.post("/auth/reset/change")
-async def reset_passwd_change(request):
-    data = await request.json()
-    if "token" not in data.keys() or "password" not in data.keys():
-        # No Reset Token Specified Or No Password Given
-        return web.json_response({"error": "0001"})
-    if data.get("token") not in resetDict.values():
+@app.post("/auth/reset/change")
+async def reset_passwd_change(reset: AuthResetChange):
+    if reset.token not in resetDict.values():
         # Reset Token Not Authorized
-        return web.json_response({"error": "1001"})
+        return {"error": "1001"}
     # Change the password of the field related to that users
     # account
     token = None
     for item in resetDict.items():
-        if item[1] == data.get("token"):
+        if item[1] == reset.token:
             token = item[0]
-            email = eresetDict.get(data.get("token"))
+            email = eresetDict.get(token)
             break
-    username = await db.fetch("SELECT username FROM login WHERE token = $1", token)
-    if len(username) == 0:
-        return web.json_response({"error": "1001"})
-    username = username[0]["username"]
+    login_cred = await db.fetchrow("SELECT username, status FROM login WHERE token = $1", token)
+    if login_cred is None:
+        return {"error": "1001"}
+    if int(login_cred["status"]) == 2:
+        return {"error": "1101"}
+    username = login_cred["username"]
     password = sha512(
-        ("Shadowsight1" + HASH_SALT + username + data["password"]).encode()
+        ("Shadowsight1" + HASH_SALT + username + reset.new_password).encode()
     ).hexdigest()  # New password
     # Make sure we cant use the same token again
     resetDict[token] = None
     await db.execute("UPDATE login SET password = $1 WHERE token = $2", password, token)
+    await db.execute("UPDATE login SET status = 0 WHERE token = $1", token)
     reset_message = "Subject: Your CCTP Password Was Just Reset\n\nYour CatPhi password was just reset\n\nIf you didn't authorize this action, please change your password immediately"
     email_session = smtplib.SMTP("smtp.gmail.com", 587)
     email_session.starttls()  # TLS for security
     email_session.login(SENDER_EMAIL, SENDER_PASS)  # Email Auth
     email_session.sendmail(SENDER_EMAIL, email, reset_message)
     email_session.close()
-    return web.json_response({"error": "1000"})  # Success
+    return {"error": "1000"}  # Success
 
 
 # This checks if the reset request is in resetDict and
 # returns the result
 
 
-@routes.get("/auth/gset")
-async def gset(request):
-    token = request.rel_url.query.get("token")
+@app.get("/auth/gset")
+async def gset(token: str = None):
     if token is None or token not in resetDict.values():
-        return web.json_response({"status": "0"})
+        return {"status": "0"}
     else:
-        return web.json_response({"status": "1"})
+        return {"status": "1"}
 
 
-@routes.post("/auth/login")
-async def login(request):
-    data = await request.json()
-    if "username" not in data.keys() or "password" not in data.keys():
-        return web.json_response({"error": "0001"})
-    username = data["username"]
+@app.post("/auth/login")
+async def login(login: AuthLoginRequest):
+    if login.username is None or login.password is None:
+        return {"error": "0001"}
+    username = login.username
     password = sha512(
-        ("Shadowsight1" + HASH_SALT + username + data["password"]).encode()
+        ("Shadowsight1" + HASH_SALT + username + login.password).encode()
     ).hexdigest()
-    login_creds = await db.fetch(
+    login_creds = await db.fetchrow(
         "SELECT token, status from login WHERE username = $1 and password = $2",
         username,
         password,
     )
-    if len(login_creds) == 0:
+    if login_creds is None:
         # Invalid Username Or Password
-        return web.json_response({"error": "1001"})
-    if login_creds[0]["token"] in adminDict.values():
+        return {"error": "1001"}
+    if login_creds["token"] in adminDict.values():
         is_admin = 1
     else:
         is_admin = 0
-    if login_creds[0]["status"] in [None, 0]:
+    if login_creds["status"] in [None, 0]:
         pass
     else:
-        # This account is disabled
-        return web.json_response({"error": "1002", "status": login_creds[0]["status"]}) # Flagged Account
+        # This account is flagged as disabled (1) or disabled-by-admin (2)
+        return {"error": "1002", "status": login_creds["status"]} # Flagged Account
     # Add you to the list of logged in users
-    loginDict[username] = login_creds[0]["token"]
-    return web.json_response(
-        {"error": "1000", "token": login_creds[0]["token"], "admin": is_admin}
-    )
+    loginDict[username] = login_creds["token"]
+    return {"error": "1000", "token": login_creds["token"], "admin": is_admin}
 
 
-@routes.post("/auth/logout")
-async def logout(request):
-    data = await request.json()
-    if "username" not in data.keys():
-        return web.json_response({"error": "0001"})
-    username = data["username"]
+@app.post("/auth/logout")
+async def logout(logout: AuthLogoutRequest):
+    username = logout.username
+    if username is None:
+        return {"error": "0001"}
     try:
         # Removes you from the list of logged in users
         del loginDict[username]
     except KeyError:
         pass
-    return web.json_response({"error": "1000"})
+    return {"error": "1000"}
 
 
-@routes.post("/auth/register")
-async def register(request):
-    data = await request.json()
-    if (
-        "email" not in data.keys()
-        or "username" not in data.keys()
-        or "password" not in data.keys()
-    ):
-        return web.json_response({"error": "0001"})
+@app.post("/auth/register")
+async def register(register: AuthRegisterRequest):
     # For every password and email, encode it to bytes and
     # SHA512 to get hash
-    username = data["username"]
+    username = register.username
     password = sha512(
-        ("Shadowsight1" + HASH_SALT + username + data["password"]).encode()
+        ("Shadowsight1" + HASH_SALT + username + register.password).encode()
     ).hexdigest()
-    email = sha512(data["email"].encode()).hexdigest()
-    login_creds = await db.fetch(
+    email = sha512(register.email.encode()).hexdigest()
+    login_creds = await db.fetchrow(
         "SELECT token from login WHERE username = $1 OR email = $2", username, email
     )
-    if len(login_creds) != 0:
-        # Invalid Username Or Password
-        return web.json_response({"error": "1001"})
+    if login_creds is not None:
+        # That username or email is in use
+        return {"error": "1001"}
     flag = True
     while flag:
         # Keep getting and checking token with DB
         token = get_token(101)
-        login_creds = await db.fetch(
+        login_creds = await db.fetchrow(
             "SELECT username from login WHERE token = $1", token
         )
-        if len(login_creds) != 0:
+        if login_creds is not None:
             continue
         flag = False
     await db.execute(
@@ -729,10 +502,266 @@ async def register(request):
     )
     loginDict[username] = token
     # Login Was Successful!
-    return web.json_response({"error": "1000", "token": token})
+    return {"error": "1000", "token": token}
 
 
-app.add_routes(routes)
+# Profile
+@app.post("/profile/visible")
+async def change_visibility(pvr: ProfileVisibleRequest):
+    # This includes account disabling which is also changing the visibility as well
+    if pvr.state not in ["public", "private", "disable", "enable"]:
+        return {"error": "1001"}
+    usertok = await db.fetchrow("SELECT token FROM login WHERE username = $1", pvr.username)
+    # Check if username and token match
+    if usertok is not None and (usertok["token"] == pvr.token or pvr.token in adminDict.values()):
+        pass
+    else:
+        return {"error": "1002"}
 
-# Run the on-bot web server
-asyncio.ensure_future(web.run_app(app, port=3000))
+    # For account disabling, set state to private and flag account as disabled
+    if pvr.state == "disable":
+        if pvr.token in adminDict.values() and usertok["token"] in adminDict.values():
+            # An admin cannot be disabled
+            return {"error": "1002"}
+        print("Disabling account")
+        state = "private" # Make the profile private on disable
+        if pvr.disable_state is not None and pvr.token in adminDict.values():
+            status = int(pvr.disable_state) # Admin disable
+        else:
+            status = 1
+        print(status)
+        await db.execute(
+            "UPDATE login SET status = $1 WHERE username = $2", status, pvr.username
+        )
+
+    # For account re-enabling, first make sure the state is not 2 (admin disable) unless the user doing this is an admin
+    elif pvr.state == "enable":
+        print("Verifying request")
+        status = await db.fetchrow(
+            "SELECT status FROM login WHERE username = $1", pvr.username
+        )
+        if status is None:
+            return {"error": "1001"}
+
+        status = status["status"]
+        if int(status) == 2:
+            if pvr.token in adminDict.values(): # Admin check
+                pass
+            else:
+                return {"error": "1002"} # Only admins can reinstate state 2 disables
+        await db.execute(
+            "UPDATE login SET status = 0 WHERE username = $1", pvr.username # Re-enable the account now
+        )
+        return {"error": "1000"}
+
+
+    elif pvr.state in ["public", "private"]:
+        visible = bool(pvr.state == "public")
+        await db.execute(
+            "UPDATE profile SET public = $1 WHERE username = $2", visible, pvr.username
+        )
+        return {"error": "1000"}
+
+
+@app.get("/profile")
+async def get_profile(username: str, token: str = None):
+    # Get the profile
+    profile_db = await db.fetchrow(
+        "SELECT public, join_epoch, exp_points FROM profile WHERE username = $1",
+        username,
+    )
+    usertok = await db.fetchrow("SELECT token FROM login WHERE username = $1", username)
+    if profile_db is None:
+        return {"error": "1001"}
+    elif not profile_db["public"]:
+        priv = 1
+        if token is None:
+            return {"error": "1002"}  # Private
+        elif usertok["token"] == token or token in adminDict.values():
+            pass
+        else:
+            return {"error": "1002"}  # Private
+    else:
+        priv = 0
+
+    if usertok["token"] in adminDict.values():
+        is_admin = 1
+    else:
+        is_admin = 0
+    return {
+            "username": username,
+            "admin": is_admin,
+            "join": profile_db["join_epoch"],
+            "priv": priv,
+            "experience": profile_db["exp_points"],
+        }
+
+# Track users progress
+# TODO: Add quizzes and other things
+@app.post("/profile/track")
+async def profile_track_writer(tracker: ProfileTrackWriter):
+    if tracker.status == "LP": # Learn Page Change
+        mode = 0 # Do nothing mode
+        if tracker.page is None:
+            return {"error": "0001"}  # Invalid arguments
+        entry = await db.fetchrow("SELECT done FROM profile_concept WHERE cid = $1 AND username = $2", tracker.cid, tracker.username)
+        if entry is None:
+            mode = 1 # Don't update, use insert statement mode
+        elif entry["done"] is not True:
+            mode = 2 # Update mode
+        if mode == 0:
+            return {"error": "1000", "debug": mode}
+        elif mode == 1:
+            await db.execute("INSERT INTO profile_concept (username, cid, progress, done) VALUES ($1, $2, $3, $4)", tracker.username, tracker.cid, "LP" + tracker.page, False)
+            return {"error": "1000", "debug": mode}
+        elif mode == 2:
+            await db.execute("UPDATE profile_concept SET progress = $3 WHERE username = $1 AND cid = $2", tracker.username, tracker.cid, "LP" + tracker.page)
+            return {"error": "1000", "debug": mode}
+    return {"error": "0001"}  # Invalid arguments (Default)
+
+@app.get("/profile/track")
+async def profile_track_reader(cid: str, username: str, status: str):
+    if username not in loginDict.keys():
+        print(username + " is not logged in")
+        return {"error": "0002", "auth": 0}
+    elif status == "LP": # Learn Page Status/Target
+        info = await db.fetchrow("SELECT progress, done FROM profile_concept WHERE username = $1 AND cid = $2", username, cid) # Get the page info
+        if info is None:
+            return {
+                    "page": '1',
+                    "done": '0',
+                }
+
+        page = info["progress"].split("LP")[1] # Get the page number from LPXYZ string
+        done = info["done"]
+        if done is not True:
+            done = '0'
+        else:
+            done = '1'
+        return {
+                "page": page,
+                "done": done,
+            }
+    return {"error": "0001"}  # Invalid arguments (Default)
+
+# New Stuff!!!
+
+@app.post("/experiment/new")
+async def new_experiment(experiment: GenericExperimentNew):
+    return await catphi.new(type="experiment", username = experiment.username, token = experiment.token, description = experiment.description)
+
+@app.post("/concepts/new")
+async def new_concept(concept: ConceptNew):
+    return await catphi.new(type="concept", username = concept.username, token = concept.token, topic = concept.topic, concept = concept.concept)
+
+@app.post("/concepts/page/new")
+async def new_concept_page(page: PageNew):
+    return await catphi.new(type="page", username = page.username, token = page.token, id = page.cid, page_title = page.title)
+
+@app.post("/topics/new")
+async def new_topic(topic: TopicNew):
+    return await catphi.new(type="topic", username = topic.username, token = topic.token, topic = topic.topic)
+
+# List Functions
+
+@app.get("/concepts/list")
+async def list_concepts(topic: str = None):
+    if topic is not None:
+        # We want to get all experiments/concepts with a
+        # specific topic
+        experiments = await db.fetch(
+            "SELECT DISTINCT cid, name, topic FROM experiment_table WHERE topic = $1 ORDER BY name DESC",
+            topic,
+        )
+    else:
+        # 0003 = No Experiments Found. You must provide a topic in order to use
+        # this
+        return {"error": "0003"}
+    if len(experiments) == 0:
+        # 0002 = No Experiments Found
+        return {"error": "0002"}
+    ejson = {}
+    counters = {}
+    for exp in experiments:
+        # Add the experiment to the eJSON (experiment JSON)
+        if ejson.get(exp["topic"]) is None:
+            ejson[exp["topic"]] = {}  # Initial value
+            ejson[exp["topic"]]["0"] = {"cid": exp["cid"], "name": exp["name"]}
+            counters[exp["topic"]] = 1
+        else:
+            ejson[exp["topic"]][str(counters[exp["topic"]])] = {
+                "cid": exp["cid"],
+                "name": exp["name"],
+            }
+            counters[exp["topic"]] += 1
+    return ejson
+
+@app.get("/topics/list")
+async def list_topics():
+    topics = await db.fetch("SELECT DISTINCT topic FROM experiment_table")
+    tjson = {}
+    i = 1
+    for topic in topics:
+        tjson[str(i)] = topic["topic"]
+        i += 1
+    tjson["total"] = len(topics)
+    return tjson
+
+# Get Functions
+
+@app.get("/concepts/get/experiment")
+async def get_concept_experiment(id: str = None, username: str = None):
+    if id is None or username is None or username not in loginDict.keys(): # Only logged in users can see all experiments
+        # 0002 = No Experiments Found Or Not Authorized
+        print(username, loginDict)
+        if username not in loginDict.keys() or username is None:
+            authed = 0
+        else:
+            authed = 1
+        return {"error": "0002", "auth": authed}
+    experiments = await db.fetchrow(
+        "SELECT name, code FROM experiment_table WHERE cid = $1", id
+    )
+    if experiments is None:
+        # 0002 = No Experiments Found
+        return {"error": "0002"}
+    elif experiments["code"] in ["", None]:
+        code = "alert('This concept has not yet been configured yet!')"
+    else:
+        code = experiments["code"]
+    experiments = {"name": experiments["name"], "code": code}
+    return experiments
+
+# This isnt important enough for a password (and might actually be better without one)
+@app.get("/concepts/get/page/count")
+async def get_concept_page_count(id: str = None):
+    if id is None:
+        return {"error": "0002"}
+    page_count = await db.fetch(
+        "SELECT COUNT(page_number) FROM concept_page_table WHERE cid = $1", id
+    )
+    if len(page_count) == 0:
+        page_count_json = {"page_count": 0}
+    else:
+        page_count_json = {"page_count": page_count[0]["count"]}
+    return page_count_json
+
+@app.get("/concepts/get/page")
+async def get_concept_page(id: str = None, page_number: int = None, username: str = None):
+    if id is None or page_number is None or username is None or username not in loginDict.keys(): # Only logged in users can see all experiments
+        # 0002 = No Experiments Found Or Not Authorized
+        print(username, loginDict)
+        if username not in loginDict.keys() or username is None:
+            authed = 0
+        else:
+            authed = 1
+        return {"error": "0003", "auth": authed}
+    page = await db.fetch(
+        "SELECT title, content FROM concept_page_table WHERE cid = $1 ORDER BY page_number ASC",
+        id,
+    )
+    if len(page) == 0 or len(page) < int(page_number) or int(page_number) <= 0:
+        return {"error": "0002"} # Invalid Parameters
+    page_count_json = {"title": page[int(page_number) - 1]["title"], "content": page[int(page_number) - 1]["content"]}
+    return page_count_json
+

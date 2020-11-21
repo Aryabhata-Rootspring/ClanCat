@@ -1,7 +1,7 @@
 {% extends 'template.html' %}
 {% block header %}
 <title>CatPhi Admin Interface</title>
-<meta name="description" content="Aryabhata Inc - CatPhi Login">
+<meta name="description" content="Aryabhata Inc - CatPhi Simulation Creator">
 {% endblock %}
 {% block content %}
   <h1 style="text-align: center;"><strong>  CatPhi Admin Interface </strong></h1>
@@ -13,10 +13,10 @@
 	<form method='post'>
 	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 	<div class="form-group">
-    		<label for="topic">Topic Name</label>
-    		<input type="text" name='topic' class="form-control" id='topic' aria-describedby="userHelp" placeholder='Topic Name' required aria-required="true">
+    		<label for="topic">Simulation Description</label>
+    		<input type="text" name='description' class="form-control" id='simu' aria-describedby="userHelp" placeholder='Simulation Description'>
   	</div>
-  	<button type="submit" class="btn btn-primary">Add Topic</button>
+  	<button type="submit" class="btn btn-primary">Create Simulation</button>
 	</form>	
   </div>
 {% endblock %}
