@@ -19,10 +19,8 @@ logger = logging.getLogger(__name__)
 def generate_csrf(secret_key=None, token_key=None):
     """Generate a CSRF token. The token is cached for a request, so multiple
     calls to this function will generate the same token.
-
     During testing, it might be useful to access the signed token in
     ``g.csrf_token`` and the raw token in ``session['csrf_token']``.
-
     :param secret_key: Used to securely sign the token. Default is
         ``QUART_CSRF_SECRET_KEY`` or ``SECRET_KEY``.
     :param token_key: Key where token is stored in session for comparison.
@@ -58,7 +56,6 @@ def generate_csrf(secret_key=None, token_key=None):
 def validate_csrf(data, secret_key=None, time_limit=None, token_key=None):
     """Check if the given data is a valid CSRF token. This compares the given
     signed token to the one stored in the session.
-
     :param data: The signed CSRF token to be checked.
     :param secret_key: Used to securely sign the token. Default is
         ``QUART_CSRF_SECRET_KEY`` or ``SECRET_KEY``.
@@ -66,9 +63,7 @@ def validate_csrf(data, secret_key=None, time_limit=None, token_key=None):
         ``QUART_CSRF_TIME_LIMIT`` or 3600 seconds (60 minutes).
     :param token_key: Key where token is stored in session for comparison.
         Default is ``QUART_CSRF_FIELD_NAME`` or ``'csrf_token'``.
-
     :raises ValidationError: Contains the reason that validation failed.
-
     .. versionchanged:: 0.14
         Raises ``ValidationError`` with a specific error message rather than
         returning ``True`` or ``False``.
@@ -111,7 +106,6 @@ def _get_config(
 ):
     """Find config value based on provided value, Flask config, and default
     value.
-
     :param value: already provided config value
     :param config_name: Flask ``config`` key
     :param default: default value if not provided or configured
@@ -131,16 +125,12 @@ def _get_config(
 
 class CSRFProtect:
     """Enable CSRF protection globally for a Flask app.
-
     ::
-
         app = Flask(__name__)
         csrf = CSRFProtect(app)
-
     Checks the ``csrf_token`` field sent with forms, or the ``X-CSRFToken``
     header sent with JavaScript requests. Render the token in templates using
     ``{{ csrf_token() }}``.
-
     See the :ref:`csrf` documentation.
     """
 
@@ -235,7 +225,6 @@ class CSRFProtect:
 
 class CSRFError(BadRequest):
     """Raise if the client sends invalid CSRF data with the request.
-
     Generates a 400 Bad Request response with the failure reason by default.
     Customize the response by registering a handler with
     :meth:`flask.Flask.errorhandler`.

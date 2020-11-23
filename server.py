@@ -29,21 +29,21 @@ async def setup_db():
     )  # Login stuff
     # Always do this to ensure best performance
     await __db.execute("VACUUM")
-    # Represents a concept on the database.
+    # Represents a topic
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS concept_table (subject TEXT, topic TEXT, owner TEXT, concept_experiment TEXT, cid TEXT, name TEXT)"
+        "CREATE TABLE IF NOT EXISTS topic_table (name TEXT, description TEXT, topic_experiment TEXT, tid TEXT)"
     )
-    # Create an index for the experiments
+    # Create an index for the topics
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS concept_index ON concept_table (owner, concept_experiment, cid, subject, topic)"
+        "CREATE INDEX IF NOT EXISTS topic_index ON topic_table (name, description, topic_experiment, tid)"
     )
-    # Represents a page on the database
+    # Represents a concept
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS concept_page_table (page_number SERIAL NOT NULL, cid TEXT, title TEXT, content TEXT)"
+        "CREATE TABLE IF NOT EXISTS concept_table (tid TEXT, title TEXT, cid SERIAL, content TEXT)"
     )
-    # Create an index for the experiments
+    # Create an index for the concepts
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS concept_page_index ON concept_page_table (cid, title, content)"
+        "CREATE INDEX IF NOT EXISTS concept_index ON concept_table (tid, title, cid, content)"
     )
     # Represents a single login in the database
     await __db.execute(
@@ -62,13 +62,13 @@ async def setup_db():
     await __db.execute(
         "CREATE INDEX IF NOT EXISTS profile_index ON profile (username, join_epoch, public)"
     )
-    # All the concepts a user has completed or is working on
+    # All the topics a user has completed or is working on
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS profile_concept (username TEXT, cid TEXT, progress TEXT, done BOOLEAN)"
+        "CREATE TABLE IF NOT EXISTS profile_topic (username TEXT, tid TEXT, progress TEXT, done BOOLEAN)"
     )
     # Profile Concept Index
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS profile_concept_index ON profile_concept (username, cid, done)"
+        "CREATE INDEX IF NOT EXISTS profile_topic_index ON profile_topic (username, tid, done)"
     )
     # All General Purpose Simulations for a concept (these are not linked to the concept itself)
     await __db.execute(
@@ -78,13 +78,13 @@ async def setup_db():
     await __db.execute(
         "CREATE INDEX IF NOT EXISTS experiment_index ON experiment_table (sid, description, code)"
     )
-    # Concept Practice
+    # Topic Practice
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS concept_practice_table (cid TEXT, qid SERIAL NOT NULL, type TEXT, question TEXT, answer TEXT, recommended_time INTEGER)"
+        "CREATE TABLE IF NOT EXISTS topic_practice_table (tid TEXT, qid SERIAL NOT NULL, type TEXT, question TEXT, answer TEXT, recommended_time INTEGER)"
     )
-    # Concept Practice Index
+    # Topic Practice Index
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS concept_practice_index ON concept_practice_table (cid, qid, type, question, answer, recommended_time)"
+        "CREATE INDEX IF NOT EXISTS topic_practice_index ON topic_practice_table (tid, qid, type, question, answer, recommended_time)"
     )
 
     return __db
@@ -129,11 +129,11 @@ class UserPassModel(BaseModel):
 
 class Save(UserModel):
     async def save_experiment(self, type):
-        if type not in ["concept", "generic", "concept_page", "concept_practice"]:
+        if type not in ["topic", "generic", "concept", "topic_practice"]:
             return {"error": "Invalid Arguments"} # Invalid Arguments
 
         auth_check = await authorize_user(self.username, self.token)
-        if auth_check:
+        if auth_check == False:
             return {"error": "Not Authorized"}
         if type == "generic":
             await db.execute(
@@ -141,55 +141,51 @@ class Save(UserModel):
                 self.code,
                 self.sid,
             )
+        elif type == "topic":
+            await db.execute(
+                "UPDATE topic_table SET topic_experiment = $1 WHERE tid = $2",
+                self.code,
+                self.tid,
+            )
         elif type == "concept":
-            await db.execute(
-                "UPDATE concept_table SET concept_experiment = $1 WHERE cid = $2",
-                self.code,
-                self.cid,
-            )
-        elif type == "concept_page":
-            # Firstly, make sure the concept actually exists in
-            # concept_table
-            tcheck = await db.fetchrow(
-                "SELECT subject FROM concept_table WHERE cid = $1", self.cid
-            )
+            # Firstly, make sure the topic actually exists in
+            # topic_table
+            tcheck = await db.fetchrow("SELECT tid FROM topic_table WHERE tid = $1", self.tid)
             if tcheck is None:
-                # Concept Does Not Exist
-                return {"error": "Concept Does Not Exist"}
-            page_count = await db.fetch(
-                "SELECT COUNT(page_number) FROM concept_page_table WHERE cid = $1", self.cid
-            )
-            if int(page_count[0]["count"]) < int(self.page_number):
+                # Topic Does Not Exist
+                return {"error": "Topic Does Not Exist"}
+            concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", self.tid)
+            if int(concept_count[0]["count"]) < int(self.cid):
                 return {"error": "0002"}  # Invalid Arguments
-            pages = await db.fetch("SELECT page_number FROM concept_page_table WHERE cid = $1 ORDER BY page_number ASC", self.cid)  # Get all the page numbers in ascending order
-            page_number = pages[int(self.page_number) - 1]["page_number"] # Calculate the absolute page number
+            concepts = await db.fetch("SELECT cid FROM concept_table WHERE tid = $1 ORDER BY cid ASC", self.tid)  # Get all the concepts in ascending order
+            absolute_cid = concepts[int(self.cid) - 1]["cid"] # Calculate the absolute concept id
             await db.execute(
-                "UPDATE concept_page_table SET content = $1 WHERE cid = $2 AND page_number = $3",
+                "UPDATE concept_table SET content = $1 WHERE tid = $2 AND cid = $3",
                 self.code,
-                self.cid,
-                int(page_number),
+                self.tid,
+                int(absolute_cid),
             )
-        elif type == "concept_practice":
+        elif type == "topic_practice":
             await db.execute(
-                "UPDATE concept_practice_table SET question = $1, answer = $2  WHERE cid = $3",
+                "UPDATE topic_practice_table SET question = $1, answer = $2  WHERE tid = $3",
                 self.question,
                 self.answer,
-                self.cid,
+                self.tid,
             )
         return {"error": "Successfully saved entity!"}
 
-class SaveConceptExperiment(Save):
-    cid: str
+class SaveTopicExperiment(Save):
+    tid: str
     code: str
 
-class SaveConceptPage(Save):
-    cid: str
-    page_number: int
+class SaveTopicConcept(Save):
+    tid: str
+    cid: int
     code: str
 
-class SaveConceptPractice(Save):
+class SaveTopicPractice(Save):
     type: str
-    cid: str
+    tid: str
     question: str
     answer: str
 
@@ -226,7 +222,7 @@ class ProfileVisibleRequest(UserModel):
     disable_state: Optional[int] = None
 
 class ProfileTrackWriter(BaseModel):
-    cid: str
+    tid: str
     username: str
     status: str    
     page: str
@@ -236,45 +232,42 @@ class ProfileTrackWriter(BaseModel):
 class GenericExperimentNew(UserModel):
     description: str
 
-class ConceptNew(UserModel):
-    topic: str
-    concept: str
+class TopicNew(UserModel):
+    name: str
+    description: str
 
-class PageNew(UserModel):
-    cid: str
+class ConceptNew(UserModel):
+    tid: str
     title: str
 
-class TopicNew(UserModel):
-    topic: str
-
-class ConceptPracticeNew(UserModel):
+class TopicPracticeNew(UserModel):
     type: str
     question: str
     answer: str
-    cid: str
+    tid: str
 
 
 # Basic Classes
 class catphi():
     @staticmethod
-    async def new(*, type, username, token, description = None, topic = None, concept = None, id = None, page_title = None, question = None, answer = None, question_type = None):
-        auth_check = await authorize_user(self.username, self.token)
-        if auth_check:
+    async def new(*, type, username, token, name = None, description = None, cid = None, tid = None, concept_title = None, question = None, answer = None, question_type = None):
+        auth_check = await authorize_user(username, token)
+        if auth_check == False:
             return {"error": "Not Authorized"} 
         if type == "experiment":
             table = "experiment_table"
             id_table = "sid"
-        elif type == "concept":
-            table = "concept_table"
-            id_table = "cid"
-        elif type == "concept_practice":
-            tcheck = await db.fetchrow("SELECT subject FROM concept_table WHERE cid = $1", id)
+        elif type == "topic":
+            table = "topic_table"
+            id_table = "tid"
+        elif type == "topic_practice":
+            tcheck = await db.fetchrow("SELECT tid FROM topic_table WHERE tid = $1", tid)
             if tcheck is None:
-                # Concept Does Not Exist
-                return {"error": "Concept Does Not Exist"}
+                # Topic Does Not Exist
+                return {"error": "Topic Does Not Exist"}
             await db.execute(
-                "INSERT INTO concept_practice_table (cid, type, question, answer, recommended_time) VALUES ($1, $2, $3, $4, $5)",
-                id,
+                "INSERT INTO topic_practice_table (tid, type, question, answer, recommended_time) VALUES ($1, $2, $3, $4, $5)",
+                tid,
                 question_type,
                 question,
                 answer,
@@ -283,32 +276,23 @@ class catphi():
             return {"error": "1000"}
 
 
-        elif type == "page":
-            tcheck = await db.fetchrow("SELECT subject FROM concept_table WHERE cid = $1", id)
+        elif type == "concept":
+            tcheck = await db.fetchrow("SELECT tid FROM topic_table WHERE tid = $1", tid)
             if tcheck is None:
-                # Concept Does Not Exist
-                return {"error": "Concept Does Not Exist"}
+                # Topic Does Not Exist
+                return {"error": "Topic Does Not Exist"}
             await db.execute(
-                "INSERT INTO concept_page_table (cid, title, content) VALUES ($1, $2, $3)",
-                id,
-                page_title,
-                f"Type your content for page {page_title} here!",
+                "INSERT INTO concept_table (tid, title, content) VALUES ($1, $2, $3)",
+                tid,
+                concept_title,
+                f"Type your content for concept {concept_title} here!",
             )
-            page_count = await db.fetch("SELECT COUNT(page_number) FROM concept_page_table WHERE cid = $1", id)
-            return {"error": "1000", "page_count": page_count[0]["count"]}
-        elif type == "topic":
-            tcheck = await db.fetchrow("SELECT subject FROM concept_table WHERE topic = $1", topic)
-            if tcheck is not None:
-                return {"error": "Topic Already Exists"}
-            id, name = "default", "default"
-            type = "concept"
-            id_table = "cid"
+            concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", tid)
+            return {"error": "1000", "page_count": concept_count[0]["count"]}
 
-        while id != "default":
+        while True:
             id = get_token(101)
-            id_check = await db.fetchrow(
-                f"SELECT {id_table} FROM {table} WHERE {id_table} = $1", id
-            )
+            id_check = await db.fetchrow(f"SELECT {id_table} FROM {table} WHERE {id_table} = $1", id)
             if id_check is None:
                 break
         if type == "experiment":
@@ -318,13 +302,14 @@ class catphi():
                 description,
                 "arrow();",
             )
-        elif type == "concept":
+        elif type == "topic":
+            print(id)
             await db.execute(
-                "INSERT INTO concept_table (subject, topic, cid, name) VALUES ($1, $2, $3, $4)",
-                "Physics",
-                topic,
+                "INSERT INTO topic_table (name, description, topic_experiment, tid) VALUES ($1, $2, $3, $4)",
+                name,
+                description,
+                "alert('This topic has not been setup yet');",
                 id,
-                concept,
             )
         return {"error": "1000", id_table: id}
 
@@ -361,17 +346,17 @@ async def save_experiment(save: SaveExperiment):
     return await save.save_experiment("generic")
 
 
-@app.post("/concepts/experiment/save", tags=["Experiments", "Concepts", "Concept Experiments", "W"])
-async def concept_experiment_save(save: SaveConceptExperiment):
+@app.post("/topics/experiment/save", tags=["Experiments", "Topic Experiments", "W"])
+async def topic_experiment_save(save: SaveTopicExperiment):
+    return await save.save_experiment("topic")
+
+@app.post("/topics/concepts/save", tags=["Topics", "Concepts", "W"])
+async def topic_concept_save(save: SaveTopicConcept):
     return await save.save_experiment("concept")
 
-@app.post("/concepts/page/save", tags=["Concepts", "W"])
-async def save_concept(save: SaveConceptPage):
-    return await save.save_experiment("concept_page")
-
-@app.post("/concepts/practice/save", tags = ["Concepts", "Concept Practice", "W"])
-async def concept_practice_save(save: SaveConceptPractice):
-    return await save.save_experiment("concept_practice")
+@app.post("/topics/practice/save", tags = ["Topics", "Topic Practice", "W"])
+async def topic_practice_save(save: SaveTopicPractice):
+    return await save.save_experiment("topic_practice")
 
 # Authentication Code
 
@@ -638,20 +623,20 @@ async def get_profile(username: str, token: str = None):
 @app.post("/profile/track", tags = ["Profile", "W"])
 async def profile_track_writer(tracker: ProfileTrackWriter):
     mode = 0 # Do nothing mode
-    entry = await db.fetchrow("SELECT done FROM profile_concept WHERE cid = $1 AND username = $2", tracker.cid, tracker.username)
+    entry = await db.fetchrow("SELECT done FROM profile_topic WHERE tid = $1 AND username = $2", tracker.tid, tracker.username)
     if entry is None:
         mode = 1 # Don't update, use insert statement mode
     elif entry["done"] is not True:
         mode = 2 # Update mode
     if mode == 1:
-        await db.execute("INSERT INTO profile_concept (username, cid, progress, done) VALUES ($1, $2, $3, $4)", tracker.username, tracker.cid, tracker.status + tracker.page, False)
+        await db.execute("INSERT INTO profile_topic (username, tid, progress, done) VALUES ($1, $2, $3, $4)", tracker.username, tracker.tid, tracker.status + tracker.page, False)
     elif mode == 2:
-        await db.execute("UPDATE profile_concept SET progress = $3 WHERE username = $1 AND cid = $2", tracker.username, tracker.cid, tracker.status + tracker.page)
+        await db.execute("UPDATE profile_topic SET progress = $3 WHERE username = $1 AND tid = $2", tracker.username, tracker.tid, tracker.status + tracker.page)
     return {"error": "1000", "debug": mode}
 
 @app.get("/profile/track", tags = ["Profile", "R"])
-async def profile_track_reader(cid: str, username: str):
-    info = await db.fetchrow("SELECT progress, done FROM profile_concept WHERE username = $1 AND cid = $2", username, cid) # Get the page info
+async def profile_track_reader(tid: str, username: str):
+    info = await db.fetchrow("SELECT progress, done FROM profile_topic WHERE username = $1 AND tid = $2", username, tid) # Get the page info
     if info is None:
         return {
             "status": "LP", # Default State is LP
@@ -678,92 +663,76 @@ async def profile_track_reader(cid: str, username: str):
 async def new_experiment(experiment: GenericExperimentNew):
     return await catphi.new(type="experiment", username = experiment.username, token = experiment.token, description = experiment.description)
 
-@app.post("/concepts/new", tags = ["Concepts", "W"])
-async def new_concept(concept: ConceptNew):
-    return await catphi.new(type="concept", username = concept.username, token = concept.token, topic = concept.topic, concept = concept.concept)
-
-@app.post("/concepts/page/new", tags = ["Concepts", "W"])
-async def new_concept_page(page: PageNew):
-    return await catphi.new(type="page", username = page.username, token = page.token, id = page.cid, page_title = page.title)
-
 @app.post("/topics/new", tags = ["Topics", "W"])
 async def new_topic(topic: TopicNew):
-    return await catphi.new(type="topic", username = topic.username, token = topic.token, topic = topic.topic)
+    return await catphi.new(type="topic", username = topic.username, token = topic.token, name = topic.name, description = topic.description)
 
-@app.post("/concepts/practice/new", tags = ["Concepts", "Concept Practice", "W"])
-async def new_concept_practice(concept_practice: ConceptPracticeNew):
-    return await catphi.new(type="concept_practice", username = concept_practice.username, token = concept_practice.token, question_type = concept_practice.type, id = concept_practice.cid, question = concept_practice.question, answer = concept_practice.answer)
+@app.post("/topics/concepts/new", tags = ["Concepts", "W"])
+async def new_concept(concept: ConceptNew):
+    return await catphi.new(type="concept", username = concept.username, token = concept.token, tid = concept.tid, concept_title = concept.title)
+
+@app.post("/topics/practice/new", tags = ["Topics", "Topic Practice", "W"])
+async def new_topic_practice(topic_practice: TopicPracticeNew):
+    return await catphi.new(type="topic_practice", username = topic_practice.username, token = topic_practice.token, question_type = topic_practice.type, tid = topic_practice.tid, question = topic_practice.question, answer = topic_practice.answer)
 
 # List Functions
 
-@app.get("/concepts/list", tags = ["Concepts", "R"])
-async def list_concepts(topic: str):
-    experiments = await db.fetch("SELECT DISTINCT cid, name, topic FROM concept_table WHERE topic = $1 ORDER BY name DESC", topic)
+@app.get("/topics/concepts/list", tags = ["Concepts", "R"])
+async def list_concepts(tid: str):
+    concept = await db.fetch("SELECT title, cid FROM concept_table WHERE tid = $1 ORDER BY title DESC", tid)
     if len(experiments) == 0:
         # 0002 = No Experiments Found
         return {"error": "0002"}
     ejson = {}
-    counters = {}
     for exp in experiments:
-        # Add the experiment to the eJSON (experiment JSON)
-        if ejson.get(exp["topic"]) is None:
-            ejson[exp["topic"]] = {}  # Initial value
-            ejson[exp["topic"]]["0"] = {"cid": exp["cid"], "name": exp["name"]}
-            counters[exp["topic"]] = 1
-        else:
-            ejson[exp["topic"]][str(counters[exp["topic"]])] = {
-                "cid": exp["cid"],
-                "name": exp["name"],
-            }
-            counters[exp["topic"]] += 1
+        ejson[exp['title']] = exp['cid']
     return ejson
 
 @app.get("/topics/list", tags = ["Topics", "R"])
 async def list_topics():
-    topics = await db.fetch("SELECT DISTINCT topic FROM concept_table")
+    topics = await db.fetch("SELECT name, tid FROM topic_table")
     tjson = {}
-    i = 1
     for topic in topics:
-        tjson[str(i)] = topic["topic"]
-        i += 1
+        tjson[topic["name"]] = topic["tid"]
     tjson["total"] = len(topics)
     return tjson
 
 # Get Functions
 
-@app.get("/concepts/get/experiment", tags = ["Concepts", "Concept Experiments", "R"])
-async def get_concept_experiment(id: str, username: str):
-    concept = await db.fetchrow("SELECT name, concept_experiment FROM concept_table WHERE cid = $1", id)
-    if concept is None:
+@app.get("/topics/experiment/get", tags = ["Topics", "Topic Experiments", "R"])
+async def get_topic_experiment(tid: str):
+    topic = await db.fetchrow("SELECT name, topic_experiment FROM topic_table WHERE tid = $1", tid)
+    if topic is None:
         return {"error": "0002"}
-    elif concept["concept_experiment"] in ["", None]:
-        code = "alert('This concept has not yet been configured yet!')"
+    elif topic["topic_experiment"] in ["", None]:
+        code = "alert('This topic has not yet been configured yet!');"
     else:
-        code = concept["concept_experiment"]
-    return {"name": concept["name"], "code": code}
+        code = topic["topic_experiment"]
+    return {"name": topic["name"], "code": code}
 
-@app.get("/concepts/get/page/count", tags = ["Concepts", "R"])
-async def get_concept_page_count(id: str):
-    page_count = await db.fetch("SELECT COUNT(page_number) FROM concept_page_table WHERE cid = $1", id)
-    return {"page_count": page_count[0]["count"]}
+@app.get("/topics/concepts/get/count", tags = ["Topics", "Concepts", "R"])
+async def get_concept_count(tid: str):
+    concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", tid)
+    return {"concept_count": page_count[0]["count"]}
 
-@app.get("/concepts/get/page", tags = ["Concepts", "R"])
-async def get_concept_page(id: str, page_number: int):
-    page = await db.fetch("SELECT title, content FROM concept_page_table WHERE cid = $1 ORDER BY page_number ASC", id)
-    if len(page) == 0 or len(page) < int(page_number) or int(page_number) <= 0:
+@app.get("/topics/concepts/get", tags = ["Topics", "Concepts", "R"])
+async def get_concept(tid: str, cid: int):
+    concept = await db.fetch("SELECT title, content FROM concept_table WHERE tid = $1 ORDER BY cid ASC", tid)
+    if len(concept) == 0 or len(concept) < int(cid) or int(cid) <= 0:
         return {"error": "0002"} # Invalid Parameters
-    return {"title": page[int(page_number) - 1]["title"], "content": page[int(page_number) - 1]["content"]}
+    return {"title": concept[int(cid) - 1]["title"], "content": concept[int(cid) - 1]["content"]}
 
-@app.get("/concepts/get/practice/count", tags = ["Concepts", "Concept Practice", "R"])
-async def get_concept_practice_count(id: str):
-    concept_practice = await db.fetch("SELECT COUNT(1) FROM concept_practice_table WHERE cid = $1", id)
-    return {"practice_count": concept_practice[0]["count"]}
+@app.get("/topics/practice/get/count", tags = ["Topics", "Topic Practice", "R"])
+async def get_topic_practice_count(tid: str):
+    topic_practice = await db.fetch("SELECT COUNT(1) FROM topic_practice_table WHERE tid = $1", tid)
+    return {"practice_count": topic_practice[0]["count"]}
 
-@app.get("/concepts/get/practice", tags = ["Concepts", "Concept Practice", "R"])
-async def get_concept_practice(id: str, question_number: int):
-    question = await db.fetchrow("SELECT type, question, answer, recommended_time FROM concept_practice_table WHERE cid = $1 AND qid = $2", id, question_number)
-    if question is None:
+@app.get("/topics/practice/get", tags = ["Topics", "Topic Practice", "R"])
+async def get_concept_practice(tid: str, qid: int):
+    question = await db.fetch("SELECT type, question, answer, recommended_time FROM topic_practice_table WHERE tid = $1 AND qid = $2 ORDER BY qid ASC", tid, qid)
+    if len(question) == 0 or len(question) < int(qid) or int(qid) <= 0:
         return {"error": "0002"}
+    question = question[int(qid) - 1] # Get the absolute practice question ID
     return {
         "type": question["type"],
         "question": question["question"],

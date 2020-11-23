@@ -41,7 +41,7 @@ editor.setValue(currentCode);
 setInterval(editor.refresh(), 3)
 
 function saveCode() {
-	post_url = "https://" + window.location.hostname + ":443/concept/{{cid}}/page/{{page}}/save";
+	post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/concepts/{{cid}}/save";
 	console.log(post_url);
 	post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "code":  editor.getValue()};
 	$.post(post_url, post_data, function(data, status, jqXHR) {alert(data.error)});
