@@ -1,0 +1,34 @@
+{% extends 'template.html' %}
+{% block header %}
+<title>CatPhi - Login</title>
+<meta name="description" content="Aryabhata Inc - CatPhi Login">
+{% endblock %}
+{% block content %}
+  <h1 style="text-align: center;"><strong> CatPhi Admin Interface </strong></h1>
+  {% if error %}
+  	<p style="text-align: center; color: red;"><strong>{{error|safe}}</strong></p>
+  {%endif%}
+  <br/>
+  <div style="text-align: center;">
+	<form method='post'>
+	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+	<div class="form-group">
+		<label for="type">Question Type:</label>
+		<select class="form-control" name="type" id="type" required>
+		<option value="MCQ" selected>MCQ (Multiple Choice Question)</option>
+		<option value="SAQ">SAQ (Short Answer Question)</option>
+		</select> 
+	</div>
+        <div class="form-group">
+		<label for="question">Question</label>
+		<input class="form-control" type="text" id="question" name="question" placeholder="Enter the question here" required>
+	</div>
+        <div class="form-group">
+                <label for="answer">Answer</label>
+                <input class="form-control" type="text" id="answer" name="answer" placeholder="Enter the answer to the question here. Seperate with || for MCQ" required>
+        </div>
+	<button type="submit" class="btn btn-primary">Add Question</button>
+	</form>	
+  </div>
+{% endblock %}
+

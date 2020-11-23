@@ -1,6 +1,5 @@
 """ Imports """
 
-import quart.flask_patch  # Needed for Flask Extensions to work
 from quart import (
     Quart,
     abort,
@@ -15,7 +14,8 @@ from quart import (
     escape,
     Markup
 )
-from flask_wtf.csrf import CSRFProtect, CSRFError  # CSRF Form Protection
+import aioredis
+from lib.catphi_csrf import CSRFProtect, CSRFError  # CSRF Form Protection
 import asyncio
 import requests
 import time
@@ -103,13 +103,7 @@ async def concept_edit_page(cid=None, _page=None):
     page_json = requests.get(api + f"/concepts/get/page?id={cid}&page_number={_page}&username={session['username']}").json()
     print(page_json)
         
-    # Login check
-    if page_json.get("error") == "0003":
-        print(_page)
-        session['redirect'] = "/concept/" + cid + "/edit/page/" + str(_page)
-        session['newlogout'] = 1
-        return redirect("/logout")
-    elif page_json.get("error"):
+    if page_json.get("error"):
         return abort(404)
     elif int(_page) < 0:
         return abort(404)
@@ -228,6 +222,32 @@ async def new_simulation():
         token=session.get("token"),
     )
 
+@app.route("/concept/<cid>/practice/new", methods = ["GET", "POST"])
+async def new_practice_question(cid = None):
+    if cid == None:
+        return abort(404)
+    elif session.get("token") == None:
+        session["redirect"] = "/concept/" + cid + "/new"
+        return redirect("/login")
+    elif session.get("admin") in [0, None, "0"]:
+        return abort(401)
+    if request.method == "GET":
+        return await render_template("concept_practice_new.html", username = session.get("username"))
+    else:
+        form = await request.form
+        if "type" not in form.keys() or "question" not in form.keys() or "answer" not in form.keys():
+            return await render_template("concept_practice_new.html", username = session.get("username"), error = "Not all required fields have been filled in")
+        elif form.get("type") == "MCQ" and len(form.get("answer").split("||")) != 4:
+            return await render_template("concept_practice_new.html", username = session.get("username"), error = "MCQ must have 4 questions seperated by ||")
+
+        return requests.post(api + "/concepts/practice/new", json = {
+            "username": session.get('username'),
+            "token": session.get("token"),
+            "type": form.get("type"),
+            "question": form.get("question"),
+            "answer": form.get("answer"),
+            "cid": cid,
+        }).json()
 
 @app.route("/iframe/<sid>")
 async def iframe_simulation(sid = None):
@@ -356,7 +376,8 @@ async def profile_public_set(username = None, state = "private"):
         api + "/profile/visible",
         json=post_data
         ).json()
-    if state in ["disable", "disable_admin"] and session.get("admin") != 1:
+    print(x)
+    if state in ["disable", "disable_admin"] and session.get("admin") is not True:
         return redirect("/logout")
     return redirect("/profile/" + username)
 
@@ -398,7 +419,7 @@ async def profile(username=None):
         username=session.get("username"),
         p_username=profile["username"],
         token=session.get("token"),
-        admin=profile["admin"],
+        admin="admin" in profile["scopes"].split(":"),
         join_date=time.strftime("%dth %b %Y", time.localtime(profile["join"])),
         profile_owner = profile_owner,
         private = priv
@@ -464,15 +485,20 @@ async def reset_pwd_s1():
         )
     # POST
     form = await request.form
-    if form.get("email") == None or form.get("email") == "":
+    if form.get("username") in [None, ""] and form.get("email") in [None, ""]:
         return await render_template(
             "/reset_gen.html",
             username=session.get("username"),
-            error="You must provide an email address.",
+            error="You must provide an username or an email",
         )
+    if form.get("username") is None or form.get("username") == "":
+        json={"email": form["email"]}
+    else:
+        json={"username": form["username"]}
     x = requests.post(
-        api + "/auth/reset/send", json={"email": form.get("email")}
+            api + "/auth/reset/send", json=json
     ).json()
+    print(x, json)
     if x["error"] == "1000":
         msg = "We have sent a confirmation email to the email you provided. Please check your spam folder if you did not recieve one"
     else:
@@ -494,7 +520,7 @@ async def reset_pwd():
                 ),
                 403,
             )
-        a = requests.get(api + f"/auth/gset?token={token}").json()
+        a = requests.get(api + f"/auth/reset/check/token?token={token}").json()
         if a["status"] == "0":
             return (
                 await render_template(
@@ -533,7 +559,7 @@ async def reset_pwd():
         )
     x = requests.post(
         api + "/auth/reset/change",
-        json={"token": session["reset-token"], "password": pwd},
+        json={"token": session["reset-token"], "new_password": pwd},
     ).json()
     if x["error"] == "1000":
         msg = "Your password has been reset successfully."
@@ -559,7 +585,7 @@ async def save_simu(cid=None):
     ):
         return {"errpr": "Could not save data as required keys are not present"}
     a = requests.post(
-        api + "/concept/experiment/save",
+        api + "/concepts/experiment/save",
         json={
             "username": data["username"],
             "token": data["token"],
@@ -681,19 +707,10 @@ async def register():
 
 @app.route("/logout", methods=["GET", "POST"])
 async def logout():
-    if "username" in session.keys():
-        requests.post(api + "/auth/logout", json={"username": session["username"]})
-    if session.get("newlogout"): # In Special "new logout" case, allow redir to path on login using logout feature
-        redir = session.get("redirect")
-        session.clear()
-        session["defmsg"] = "You need to log in again in order to continue using CatPhi.\nWe are sorry for the inconvenience"
-        session["redirect"] = redir
-        return redirect("/login")
-    else:
-        redir = "/"
-        session.clear()
-        session["redirect"] = redir
-        return redirect("/redir")
+    redir = "/"
+    session.clear()
+    session["redirect"] = redir
+    return redirect("/redir")
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -729,7 +746,7 @@ async def login():
     rc = rc.json()
     if rc["error"] == "1000":
         # Check if the user is an admin
-        if rc["admin"] == 1:
+        if "admin" in rc["scopes"].split(":"):
             session["admin"] = 1
         else:
             session["admin"] = 0
@@ -784,7 +801,10 @@ async def topic(topic):
     ejson = requests.get(
         api + "/concepts/list?topic=" + topic
     ).json()  # Get the e/cJSON (exp/concepts JSON)
-    ejson = ejson[topic]  # Get the proper json
+    try:
+        ejson = ejson[topic]  # Get the proper json
+    except KeyError:
+        return abort(404) # Not found
     elist = []  # ejson as list
     i = 0
     if ejson.get("error") != None:
@@ -844,11 +864,7 @@ async def get_concept_index(id=None):
     
     # Login code
     try:
-        if ejson.get("error") == "0002" and int(ejson.get("auth")) == 0:
-            session['redirect'] = "/concept/" + id
-            session['newlogout'] = 1
-            return redirect("/logout")
-        elif ejson.get("error") != None:
+        if ejson.get("error") != None:
             return abort(404)
     except TypeError:
         return abort(404)
@@ -869,64 +885,36 @@ async def redir_concept(id=None):
     elif "username" not in session:
         session["redirect"] = "/concept/" + id + "/learn"
         return redirect("/login")
-    pn = requests.get(api + "/profile/track?username=" + session.get("username") + "&cid=" + id + "&status=LP").json()
-    
-    # Login check
-    if pn.get("error") == "0002" and int(pn.get("auth")) == 0:
-        session['redirect'] = "/concept/" + id + "/learn"
-        session['newlogout'] = 1
-        return redirect("/logout")
+    pn = requests.get(api + "/profile/track?username=" + session.get("username") + "&cid=" + id).json()
     
     pg = pn['page']
-    return redirect("/concept/" + id + "/learn/" + pg)
-
+    if pn["status"] == "LP":
+        return redirect("/concept/" + id + "/learn/" + pg)
+    elif pn["status"] == "PP":
+        return redirect("/concept/" + id + "/practice/" + pg)
 
 @app.route("/concept/<id>/learn/<page>")
-async def concept_page_view(id=None, page=None):
-    if id is None or page is None:
-        return abort(404)
-    elif "username" not in session:
+async def concept_page_view(id, page):
+    if "username" not in session:
         session["redirect"] = "/concept/" + id + "/learn/" + page
         return redirect("/login")
-    page_json = requests.get(api + f"/concepts/get/page?id={id}&page_number={page}&username={session['username']}").json()
+    page_json = requests.get(api + f"/concepts/get/page?id={id}&page_number={page}").json()
     
-    # Login check
-    if page_json.get("error") == "0003" and int(page_json.get("auth")) == 0:
-        session['redirect'] = "/concept/" + id
-        session['newlogout'] = 1
-        return redirect("/logout")
-    
-    elif page_json.get("error") != None:
+    if page_json.get("error") is not None:
         return abort(404)
 
     pjson = requests.get(
         api + f"/concepts/get/page/count?id={id}"
     ).json()  # Get the page count of a concept
-    
     track = False
-
-
-    # Tracking code
-
-    pn = requests.get(api + "/profile/track?username=" + session.get("username") + "&cid=" + id + "&status=LP").json()
+    pn = requests.get(api + "/profile/track?username=" + session.get("username") + "&cid=" + id).json()
     done = (pn['done'] == '1')
     pg = pn['page']
-    if int(pg) < int(page):
+    if int(pg) < int(page) and not done and pn["status"] == "LP":
         print("Enabling tracker for cid " + id + " with page " + page)
         track = True
-
     if track:
         tracker = requests.post(api + "/profile/track", json = {"username": session.get("username"), "status": "LP", "cid": id, "page": page}).json() # Track the fact that he went here in this case
-        # Login check
-        if tracker.get("error") == "0002":
-            session['redirect'] = "/concept/" + id + "/learn/" + page
-            session['newlogout'] = 1
-            return redirect("/logout")
-
-    # Sandbox the content
-    content = page_json["content"].replace("<script", "")
-    content = content.replace("</script", "")
-
     pages = [i for i in range(1, pjson['page_count'] + 1)]
     return await render_template(
         "concept_page.html",
@@ -935,9 +923,52 @@ async def concept_page_view(id=None, page=None):
         page=int(page),
         pages = pages,
         page_count = pjson['page_count'],
-        content = Markup(content),
+        content = Markup(page_json['content']),
         title = page_json["title"],
         admin=session.get("admin"),
     )
 
-# asyncio.run(serve(app, config))
+
+@app.route("/concept/<id>/practice/<question_number>")
+async def concept_practice_view(id, question_number):
+    if "username" not in session:
+        session["redirect"] = "/concept/" + id + "/practice/" + question_number
+        return redirect("/login")
+    practice_json = requests.get(api + f"/concepts/get/practice?id={id}&question_number={question_number}").json()
+
+    if practice_json.get("error") != None:
+        return abort(404)
+
+    pjson = requests.get(
+        api + f"/concepts/get/practice/count?id={id}"
+    ).json()  # Get the practice count of a concept
+    track = False
+    # Tracking code
+    pn = requests.get(api + "/profile/track?username=" + session.get("username") + "&cid=" + id).json()
+    done = (pn['done'] == '1')
+    pg = pn['page']
+    if (int(pg) < int(question_number) and not done and pn["status"] == "PP") or pn["status"] == "LP":
+        print("Enabling tracker for cid " + id + " with page " + question_number)
+        track = True
+
+    if track:
+        tracker = requests.post(api + "/profile/track", json = {"username": session.get("username"), "status": "PP", "cid": id, "page": question_number}).json()
+
+    pages = [i for i in range(1, pjson['practice_count'] + 1)]
+    if practice_json["type"] == "MCQ":
+        answer = practice_json["answer"].split("||")
+    else:
+        answer = practice_json["answer"]
+    return await render_template(
+        "concept_practice.html",
+        username=session.get("username"),
+        cid=id,
+        page=int(question_number),
+        pages = pages,
+        page_count = pjson['practice_count'],
+        type = practice_json["type"],
+        question = Markup(practice_json["question"]),
+        answer = answer,
+        admin=session.get("admin"),
+    )
+

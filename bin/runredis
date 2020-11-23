@@ -1,0 +1,2 @@
+redis-server /etc/redis.conf
+redis-server
