@@ -4,7 +4,7 @@
 <meta name="description" content="Aryabhata Inc - CatPhi Login">
 {% endblock %}
 {% block content %}
-  <h1 style="text-align: center;"><strong>  CatPhi Admin Interface </strong></h1>
+  <h2 style="text-align: center;"><strong>  CatPhi Admin Interface </strong></h2>
   {% if error %}
   	<p style="text-align: center; color: red;"><strong>{{error}}</strong></p>
   {%endif%}
@@ -13,11 +13,10 @@
 	<form method='post'>
 	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 	<div class="form-group">
-    		<label for="concept">Concept Name</label>
-    		<input type="text" name='concept' class="form-control" id='concept' aria-describedby="userHelp" placeholder='Concept Name' required aria-required="true">
+    		<label for="concept">Concept Title</label>
+    		<input type="text" name='title' class="form-control" id='concept' aria-describedby="userHelp" placeholder='Concept Name'>
   	</div>
-  	<button type="submit" class="btn btn-primary">Add Concept</button>
+  	<button type="submit" class="btn btn-primary">Create Concept</button>
 	</form>	
   </div>
 {% endblock %}
-

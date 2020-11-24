@@ -13,10 +13,15 @@
 	<form method='post'>
 	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 	<div class="form-group">
-    		<label for="concept">Page Title</label>
-    		<input type="text" name='title' class="form-control" id='concept' aria-describedby="userHelp" placeholder='title'>
+    		<label for="name">Subject Name</label>
+    		<input type="text" name='name' class="form-control" id='subject' aria-describedby="userHelp" placeholder='Subject Name' required aria-required="true">
   	</div>
-  	<button type="submit" class="btn btn-primary">Create New Page</button>
+        <div class="form-group">
+                <label for="description">Subject Description</label>
+                <input type="text" name='description' class="form-control" id='description' aria-describedby="userHelp" placeholder='Subject Description' required aria-required="true">
+        </div>
+  	<button type="submit" class="btn btn-primary">Add Subject</button>
 	</form>	
   </div>
 {% endblock %}
+

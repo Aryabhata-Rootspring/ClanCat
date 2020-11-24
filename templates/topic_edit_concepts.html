@@ -5,11 +5,11 @@
 <title>Topic Editor - CatPhi</title>
 {% endblock %}
 {% block content %}
-  <h1 style="text-align: center;"><strong> CatPhi Topic Editor </strong></h1>
+  <h2 style="text-align: center;"><strong> CatPhi Topic Editor </strong></h2>
   <br/><br/><br/>
   <div style="text-align: center;">
   	{% for concept in concepts %}
-		<a href="/topic/{{tid}}/edit/concept/{{concept[1]}}">{{concept[0]}}</a><br/>
+		<a href="/topics/{{tid}}/edit/concept/{{concept[1]}}">{{concept[0]}}</a><br/>
 	{% endfor %}
   </div>
 {% endblock %}

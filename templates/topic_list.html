@@ -5,30 +5,31 @@
 <title>Topics - CatPhi</title>
 {% endblock %}
 {% block content %}
-  <h1 style="text-align: center;"><strong> CatPhi Topics </strong></h1>
-  <h2 style="text-align: center;"> Please choose the topic you wish to learn about! </h2>
-  <br/><br/><br/>
+  <h3 style="text-align: center;"><strong>CatPhi Topics</strong></h3>
+  <h5 style="text-align: center;"> Please choose the topic you wish to learn about! </h5>
+  <br/><br/>
   {% if admin %}
   	<div style="text-align: center;">
   		<a href="/topics/new"><button class="btn btn-primary">New Topic</button></a>
+                <a href="/subjects/new"><button class="btn btn-primary">New Subject</button></a>
   	</div>
   {%endif%}
   <div class="cctp-exp-index">
   <div class="row top-buffer align-item-center" style="text-align: center;">
-  {%for exp in elist%}
+  {%for topic in topic_list%}
     <div class="col-sm-6">
       <div class="card" style="width: 18rem; display: inline-block">
-	      <br/><h5 class="card-title">{{exp}}</h5>
-              <a href="/topic/{{exp}}" class="stretched-link stub"></a>
+	      <br/><h5 class="card-title">{{topic[0]}}</h5>
+              <a href="/topics/{{topic[1]}}" class="stretched-link stub"></a>
         <div class="card-body">
           <a href="#" class="card-link">View</a>
         </div>
       </div>
     </div>
     {% if loop.index % 2 == 0 %}
-      <br/><br/><br/>
-      </div>
-      <div class="row top-buffer align-item-center" style="text-align: center;">
+    <br/><br/><br/>
+    </div>
+    <div class="row top-buffer align-item-center" style="text-align: center;">
     {%endif%}
   {%endfor%}
   </div>

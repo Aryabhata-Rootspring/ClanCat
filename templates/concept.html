@@ -1,0 +1,70 @@
+{% extends 'template.html' %}
+
+{% block header %}
+<meta name="description" content="CatPhi Concept Editor">
+<title>Concept Page - CatPhi</title>
+<style>
+body {
+    /* bottom = footer height */
+    padding-bottom: 15px;
+    overflow-y: visible;
+}
+
+iframe {
+	width: 700px;
+	height: 550px;
+	border: hidden;
+}
+
+</style>
+{% endblock %}
+{% block content %}
+<br/>
+<div>
+<h2 style="text-align: center;"><strong>{{title}}</strong></h2><br/>
+<div style="margin: 7px; padding: 5px" class="catphi_page_content d-flex justify-content-center mt-auto">
+	{{content|safe}}
+</div>
+<!--
+<footer class="page-footer white">
+  <nav aria-label="Pages" class="mx-auto justify-content-center" role="navigation" style="display: flex; align-items: center;">
+    <li class="nav-item justify-content-center" style="display: flex; align-items: center;">
+      {%for a_page in pages%}
+      <a class="nav-link a" style="color: blue;" href="/topics/{{tid}}/learn/{{a_page}}">{{a_page}}</a>
+      {%endfor%}
+    </li>
+  </nav>
+</footer> -->
+<br/><br/><br/><br/><br/><br/>
+<footer class="footer mt-auto py-3">
+<nav aria-label="CatPhi Concept Navigation">
+  <ul class="pagination justify-content-center">
+    {% if page - 1 > 0 %}
+    <li class="page-item">
+      <a class="page-link" href="/topics/{{tid}}/learn/{{page - 1}}" tabindex="-1" aria-disabled="false">Previous</a>
+    </li>
+    {%else%}
+    <li class="page-item disabled">
+      <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Previous</a>
+    </li>
+    {%endif%}
+    {%for a_page in pages%}
+    	{%if a_page == page %}
+    		<li class="page-item active" aria-current="page"><a class="page-link" href="/topics/{{tid}}/learn/{{a_page}}">{{a_page}}<span class="sr-only">(current)</span></a></li>
+	{% else %}
+		<li class="page-item"><a class="page-link" href="/topics/{{tid}}/learn/{{a_page}}">{{a_page}}</a></li>
+	{% endif %}
+    {%endfor%}
+    {% if page + 1 <= page_count %}
+    <li class="page-item">
+      <a class="page-link" href="/topics/{{tid}}/learn/{{page + 1}}" tabindex="-1" aria-disabled="false">Next</a>
+    </li>
+    {% else %}
+    <li class="page-item">
+      <a class="page-link" href=/topics/{{tid}}/practice" tabindex="-1" aria-disabled="false">Let's Practice!</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+</footer>
+{% endblock %}

@@ -1,38 +1,49 @@
-{% extends 'template.html' %}
-{%block reg%}
-<title>{{name}}</title>
-<div style="text-align: center;">
-<!--<link type="text/css" href="js/jquery-ui.custom.css" rel="stylesheet" /> -->
-<!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
--->
+{%extends 'template.html'%}
+{%block reg %}
+<head>
+<title>Clan Cat Simulator</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <style>
-	canvas, html, .overlay {
-		text-align: center !important;
-	};
+.CodeMirror {
+      resize: vertical;
+    }
 </style>
-<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script> 
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" crossorigin="anonymous"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" crossorigin="anonymous"></script>
+</head>
+
+<body class="GlowScriptBody">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" integrity="sha512-UxcTlYsLkcuGZL9JNnMsfo3p7VFSmcgBjH1VUSM82Okk5ni52bk7vz9f2p+D1VnMcNUmMzbzgWqWcdJ2j8Svow==" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" integrity="sha512-xIf9AdJauwKIVtrVRZ0i4nHP61Ogx9fSRAkCLecmE2dL/U8ioWpDvFCAy4dcfecN72HHB9+7FfQj3aiO68aaaw==" crossorigin="anonymous" />
+<!-- CodeMirror Modes -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" integrity="sha512-LQqQqrlbxr5f0zVBIhGD9h6+0NpZH2OL9tH3yhD6NDpdI+amJYnnftmD/ulW1Wk55YEE76lvFEs6+XTvtSQj+A==" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/python/python.min.js" integrity="sha512-DS+asaww1mE0V/N6YGVgoNIRj+yXB9hAV68vM6rVeWs0G+OyMd24LKrnS4Z+g26rgghU7qvGeEnRVUArV7nVog==" crossorigin="anonymous"></script>
 <script type="text/javascript" src="js/RSrun.3.0.min.js" async></script>
 <script type="text/javascript" src="js/glow.3.0.min.js" charset="UTF-8" async></script>
-<!--<script type="text/javascript" src="js/Roboto_Medium_ttf_sans.js"></script>
-<script type="text/javascript" src="js/NimbusRomNo9L_Med_otf_serif.js"></script>
--->
-<h3 style="text-align: center;"><strong>{{name}}</strong><br/><br/>
-<button onclick="runCode()" class="btn btn-primary" style="margin: 2px;">Restart Experiment</button>
-<!-- This is the code for the experiment -->
-<div id="exp-code" code="{{code}}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"></script>
+</body>
 
-
-
-
+<button onclick="runCode()" class="btn btn-success" style="margin: 2px;">Run Experiment</button>
+<button onclick="saveCode()" class="btn btn-primary">Save Experiment</button>
+<div class="form-group">
+  <label for="editor">Write your simulation in python here!</label>
+  <textarea class="form-control rounded-0" id="editor" rows="15"></textarea>
+</div>
 <script>
 var gsversion = '3.0'
 var printpane = false
 var exporting = false // not currently in export mode
 var lastprintwidth = null
-
+var editorTextArea = document.querySelector("#editor")
+var currentCode = _.unescape(`{{code}}`);
+console.log(CodeMirror.modes)
+var editor = CodeMirror.fromTextArea(editorTextArea, {
+    lineNumbers: true,
+    mode: "python",
+  })
+editor.setValue(currentCode);
 var glowscript_run = undefined
+setInterval(editor.refresh(), 3)
 window.Jupyter_VPython = undefined
 
 if (!navigator.onLine) window.Jupyter_VPython = 'glowscript_data/' // get textures when offline
@@ -81,6 +92,14 @@ function localCompile(header, compReady, errordiv) {
     })
 }
 
+function saveCode() {
+	post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/experiment/save";
+	console.log(post_url);
+	post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "code":  editor.getValue()};
+	$.post(post_url, post_data, function(data, status, jqXHR) {alert(data.error)});
+	return
+}
+
 function parseVersionHeader( source ) {
     var sourceLines = source.split("\n")
     var header = sourceLines[0]
@@ -121,8 +140,7 @@ function parseVersionHeader( source ) {
 }
 
 function getHeader(exporting) {
-    var text = document.querySelector("#exp-code").getAttribute("code")
-    console.log(text);
+    var text = editor.getValue()
     var end = text.indexOf('\n')
     var i = text.slice(0,end).indexOf("GlowScript") // Look for "GlowScipt" in first line
     var j = text.slice(0,end).indexOf("vpython")    // Look for "vpython" in first line
@@ -153,7 +171,7 @@ var gsErrordiv
 
 
 function runCode() {
-    var header = getHeader(false)
+	var header = getHeader(false)
     gsErrordiv = $("#gserrors")[0]
     localCompile(header, ready, gsErrordiv, false)
 }
@@ -170,7 +188,7 @@ async function runprog(prog) {
 function ready(program) {
     var w = $("#glows")
     w[0].innerHTML = "" // Comment this and the next if get a solution for too many WebGL contexts
-    w[0].innerHTML = '<div id="glowscript" class="glowscript" style="text-align: center;"></div>'
+    w[0].innerHTML = '<div id="glowscript" class="glowscript"></div>'
 
     window.__context = { glowscript_container: $("#glowscript") }
     runprog(program)
@@ -215,7 +233,7 @@ function gsErrorHandler(err) {
 function readSingleFile(evt) { }
 </script>
 
-<div id="gserrors" style="font-family:sans-serif;font-size:13px;color:#c00">
+<div id="gserrors" style="font-family:sans-serif;font-size:13px;color:#c00;margin:2px">
 </div>
 
 <div class='api'>
@@ -320,23 +338,8 @@ function reportScriptError(program, err) { // This machinery only gives trace in
     gsErrordiv = $("#gserrors")[0]
     gsErrorHandler(feedback)
 }
-window.addEventListener('load', function () {
-  runCode();
-  var ele = document.querySelectorAll('.overlay');
-  for (var i = 0; i < ele.length; i++ ) {
-    ele[i].style.textAlign = "center";
-  }
 
-})
 </script>
-<style>
-        canvas, html, .overlay {
-                text-align: center !important;
-        };
-</style>
-<a href="/concept/{{cid}}/learn"><button class="btn btn-success">Learn!</button></a>
-{% if admin %}
-<a href="/concept/{{cid}}/edit"><button class="btn btn-success">Edit!</button></a>
-{%endif%}
-</div>
+<!-- Bootstrap comes with Popper, but not jquery which is anyways OK-->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
 {%endblock%}

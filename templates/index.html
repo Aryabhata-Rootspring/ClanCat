@@ -4,10 +4,20 @@
 <meta name="description" content="Aryabhata Inc - CatPhi">
 {% endblock %} 
 {% block content %}
-  <h1 style="text-align: center;"><strong> Welcome To CatPhi </strong></h1>
-  <h3 style="text-align: center;"> A free online physics learning platform using simulation </h3>
+  <h2 style="text-align: center;"><strong>Welcome To CatPhi</strong></h2>
+  <h3 style="text-align: center;">A place for explorers to learn <strong>and</strong> have fun!</h3>
   <br/>
   <div style="text-align: center;">
-	  <br/><a href="/login">Lets Start!</a>
-  </a>
+	  <!-- https://tenor.com/view/universe-sun-glasses-bite-rotating-gif-14467089 -->
+          <img src="https://media.tenor.com/images/a66bec255f77e0e71a9a387e67748b1d/tenor.gif" alt="Sun Nibbling Plant Revolving Around It" style="text-align: left; width:280px;height:280px;">
+	  <!-- https://tenor.com/view/science-billnye-gif-5246275 -->
+	  <img src="https://media.tenor.com/images/55c7ba3c5b108125f8b46085916adaaa/tenor.gif" alt="Mind-Blown Science!" style="text-align: right; width:280px;height:280px;">
+	  <br/>
+          <img src="https://media.tenor.com/images/a66bec255f77e0e71a9a387e67748b1d/tenor.gif" alt="Sun Nibbling Plant Revolving Around It" style="text-align: left; width:280px;height:280px;">
+          <img src="https://media.tenor.com/images/a66bec255f77e0e71a9a387e67748b1d/tenor.gif" alt="Sun Nibbling Plant Revolving Around It" style="text-align: right; width:280px;height:280px;">
+	  <br/><br/><br/><br/><br/><br/>
+	  <a href="/topics"><button class="btn btn-primary">Start Exploring</button></a><br/><br/>
+	  {% if not username %}
+	  <a href="/login">Login For The Best Experience And Special Features!</a><br/><br/>
+	  {%endif%}
 {% endblock %}

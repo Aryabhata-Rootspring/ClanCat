@@ -1,0 +1,32 @@
+{% extends 'template.html' %}
+{% block header %}
+<title>{{p_username}}'s profile - CatPhi</title>
+<meta name="description" content="Aryabhata Inc - CatPhi Dashboard">
+<style>
+	.dash-important {
+		text-align: center;
+		border-style: solid;
+		background-color: blue;
+		color: white;
+		border-radius: 15px;
+		padding: 4px;
+	}
+	.flex-container {
+  		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+</style>
+{% endblock %} 
+{% block content %}
+  <h2 style="text-align: center;"><strong>Settings for {{p_username}}</strong></h2>
+  	<div style="text-align: center;" class="profile_settings" role="profile_settings">
+                <h4><strong> Profile Status: </strong>{{private}}</h4>
+			{% if private == "Private" %}
+			<a href="/profile/{{p_username}}/me/public"><button class="btn btn-primary">Make Public</button></a><br/>
+			{% else %}
+				<a href="/profile/{{p_username}}/me/private"><button class="btn btn-primary">Make Private</button></a><br/>
+			{% endif %}
+		<br/><a href="/profile/me/delete"><button class="btn btn-danger">Delete Account</button></a><br/>
+	</div>
+{% endblock %}

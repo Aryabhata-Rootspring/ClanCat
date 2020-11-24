@@ -19,30 +19,23 @@
 </style>
 {% endblock %} 
 {% block content %}
-  <h1 style="text-align: center;"><strong> {{p_username}}'s profile</strong></h1>
+  <h2 style="text-align: center;"><strong> {{p_username}}'s profile</strong></h2>
   {% if admin == 1 %}
   <div class="flex-container">
-  	<h3 class="dash-important">Admin<h3>
+  	<h5 class="dash-important">Admin</h5>
   </div>
   {%endif%}
-  <h2 style="text-align: center;"><strong> Badges </strong></h2>
-  	<h3 style="text-align: center;">Not Yet Done (WIP)</h3><br/><br/><br/>
-	<h4 style="text-align: center;"> This user has been on CatPhi since {{join_date}}</h4>
+  <div style="text-align: center;">
+  <h3 style="text-align: center;"><strong> Badges </strong></h3>
+  	<h4 style="text-align: center;">Not Yet Done (WIP)</h4><br/><br/><br/>
+	<h5 style="text-align: center;"> This user has been on CatPhi since {{join_date}}</h5>
+          {% if profile_owner %}
+	  <a href="/settings/{{p_username}}"><button class="btn btn-primary">Settings</button></a><br/><br/>
+          {% endif %}
 
-  {%if profile_owner%}
-  	<div style="text-align: center;" class="profile_settings" role="profile_settings">
-  	<h2><strong> Settings </strong></h2>
-                <h3><strong> Profile Status: </strong>{{private}}</h3>
-			{% if private == "Private" %}
-			<a href="/profile/{{p_username}}/me/public"><button class="btn btn-primary">Make Public</button></a><br/>
-			{% else %}
-				<a href="/profile/{{p_username}}/me/private"><button class="btn btn-primary">Make Private</button></a><br/>
-			{% endif %}
-		<br/><a href="/profile/me/delete"><button class="btn btn-danger">Delete Account</button></a><br/>
-	  {% if admin == 1 %}
+	{% if admin == 1 %}
 	  <br/><h2><strong> Admin Stuff </strong></h1>
-	  	<a href="/experiment/new">New General Simulation</a>
+	  <a href="/experiment/new"><button class="btn btn-primary">New General Simulation</button></a><br/>
 	  {% endif %}
-	</div>
-  {%endif%}
+   </div>
 {% endblock %}

@@ -10,6 +10,7 @@ from pydantic import BaseModel, ValidationError, validator, BaseSettings
 from typing import Optional
 from passlib.context import CryptContext
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import json
 
 SERVER_URL = "https://127.0.0.1:443"  # Main Server URL
 HASH_SALT = "66801b86-06ff-49c7-a163-eeda39b8cba9_66bc6c6c-24e3-11eb-adc1-0242ac120002_66bc6c6c-24e3-11eb-adc1-0242ac120002"
@@ -29,17 +30,25 @@ async def setup_db():
     )  # Login stuff
     # Always do this to ensure best performance
     await __db.execute("VACUUM")
+    # Represents a subject
+    await __db.execute(
+        "CREATE TABLE IF NOT EXISTS subject_table (metaid TEXT, name TEXT, description TEXT)"
+    )
+    # Create an index for the subjects
+    await __db.execute(
+        "CREATE INDEX IF NOT EXISTS subject_index ON subject_table (metaid, name, description)"
+    )
     # Represents a topic
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS topic_table (name TEXT, description TEXT, topic_experiment TEXT, tid TEXT)"
+        "CREATE TABLE IF NOT EXISTS topic_table (metaid TEXT, name TEXT, description TEXT, topic_experiment TEXT, tid TEXT)"
     )
     # Create an index for the topics
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS topic_index ON topic_table (name, description, topic_experiment, tid)"
+        "CREATE INDEX IF NOT EXISTS topic_index ON topic_table (metaid, name, description, topic_experiment, tid)"
     )
     # Represents a concept
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS concept_table (tid TEXT, title TEXT, cid SERIAL, content TEXT)"
+        "CREATE TABLE IF NOT EXISTS concept_table (tid TEXT, title TEXT, cid INTEGER NOT NULL, content TEXT)"
     )
     # Create an index for the concepts
     await __db.execute(
@@ -225,7 +234,7 @@ class ProfileTrackWriter(BaseModel):
     tid: str
     username: str
     status: str    
-    page: str
+    cid: str
 
 # **New Methods
 
@@ -233,6 +242,11 @@ class GenericExperimentNew(UserModel):
     description: str
 
 class TopicNew(UserModel):
+    name: str
+    description: str
+    metaid: str
+
+class SubjectNew(UserModel):
     name: str
     description: str
 
@@ -250,16 +264,22 @@ class TopicPracticeNew(UserModel):
 # Basic Classes
 class catphi():
     @staticmethod
-    async def new(*, type, username, token, name = None, description = None, cid = None, tid = None, concept_title = None, question = None, answer = None, question_type = None):
+    async def new(*, type, username, token, name = None, description = None, cid = None, tid = None, concept_title = None, question = None, answer = None, question_type = None, metaid = None):
         auth_check = await authorize_user(username, token)
         if auth_check == False:
-            return {"error": "Not Authorized"} 
-        if type == "experiment":
+            return {"error": "Not Authorized"}
+        if type == "subject":
+            table = "subject_table"
+            id_table = "metaid"
+        elif type == "experiment":
             table = "experiment_table"
             id_table = "sid"
         elif type == "topic":
             table = "topic_table"
             id_table = "tid"
+            tcheck = await db.fetchrow("SELECT name FROM subject_table WHERE metaid = $1", metaid)
+            if tcheck is None:
+                return {"error": "Subject Does Not Exist"}
         elif type == "topic_practice":
             tcheck = await db.fetchrow("SELECT tid FROM topic_table WHERE tid = $1", tid)
             if tcheck is None:
@@ -281,14 +301,18 @@ class catphi():
             if tcheck is None:
                 # Topic Does Not Exist
                 return {"error": "Topic Does Not Exist"}
+            
+            concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", tid)
+            cid=concept_count[0]["count"] + 1 # Get the count + 1 for next concept
+
             await db.execute(
-                "INSERT INTO concept_table (tid, title, content) VALUES ($1, $2, $3)",
+                "INSERT INTO concept_table (tid, title, content, cid) VALUES ($1, $2, $3, $4)",
                 tid,
                 concept_title,
                 f"Type your content for concept {concept_title} here!",
+                cid
             )
-            concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", tid)
-            return {"error": "1000", "page_count": concept_count[0]["count"]}
+            return {"error": "1000", "page_count": concept_count[0]["count"] + 1}
 
         while True:
             id = get_token(101)
@@ -302,14 +326,24 @@ class catphi():
                 description,
                 "arrow();",
             )
+
+        elif type == "subject":
+            await db.execute(
+                "INSERT INTO subject_table (metaid, name, description) VALUES ($1, $2, $3)",
+                id,
+                name,
+                description,
+            )
+
         elif type == "topic":
             print(id)
             await db.execute(
-                "INSERT INTO topic_table (name, description, topic_experiment, tid) VALUES ($1, $2, $3, $4)",
+                "INSERT INTO topic_table (name, description, topic_experiment, tid, metaid) VALUES ($1, $2, $3, $4, $5)",
                 name,
                 description,
                 "alert('This topic has not been setup yet');",
                 id,
+                metaid,
             )
         return {"error": "1000", id_table: id}
 
@@ -629,9 +663,9 @@ async def profile_track_writer(tracker: ProfileTrackWriter):
     elif entry["done"] is not True:
         mode = 2 # Update mode
     if mode == 1:
-        await db.execute("INSERT INTO profile_topic (username, tid, progress, done) VALUES ($1, $2, $3, $4)", tracker.username, tracker.tid, tracker.status + tracker.page, False)
+        await db.execute("INSERT INTO profile_topic (username, tid, progress, done) VALUES ($1, $2, $3, $4)", tracker.username, tracker.tid, tracker.status + tracker.cid, False)
     elif mode == 2:
-        await db.execute("UPDATE profile_topic SET progress = $3 WHERE username = $1 AND tid = $2", tracker.username, tracker.tid, tracker.status + tracker.page)
+        await db.execute("UPDATE profile_topic SET progress = $3 WHERE username = $1 AND tid = $2", tracker.username, tracker.tid, tracker.status + tracker.cid)
     return {"error": "1000", "debug": mode}
 
 @app.get("/profile/track", tags = ["Profile", "R"])
@@ -640,11 +674,11 @@ async def profile_track_reader(tid: str, username: str):
     if info is None:
         return {
             "status": "LP", # Default State is LP
-            "page": '1',
+            "cid": '1',
             "done": '0',
         }
-    status = info["progress"][0] + info["progress"][1] # Status is always first two characters (LP, PP)
-    page = info["progress"][2:] # Get the page number from XY123 string by stripping first two characters from string
+    status = info["progress"][0] + info["progress"][1]
+    cid = info["progress"][2:]
     done = info["done"]
     if done is not True:
         done = '0'
@@ -652,7 +686,7 @@ async def profile_track_reader(tid: str, username: str):
         done = '1'
     return {
         "status": status,
-        "page": page,
+        "cid": cid,
         "done": done,
     }
     return {"error": "0001"}  # Invalid arguments (Default)
@@ -665,7 +699,11 @@ async def new_experiment(experiment: GenericExperimentNew):
 
 @app.post("/topics/new", tags = ["Topics", "W"])
 async def new_topic(topic: TopicNew):
-    return await catphi.new(type="topic", username = topic.username, token = topic.token, name = topic.name, description = topic.description)
+    return await catphi.new(type="topic", username = topic.username, token = topic.token, name = topic.name, description = topic.description, metaid = topic.metaid)
+
+@app.post("/subjects/new", tags = ["Subjects", "W"])
+async def new_subject(subject: SubjectNew):
+    return await catphi.new(type="subject", username = subject.username, token = subject.token, name = subject.name, description = subject.description)
 
 @app.post("/topics/concepts/new", tags = ["Concepts", "W"])
 async def new_concept(concept: ConceptNew):
@@ -679,14 +717,16 @@ async def new_topic_practice(topic_practice: TopicPracticeNew):
 
 @app.get("/topics/concepts/list", tags = ["Concepts", "R"])
 async def list_concepts(tid: str):
-    concept = await db.fetch("SELECT title, cid FROM concept_table WHERE tid = $1 ORDER BY title DESC", tid)
-    if len(experiments) == 0:
+    concepts = await db.fetch("SELECT title FROM concept_table WHERE tid = $1 ORDER BY title ASC", tid)
+    if len(concepts) == 0:
         # 0002 = No Experiments Found
         return {"error": "0002"}
-    ejson = {}
-    for exp in experiments:
-        ejson[exp['title']] = exp['cid']
-    return ejson
+    cjson = {}
+    i = 1
+    for concept in concepts:
+        cjson[concept['title']] = i
+        i+=1
+    return cjson
 
 @app.get("/topics/list", tags = ["Topics", "R"])
 async def list_topics():
@@ -694,8 +734,22 @@ async def list_topics():
     tjson = {}
     for topic in topics:
         tjson[topic["name"]] = topic["tid"]
-    tjson["total"] = len(topics)
     return tjson
+
+@app.get("/subjects/list", tags = ["Subjects", "R"])
+async def list_subjects():
+    subjects = await db.fetch("SELECT name, metaid FROM subject_table")
+    sjson = {}
+    for subject in subjects:
+        sjson[subject["name"]] = subject["metaid"]
+    return sjson
+
+# List All Route (Called /bristlefrost/rootspring/shadowsight
+@app.get("/bristlefrost/rootspring/shadowsight")
+async def bristlefrost_rootspring_shadowsight():
+    # Get all topics
+    topics = await db.fetch("SELECT subject_table.metaid, topic_table.tid, topic_table.name AS topic_name, concept_table.cid, concept_table.title AS concept_name from concept_table INNER JOIN topic_table ON topic_table.tid = concept_table.tid INNER JOIN subject_table ON topic_table.metaid = subject_table.metaid ORDER BY tid, cid ASC")
+    return topics
 
 # Get Functions
 
@@ -713,7 +767,7 @@ async def get_topic_experiment(tid: str):
 @app.get("/topics/concepts/get/count", tags = ["Topics", "Concepts", "R"])
 async def get_concept_count(tid: str):
     concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", tid)
-    return {"concept_count": page_count[0]["count"]}
+    return {"concept_count": concept_count[0]["count"]}
 
 @app.get("/topics/concepts/get", tags = ["Topics", "Concepts", "R"])
 async def get_concept(tid: str, cid: int):
