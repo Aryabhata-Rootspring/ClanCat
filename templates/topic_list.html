@@ -2,12 +2,12 @@
 
 {% block header %}
 <meta name="description" content="CatPhi - Topics">
-<title>Topics - CatPhi</title>
+<title role="banner">Topics - CatPhi</title>
 {% endblock %}
 {% block content %}
-  <h3 style="text-align: center;"><strong>CatPhi Topics</strong></h3>
-  <h5 style="text-align: center;"> Please choose the topic you wish to learn about! </h5>
-  <br/><br/>
+  <h3 style="text-align: center;"><strong>Topics</strong></h3>
+  <h5 style="text-align: center;"> The ship is yours, captain! </h5>
+  <br/>
   {% if admin %}
   	<div style="text-align: center;">
   		<a href="/topics/new"><button class="btn btn-primary">New Topic</button></a>
@@ -19,11 +19,11 @@
   <div class="row top-buffer align-item-center" style="text-align: center;">
   {%for topic in topic_list%}
     <div class="col-sm-6">
-      <div class="card" style="width: 18rem; display: inline-block">
+      <div class="card" style="width: 18rem; display: inline-block; border: solid; border-width: thin;">
 	      <br/><h5 class="card-title">{{topic[0]}}</h5>
-              <a href="/topics/{{topic[1]}}" class="stretched-link stub"></a>
+	      <!--<a href="/topics/{{topic[1]}}" class="stretched-link stub"></a>-->
         <div class="card-body">
-          <a href="#" class="card-link">View</a>
+		<a href="/topics/{{topic[1]}}" class="card-link"><button class="btn btn-primary">Launch</button></a>
         </div>
       </div>
     </div>

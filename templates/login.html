@@ -1,6 +1,6 @@
 {% extends 'template.html' %}
 {% block header %}
-<title>CatPhi - Login</title>
+<title role="banner">CatPhi - Login</title>
 <meta name="description" content="Aryabhata Inc - CatPhi Login">
 {% endblock %}
 {% block content %}
@@ -15,17 +15,17 @@
 	<div class="form-group">
     		<label for="username">Username</label>
     		<input style="margin: 2px;" type="username" name='username' class="form-control" id="username" aria-describedby="userHelp" placeholder="Username" required aria-required="true">
-		<small id="userHelp" class="form-text text-muted">Don't have an account? <a href="/register">Create one now!</a></small>
+		<small id="userHelp" class="form-text text-muted">Don't have an account? <a class="underline" href="/register">Create one now!</a></small>
   	</div>
   	<div class="form-group">
     		<label for="password">Password</label>
     		<input style="margin: 2px;" type="password" name='password' class="form-control" id="password" aria-describedby="pwdHelp" placeholder="Password" required aria-required="true">
-                <small id="pwdHelp" class="form-text text-muted">Forgot your password? <a href="/reset">Reset it now!</a></small>
+                <small id="pwdHelp" class="form-text text-muted">Forgot your password? <a class="underline" href="/reset">Reset it now!</a></small>
 	</div>
   	<button type="submit" class="btn btn-primary">Login</button>
 	</form><br/><br/>
-	<h5>Or you can...</h5><br/>
-	<a href="/topics"><button class="btn btn-primary">Continue As A Guest</button></a><br/><br/><br/>
+	<h5>Or you can...</h5>
+	<a href="/topics"><button class="btn btn-primary">Continue As A Guest</button></a><br/><br/>
         <small id="pwdHelp" class="form-text" style="font-size: 16px; color: black;"><strong>Note:</strong> You won't be able to save any of your progress if you continue as a guest</small>
   </div>
 {% endblock %}

@@ -116,9 +116,6 @@ async def topic_edit_concept(tid=None, cid=None):
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
-    count_json = requests.get(
-        api + f"/topics/concepts/get/count?tid={tid}"
-    ).json()  # Get the concept count of a topic
     concept_json = requests.get(api + f"/topics/concepts/get?tid={tid}&cid={str(cid)}").json()
     print(concept_json)
         
@@ -824,7 +821,7 @@ async def login():
         elif rc["status"] == 2:
             msg = "We could not log you in as an admin has disabled your account. Please click <a href='/contactus'>here</a> to contact our customer support"
         else:
-            msg = f"Unknown account state {state}. Please click <a href='/contactus'>here</a> to contact our customer support"
+            msg = f"Unknown account state. Please click <a href='/contactus'>here</a> to contact our customer support"
         return await render_template(
             "login.html",
             error=msg,

@@ -1,6 +1,6 @@
 {% extends 'template.html' %}
 {% block header %}
-<title>{{p_username}}'s profile - CatPhi</title>
+<title role="banner">{{p_username}}'s profile - CatPhi</title>
 <meta name="description" content="Aryabhata Inc - CatPhi Dashboard">
 <style>
 	.dash-important {
@@ -22,7 +22,7 @@
   <h2 style="text-align: center;"><strong> {{p_username}}'s profile</strong></h2>
   {% if admin == 1 %}
   <div class="flex-container">
-  	<h5 class="dash-important">Admin</h5>
+  	<h5 class="dash-important round">Admin</h5>
   </div>
   {%endif%}
   <div style="text-align: center;">

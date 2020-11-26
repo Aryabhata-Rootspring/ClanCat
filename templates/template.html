@@ -1,9 +1,5 @@
 <!doctype html>
 <html lang="en">
-<noscript>
-	<h1>CatPhi won't work properly without Javascript enabled on your browser :(</h1>
-	<div style="display: none">
-</noscript>
 
 <meta charset=utf-8>
 <meta content="initial-scale=1, shrink-to-fit=no, width=device-width" name="viewport">
@@ -35,47 +31,22 @@
     margin: 0 auto;
   }
 
-  .stub:hover {
-    transform: scale(1.015); /* (150% zoom - Note: if the zoom is too large, it will go outside of the viewport) */
-    transition: 0.456s ease;
-    backface-visibility: hidden;
+a {
+	text-decoration: none !important;
+
   }
 
-  .list-group:hover,
-  .card:hover {
-     transform: scale(1.017);
-     transition: 0.456s ease;
-     backface-visibility: hidden;
+.underline:hover {
+	text-decoration: underline !important;
   }
-/*
-    .black {
-      color: black;
-    }
 
-    .black:hover {
-      color: black;
-    }
+  .btn {
+	  border-radius: 100px 100px 100px 100px !important;
+  }
 
-    .top-buffer {
-      margin-top:30px;
-      margin-bottom: 30px;
-    }
-
-@media screen and (max-width:480px) {
-    p { padding: 0 1em; }
-}
-.a {
-    display: inline;
-}
-.b {
-    display: flex; justify-content: flex-end;
-}
-*/
-
-.fcont hr {
-  width: 100%;
-  flex-flow: wrap;
-}
+  .round {
+          border-radius: 100px 100px 100px 100px !important;
+  }
 </style>
 
 <script>
@@ -93,15 +64,15 @@
 
 <!-- Navbar -->
 <header role="navigation" style="margin-bottom: 3px; padding-bottom: 3px;" class="navbar fixed-top navbar-full navbar-dark bg-primary doc-navbar-default" aria-label="Site Navigation Menu">
-<button aria-controls="navdrawerDefault" aria-expanded="false" aria-label="Toggle Navdrawer" class="navbar-toggler" data-target="#navdrawerDefault" data-toggle="navdrawer"><span class="navbar-toggler-icon"></span></button>
+<button aria-controls="navdrawerDefault" aria-expanded="false" aria-label="Toggle Topics Menu" class="navbar-toggler" data-target="#navdrawerDefault" data-toggle="navdrawer"><span class="navbar-toggler-icon"></span></button>
   <div class="navbar-brand">
-    <img loading="lazy" src="https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/14c4232b-0ac4-4df4-8614-41cf3bbf9f69/ddu3v6c-e00814c5-5015-4b8e-9641-5bd0b102be8e.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOiIsImlzcyI6InVybjphcHA6Iiwib2JqIjpbW3sicGF0aCI6IlwvZlwvMTRjNDIzMmItMGFjNC00ZGY0LTg2MTQtNDFjZjNiYmY5ZjY5XC9kZHUzdjZjLWUwMDgxNGM1LTUwMTUtNGI4ZS05NjQxLTViZDBiMTAyYmU4ZS5wbmcifV1dLCJhdWQiOlsidXJuOnNlcnZpY2U6ZmlsZS5kb3dubG9hZCJdfQ.MSP-eZdqGG4cpwCEdmdECyWHfSEQ2WdOVEsOO-O1HPY" width="30" height="30" class="rounded" alt="CatPhi" style="margin-right: 5px">CatPhi
+	  <img loading="lazy" src="https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/14c4232b-0ac4-4df4-8614-41cf3bbf9f69/ddu3v6c-e00814c5-5015-4b8e-9641-5bd0b102be8e.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOiIsImlzcyI6InVybjphcHA6Iiwib2JqIjpbW3sicGF0aCI6IlwvZlwvMTRjNDIzMmItMGFjNC00ZGY0LTg2MTQtNDFjZjNiYmY5ZjY5XC9kZHUzdjZjLWUwMDgxNGM1LTUwMTUtNGI4ZS05NjQxLTViZDBiMTAyYmU4ZS5wbmcifV1dLCJhdWQiOlsidXJuOnNlcnZpY2U6ZmlsZS5kb3dubG9hZCJdfQ.MSP-eZdqGG4cpwCEdmdECyWHfSEQ2WdOVEsOO-O1HPY" width="30" height="30" class="rounded" role="presentation" style="margin-right: 2px"><a href="/" class="navbar-brand">CatPhi</a>
   </div>
    <ul class="navbar-nav ml-auto">
      <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle" id="navbarDropdownMenuLink-333" data-toggle="dropdown"
           aria-haspopup="true" aria-expanded="false">
-        <i class="fas fa-user"></i> {% if username %} {{username}} {% else %} Not Logged In <i class="fas fa-frown" aria-hidden="true"></i>{%endif%}
+        <i class="fas fa-user" role="presentation"></i> {% if username %} {{username}} {% else %} Not Logged In <i class="fas fa-frown" aria-hidden="true" role="presentation"></i>{%endif%}
         </a>
         <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink-333">
           {% if username %}
@@ -126,12 +97,15 @@
     <nav class="navdrawer-nav">
     {% for topic, items in brs_list.items() %}
      {% if tid == topic %}  
-     <a class="nav-item nav-link link active" data-toggle="collapse" id="abc-{{loop.index}}" onClick = "expand({{loop.index}});"><strong>{{items[0][0]}}</strong></a>
+     <a class="nav-item nav-link link active show" data-toggle="collapse" id="abc-{{loop.index}}" onClick = "expand({{loop.index}});"><strong>{{items[0][0]}}</strong></a>
      {% else %}
        <a class="nav-item nav-link link" data-toggle="collapse" id="abc-{{loop.index}}" onClick = "expand({{loop.index}});">{{items[0][0]}}</a>
      {% endif %}
-
-        <div class="collapse pb-2 show" id="topic-navdrawer-{{loop.index}}">
+	{% if tid == topic %}
+        	<div class="collapse pb-2 show" id="topic-navdrawer-{{loop.index}}">
+	{% else %}
+                <div class="collapse pb-2" id="topic-navdrawer-{{loop.index}}">
+	{% endif %}
         {% if tid == topic and not cid and not practice_mode %}  
 		<a class="nav-item nav-link pl-4 my-0 text-black-secondary active catphi-show" id="active-concept" href="/topics/{{topic}}"><span class="font-weight-normal"><strong>Start Here!</strong></span></a>
 	{% else %}
@@ -155,8 +129,14 @@
   </div>
 </div>
 <br/><br/><br/><br/><br/>
+<noscript>
+        <h4 style="text-align: center;">CatPhi doesn't work properly/at all without Javascript enabled on your browser. Please enable it. :(</h4><br/><br/>
+</noscript>
 
+<div role="heading" aria-level="1">
 {% block header %}{%endblock %}
+</div>
+<div role="main">
 {% block content %}{% endblock %}
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script> 
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" crossorigin="anonymous"></script>
@@ -165,18 +145,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/js/all.min.js" crossorigin="anonymous"></script>
 {% block reg %}
 {%endblock%}
-
-
-{% if not username and not login_register%}
-<div id="footer" style="position: fixed; top: 55px; width: 100%; opacity: 1 !important; text-align: center">
-<div class="alert alert-info alert-dismissible fade show" style="background-color: yellow !important;" role="alert">
-  <strong><a href="/login" class="alert-link">Login For The Best Experience, Progress Tracking And Special Features!</a></strong>
-  <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-    <span aria-hidden="true">&times;</span>
-  </button>
 </div>
-</div>
-{%endif%}
-
 </div>
 </html>

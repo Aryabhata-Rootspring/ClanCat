@@ -1,6 +1,6 @@
 {% extends 'template.html' %}
 {% block header %}
-<title>CatPhi Index</title>
+<title role="banner">CatPhi Index</title>
 <meta name="description" content="Aryabhata Inc - CatPhi">
 <style>
 .el {
@@ -14,7 +14,7 @@
 {% endblock %} 
 {% block content %}
   <h2 style="text-align: center;"><strong>Welcome To CatPhi</strong></h2>
-  <h3 style="text-align: center;"><strong>A place for explorers to learn Physics <i>and</i> have fun!</strong></h3>
+  <h3 style="text-align: center;"><strong>A place for explorers to learn Physics <em>and</em> have fun!</strong></h3>
   <br/>
   <div style="text-align: center;">
 	  <!-- https://tenor.com/view/universe-sun-glasses-bite-rotating-gif-14467089 -->
@@ -29,11 +29,11 @@
 	  <img src="/index/cradle.gif" alt="Newton's Cradle" style="text-align: right; width:280px;height:280px;">
 	  <br/><br/><br/><br/><br/><br/>
 	  <h4>With over <strong><span class="round-log">0</span></strong>s of topics and experiments to explore from...</h4>
-	  <a href="/login"><button class="btn btn-primary">Let's Start Exploring!</button></a><br/><br/>
+	  <a href="/login"><button class="btn btn-primary btn-round">Let's Start Exploring!</button></a><br/><br/>
 	<div class="tick-demo" style="text-align: center; display: flex; justify-content: center;">
 		<i class="el" style="text-align: center;"></i><br/><br/><br/>
 		</div>
-	<input type="range" min="0" max="5" id="speed" value="1" step="0.01" /><br/>
+	<input type="range" min="0" max="5" id="speed" value="1" step="0.01" aria-label="Slider for animation of ball moving left to right and back" /><br/>
         <p>Drag the slider and see what happens!</p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>

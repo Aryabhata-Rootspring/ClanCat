@@ -2,7 +2,7 @@
 
 {% block header %}
 <meta name="description" content="CatPhi Concept Editor">
-<title>Topic Practice - CatPhi</title>
+<title role="banner">Topic Practice - CatPhi</title>
 <style>
 body {
     /* bottom = footer height */
@@ -152,9 +152,6 @@ iframe {
 	{% else %}
 		<h5 class="modal-title" id="correctModalLabel">Yay! You have successfully defeated the scourge of this topic!</h5>
 	{%endif%}
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
       </div>
       <div class="modal-body">
         {% if qid + 1 <= practice_count %}
@@ -180,9 +177,6 @@ iframe {
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="incorrectModalLabel">Aww man....</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
       </div>
       <div class="modal-body">
               You got it wrong and would have died on your voyage but you were revitalized by the gods, let's try this question again!
@@ -201,9 +195,6 @@ iframe {
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="dincorrectModalLabel">Uh oh... You ran out of lives....</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
       </div>
       <div class="modal-body">
 	      Unfortunately, you have ran out of all of your lives{% if qid + 1 <= practice_count %}, but lets move on and learn from our mistakes!{% else %}, but luckily your team members were more successful. So lets go back to home base, shall we?{% endif %}<br/><br/>
