@@ -1,18 +1,19 @@
 <!doctype html>
 <html lang="en">
+<noscript>
+	<h1>CatPhi won't work properly without Javascript enabled on your browser :(</h1>
+	<div style="display: none">
+</noscript>
+
 <meta charset=utf-8>
 <meta content="initial-scale=1, shrink-to-fit=no, width=device-width" name="viewport">
 <div class="noa h-100">
 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
-<!--<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous"> -->
-<!-- Material Design Bootstrap -->
-<!--<link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css" rel="stylesheet">-->
-
 <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net/" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;700&family=Roboto+Slab:wght@300;400;700&family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Icons" rel="stylesheet">
-
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" crossorigin="anonymous" />
 <!-- Material CSS -->
 <link href="https://cdn.jsdelivr.net/gh/djibe/material@4.5.3-rc2/css/material.min.css" rel="stylesheet">
 
@@ -71,62 +72,10 @@
 }
 */
 
-/*.btns:hover {
-  background-color: rgb(239, 243, 241);
-  color: black;
-  transform: scale(1.015);
-  transition: 0.456s ease;
-  backface-visibility: hidden;
+.fcont hr {
+  width: 100%;
+  flex-flow: wrap;
 }
-
-.btns-lg:hover {
-  border-color: black;
-  background-color: rgb(239, 243, 241);
-  color: black;
-  transform: scale(1.015);
-  transition: 0.456s ease;
-  backface-visibility: hidden;
-}
-.bot-page {
-  text-align: center;
-}
-.bot-long-desc {
-  position: absolute;
-  display: inline-block;
-  border-radius: 4px;
-  border-style: solid;
-  height: calc(100vh - 110px);
-  margin: 2px;
-}
-.ab-button {
-  clear: both;
-  position: relative;
-  margin: 2px;
-}
-.ab-button-n {
-  position: relative;
-}
-.bt-styles {
-  text-align: center;
-  margin:auto;
-  display: block;
-}
-.bt-styles-mini {
-  text-align: center;
-}
-.api-ref {
-  margin: 2px;
-
-}
-.ild {
-  text-align: left;
-}
-li {
-  list-style-type: none;
-  margin: 0;
-  padding: 0;
-}
-*/
 </style>
 
 <script>
@@ -138,18 +87,21 @@ li {
 		}
 		else {
 			element.classList.add("show")
-		}	
-	}
+		}
+		}
 </script>
 
 <!-- Navbar -->
-<header role="navigation" class="navbar fixed-top navbar-full navbar-dark bg-primary doc-navbar-default" aria-label="Site Navigation Menu">
+<header role="navigation" style="margin-bottom: 3px; padding-bottom: 3px;" class="navbar fixed-top navbar-full navbar-dark bg-primary doc-navbar-default" aria-label="Site Navigation Menu">
 <button aria-controls="navdrawerDefault" aria-expanded="false" aria-label="Toggle Navdrawer" class="navbar-toggler" data-target="#navdrawerDefault" data-toggle="navdrawer"><span class="navbar-toggler-icon"></span></button>
+  <div class="navbar-brand">
+    <img loading="lazy" src="https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/14c4232b-0ac4-4df4-8614-41cf3bbf9f69/ddu3v6c-e00814c5-5015-4b8e-9641-5bd0b102be8e.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOiIsImlzcyI6InVybjphcHA6Iiwib2JqIjpbW3sicGF0aCI6IlwvZlwvMTRjNDIzMmItMGFjNC00ZGY0LTg2MTQtNDFjZjNiYmY5ZjY5XC9kZHUzdjZjLWUwMDgxNGM1LTUwMTUtNGI4ZS05NjQxLTViZDBiMTAyYmU4ZS5wbmcifV1dLCJhdWQiOlsidXJuOnNlcnZpY2U6ZmlsZS5kb3dubG9hZCJdfQ.MSP-eZdqGG4cpwCEdmdECyWHfSEQ2WdOVEsOO-O1HPY" width="30" height="30" class="rounded" alt="CatPhi" style="margin-right: 5px">CatPhi
+  </div>
    <ul class="navbar-nav ml-auto">
      <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle" id="navbarDropdownMenuLink-333" data-toggle="dropdown"
           aria-haspopup="true" aria-expanded="false">
-        <i class="fas fa-user"></i> {% if username %} {{username}} {% else %} Not Logged In, You're Missing Out! :({%endif%}
+        <i class="fas fa-user"></i> {% if username %} {{username}} {% else %} Not Logged In <i class="fas fa-frown" aria-hidden="true"></i>{%endif%}
         </a>
         <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink-333">
           {% if username %}
@@ -173,22 +125,36 @@ li {
     </div>
     <nav class="navdrawer-nav">
     {% for topic, items in brs_list.items() %}
-      {% if active_topic == topic %}
-        <a class="nav-item nav-link active link" id="abc-{{loop.index}}" data-toggle="collapse" onClick = "expand({{loop.index}});">{{items[0][0]}}</a>
-        {% else %}
-        <a class="nav-item nav-link link" data-toggle="collapse" id="abc-{{loop.index}}" onClick = "expand({{loop.index}});">{{items[0][0]}}</a>
-        {% endif %}
+     {% if tid == topic %}  
+     <a class="nav-item nav-link link active" data-toggle="collapse" id="abc-{{loop.index}}" onClick = "expand({{loop.index}});"><strong>{{items[0][0]}}</strong></a>
+     {% else %}
+       <a class="nav-item nav-link link" data-toggle="collapse" id="abc-{{loop.index}}" onClick = "expand({{loop.index}});">{{items[0][0]}}</a>
+     {% endif %}
+
         <div class="collapse pb-2 show" id="topic-navdrawer-{{loop.index}}">
-          <a class="nav-item nav-link pl-4 my-0 text-black-secondary" href="/topics/{{topic}}"><span class="font-weight-normal"><strong>Start Here!</strong></span></a>
+        {% if tid == topic and not cid and not practice_mode %}  
+		<a class="nav-item nav-link pl-4 my-0 text-black-secondary active catphi-show" id="active-concept" href="/topics/{{topic}}"><span class="font-weight-normal"><strong>Start Here!</strong></span></a>
+	{% else %}
+	        <a class="nav-item nav-link pl-4 my-0 text-black-secondary" href="/topics/{{topic}}"><span class="font-weight-normal"><strong>Start Here!</strong></span></a>
+	  {% endif %}
           {% for concept in items %}
-          <a class="nav-item nav-link pl-4 my-0 text-black-secondary" href="/topics/{{topic}}/learn/{{concept[1]}}"><span class="font-weight-normal">{{concept[2]}}</span></a>
-          {% endfor %}
-        </div>
+	  	{% if cid == concept[1] and tid == topic and not practice_mode %}
+          		<a class="nav-item nav-link pl-4 my-0 text-black-secondary active catphi-show" href="/topics/{{topic}}/learn/{{concept[1]}}"><span class="font-weight-normal">{{concept[2]}}</span></a>
+	  	{% else %}
+          		<a class="nav-item nav-link pl-4 my-0 text-black-secondary" href="/topics/{{topic}}/learn/{{concept[1]}}"><span class="font-weight-normal">{{concept[2]}}</span></a>
+        	{% endif %}
+	{% endfor %}
+        {% if practice_mode and tid == topic %}
+                <a class="nav-item nav-link pl-4 my-0 text-black-secondary active catphi-show" id="active-practice" href="/topics/{{topic}}/practice"><span class="font-weight-normal"><strong>Practice!</strong></span></a>
+	{% else %}
+                <a class="nav-item nav-link pl-4 my-0 text-black-secondary" href="/topics/{{topic}}/practice"><span class="font-weight-normal"><strong>Practice!</strong></span></a>
+	{% endif %}
+	</div>
      {%endfor%}
     </nav>
   </div>
 </div>
-<br/><br/><br/>
+<br/><br/><br/><br/><br/>
 
 {% block header %}{%endblock %}
 {% block content %}{% endblock %}
@@ -196,7 +162,21 @@ li {
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/gh/djibe/material@4.5.3-rc2/js/material.min.js" async></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/js/all.min.js" crossorigin="anonymous"></script>
 {% block reg %}
 {%endblock%}
+
+
+{% if not username and not login_register%}
+<div id="footer" style="position: fixed; top: 55px; width: 100%; opacity: 1 !important; text-align: center">
+<div class="alert alert-info alert-dismissible fade show" style="background-color: yellow !important;" role="alert">
+  <strong><a href="/login" class="alert-link">Login For The Best Experience, Progress Tracking And Special Features!</a></strong>
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+    <span aria-hidden="true">&times;</span>
+  </button>
+</div>
+</div>
+{%endif%}
+
 </div>
 </html>

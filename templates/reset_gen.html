@@ -4,7 +4,7 @@
 <meta name="description" content="Aryabhata Inc - CatPhi Reset Password">
 {% endblock %}
 {% block content %}
-  <h1 style="text-align: center;"><strong> Forgot Your Password? </strong></h1>
+  <h3 style="text-align: center;"><strong> Forgot Your Password? </strong></h3>
   {% if error %}
   	<p style="text-align: center; color: red;"><strong>{{error}}</strong></p>
   {%endif%}
@@ -15,9 +15,9 @@
 	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 	<div class="form-group">
     		<label for="username">Username</label>
-    		<input type="username" name='username' class="form-control" id="email" placeholder="Enter your username">
-                <label for="email">Email</label>
-                <input type="email" name='email' class="form-control" id="email" placeholder="Enter your email">
+    		<input style="margin: 2px;" type="username" name='username' class="form-control" id="email" placeholder="Enter your username">
+                <label for="email">Alternatively, enter your email</label>
+                <input style="margin: 2px;" type="email" name='email' class="form-control" id="email" placeholder="Alternatively, enter your email">
   	</div>
   	<button type="submit" class="btn btn-primary">Next</button>
 	</form>	

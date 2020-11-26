@@ -1,0 +1,288 @@
+{% extends 'template.html' %}
+
+{% block header %}
+<meta name="description" content="CatPhi Concept Editor">
+<title>Topic Practice - CatPhi</title>
+<style>
+body {
+    /* bottom = footer height */
+    overflow-y: visible;
+}
+
+iframe {
+	width: 700px;
+	height: 550px;
+	border: hidden;
+}
+
+@keyframes slidein-left {
+    0% {
+        transform: translateX(-100%) rotate(0deg);
+	color: black;
+    }
+    100% {
+        transform: translateX(0) rotate(360deg);
+        color: rgb(255, 75, 0);
+    }
+}
+
+
+
+@keyframes slidein-left-true {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+@keyframes slidein-right-true {
+    0% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+
+
+
+@keyframes slidein-right {
+    0% {
+        transform: translateX(100%);
+    }
+    75% {
+	transform: translate(0)
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+#animate-header-left {
+    color: rgb(255, 75, 0);
+    animation: 3s slidein-left;
+}
+
+#animate-header-right {
+    animation: 2s slidein-right;
+}
+
+.catphi_page_content {
+    box-sizing: border-box;
+    flex-wrap: wrap;
+}
+
+.animate-header-true-left {
+    animation: 3s slidein-left-true;
+}
+
+.animate-header-true-right {
+    animation: 3s slidein-right-true;
+}
+
+</style>
+{% endblock %}
+{% block content %}
+<br/>
+<div>
+<div class="catphi_page_content d-flex justify-content-center mt-auto">
+	<div id="animate-header-left" style="margin: 10px; padding:1em;">
+		<i class="fas fa-volleyball-ball fa-5x justify-content-center" style="text-align: center;"></i>
+	</div>
+	<div id="animate-header-right">
+		<h3><strong>Question #{{qid}}</strong></h3>
+		<h4>{{question|safe}}</h4>
+	</div>
+</div>
+<br/><br/><br/><br/><br/>
+{% if type == "MCQ" %}
+<div id="answer" class="d-flex">
+	<button id="A" class="btn btn-block btn-lg btn-outline-primary animate-header-true-left" style="margin: auto;" onclick="selectB(this)">A - {{answers[0]}}</button>
+	<button id="B" class="btn btn-block btn-lg btn-outline-primary animate-header-true-left" style="margin: auto;" onclick="selectB(this)">B - {{answers[1]}}</button>
+	<button id="C" class="btn btn-block btn-lg btn-outline-primary animate-header-true-right" style="margin: auto;" onclick="selectB(this)">C - {{answers[2]}}</button>
+	<button id="D" class="btn btn-block btn-lg btn-outline-primary animate-header-true-right" style="margin: auto;" onclick="selectB(this)">D - {{answers[3]}}</button>
+</div>
+{%endif%}
+<br/><br/><br/>
+<button style="text-align: center;" type="button" id="check-answers" class="btn btn-success btn-lg btn-block justify-content-center" disabled aria-disabled="true" onClick="checkAnswer(this);" >Check Answer!</button>
+<!--<footer class="footer mt-auto py-3">-->
+<footer class="footer">
+<nav aria-label="CatPhi Concept Navigation">
+    <ul class="pagination justify-content-center">
+    {% if qid - 1 > 0 %}
+    <li class="page-item">
+      <a class="page-link" href="/topics/{{tid}}/practice/{{qid - 1}}" tabindex="-1" aria-disabled="false">Previous</a>
+    </li>
+    {%else%}
+    <li class="page-item disabled">
+      <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Previous</a>
+    </li>
+    {%endif%}
+    {%for question in questions%}
+    	{%if question == qid %}
+    		<li class="page-item active" aria-current="page"><a class="page-link" href="/topics/{{tid}}/practice/{{question}}">{{question}}<span class="sr-only">(current)</span></a></li>
+	{% else %}
+		<li class="page-item" aria-current="page"><a class="page-link" href="/topics/{{tid}}/practice/{{question}}">{{question}}</a></li>
+	{% endif %}
+    {%endfor%}
+    {% if qid + 1 <= practice_count %}
+    <li class="page-item">
+      <a class="page-link" href="/topics/{{tid}}/practice/{{qid + 1}}" tabindex="-1" aria-disabled="false">Next</a>
+    </li>
+    {% else %}
+    <li class="page-item">
+	    <a class="page-link" href="/topics/{{tid}}/return" tabindex="-1" aria-disabled="true">Return Home</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+</footer>
+
+
+<!-- Modal Correct -->
+<div class="modal fade" id="correctModal" tabindex="-1"  aria-labelledby="correctModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+	{% if qid + 1 <= practice_count %}
+        	<h5 class="modal-title" id="correctModalLabel">Great Job!</h5>
+	{% else %}
+		<h5 class="modal-title" id="correctModalLabel">Yay! You have successfully defeated the scourge of this topic!</h5>
+	{%endif%}
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        {% if qid + 1 <= practice_count %}
+	      Ready to move on, young explorer?
+	{% else %}
+              Ready to return back home, young explorer?
+	{% endif %}
+      </div>
+      <div class="modal-footer">
+        {% if qid + 1 <= practice_count %}
+		<button type="button" class="btn btn-primary"><a href="/topics/{{tid}}/practice/{{qid + 1}}">Set Sail!</a></button>
+	{% else %}
+		<button type="button" class="btn btn-primary"><a href="/topics/{{tid}}/return">Return To Main Base!</a></button>
+      	{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Wrong -->
+<div class="modal fade" id="incorrectModal" tabindex="-1"  aria-labelledby="incorrectModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="incorrectModalLabel">Aww man....</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+              You got it wrong and would have died on your voyage but you were revitalized by the gods, let's try this question again!
+      	      <div id="lives"></div>
+      </div>
+      <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onClick="tryAgain(this)">Try Again</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Double Wrong -->
+<div class="modal fade" id="dincorrectModal" tabindex="-1"  aria-labelledby="dincorrectModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="dincorrectModalLabel">Uh oh... You ran out of lives....</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+	      Unfortunately, you have ran out of all of your lives{% if qid + 1 <= practice_count %}, but lets move on and learn from our mistakes!{% else %}, but luckily your team members were more successful. So lets go back to home base, shall we?{% endif %}<br/><br/>
+              <strong>Solution: </strong>{{solution|safe}}
+      </div>
+      <div class="modal-footer">
+	      {% if qid + 1 <= practice_count %}
+	      	<button type="button" class="btn btn-primary"><a href="/topics/{{tid}}/practice/{{qid + 1}}">Move On</a></button>
+	      {% else %}
+                <button type="button" class="btn btn-primary"><a href="/topics/{{tid}}/return">Return To Main Base!</a></button>
+	      {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+	var globalBtnList = []
+	var incorrect = 0;
+	var lives = 2;
+	function selectB(element) {
+		// Remove all current things first
+		for(let i = 0; i < globalBtnList.length; i++) {
+			globalBtnList[i].classList.remove("btn-primary")
+			globalBtnList[i].classList.add("btn-outline-primary")
+			globalBtnList = []
+			break;
+		}
+		element.classList.add("btn-primary");
+		element.classList.remove("btn-outline-primary")
+		globalBtnList.push(element)
+		console.log(globalBtnList)
+		cab = document.querySelector("#check-answers")
+		cab.removeAttribute("disabled");
+		cab.removeAttribute("aria-disabled")
+   		let butdis_aria = document.createAttribute("aria-disabled");
+   		butdis_aria.value = "true";
+		cab.setAttributeNode(butdis_aria)
+
+	}
+
+	function checkAnswer(element) {
+		answer = globalBtnList[0].id; 
+		if(answer == "{{correct_answer}}") {
+			// TODO: Track correct
+                        if(lives - incorrect <= 0) {
+                                // TODO: Track incorrect twice
+                                $('#dincorrectModal').modal()
+                                return;
+                        }
+			$('#correctModal').modal()
+		}
+		else {
+			incorrect++;
+			mlives = document.querySelector("#lives")
+			if(lives - incorrect <= 0) {
+				// TODO: Track incorrect twice
+                        	$('#dincorrectModal').modal()
+				return;
+			}
+			// TODO: Track incorrect with remaining lives
+			mlives.innerHTML = "Remaining Lives: " + (lives - incorrect).toString();
+                        $('#incorrectModal').modal()
+		}
+	}
+
+	window.addEventListener('load', function () {
+   		cab = document.querySelector("#check-answers")
+   		var butdis = document.createAttribute("disabled");
+   		var butdis_aria = document.createAttribute("aria-disabled");
+   		butdis_aria.value = "true";
+   		cab.setAttributeNode(butdis);
+   		cab.setAttributeNode(butdis_aria);
+	})
+
+	function tryAgain(element) {
+            $('#incorrectModal').modal('hide')
+	}
+</script>
+</div>
+{% endblock %}

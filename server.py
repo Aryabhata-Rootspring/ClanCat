@@ -89,11 +89,11 @@ async def setup_db():
     )
     # Topic Practice
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS topic_practice_table (tid TEXT, qid SERIAL NOT NULL, type TEXT, question TEXT, answer TEXT, recommended_time INTEGER)"
+        "CREATE TABLE IF NOT EXISTS topic_practice_table (tid TEXT, qid INTEGER, type TEXT, question TEXT, answers TEXT, correct_answer TEXT, solution TEXT DEFAULT 'There is no solution for this problem yet!', recommended_time INTEGER)"
     )
     # Topic Practice Index
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS topic_practice_index ON topic_practice_table (tid, qid, type, question, answer, recommended_time)"
+        "CREATE INDEX IF NOT EXISTS topic_practice_index ON topic_practice_table (tid, qid, type, question, answers, correct_answer, solution, recommended_time)"
     )
 
     return __db
@@ -257,14 +257,15 @@ class ConceptNew(UserModel):
 class TopicPracticeNew(UserModel):
     type: str
     question: str
-    answer: str
+    answers: Optional[str] = None
+    correct_answer: str
     tid: str
-
+    solution: str
 
 # Basic Classes
 class catphi():
     @staticmethod
-    async def new(*, type, username, token, name = None, description = None, cid = None, tid = None, concept_title = None, question = None, answer = None, question_type = None, metaid = None):
+    async def new(*, type, username, token, name = None, description = None, cid = None, tid = None, concept_title = None, question = None, correct_answer = None, answers = None, question_type = None, metaid = None, solution = None):
         auth_check = await authorize_user(username, token)
         if auth_check == False:
             return {"error": "Not Authorized"}
@@ -285,14 +286,36 @@ class catphi():
             if tcheck is None:
                 # Topic Does Not Exist
                 return {"error": "Topic Does Not Exist"}
-            await db.execute(
-                "INSERT INTO topic_practice_table (tid, type, question, answer, recommended_time) VALUES ($1, $2, $3, $4, $5)",
-                tid,
-                question_type,
-                question,
-                answer,
-                0,
-            )
+            
+            if len(solution) < 3:
+                solution = "There is no solution for this problem yet!"
+            
+            practice_count = await db.fetch("SELECT COUNT(qid) FROM topic_practice_table WHERE tid = $1", tid)
+            qid=practice_count[0]["count"] + 1 # Get the count + 1 for next concept
+
+            if question_type == "MCQ":
+                await db.execute(
+                    "INSERT INTO topic_practice_table (qid, tid, type, question, correct_answer, answers, solution, recommended_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                    qid,
+                    tid,
+                    question_type,
+                    question,
+                    correct_answer,
+                    answers,
+                    solution,
+                    0,
+                )
+            else:
+                await db.execute(
+                    "INSERT INTO topic_practice_table (qid, tid, type, question, correct_answer, solution, recommended_time) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                    qid,
+                    tid,
+                    question_type,
+                    question,
+                    correct_answer,
+                    solution,
+                    0,
+                )
             return {"error": "1000"}
 
 
@@ -710,8 +733,8 @@ async def new_concept(concept: ConceptNew):
     return await catphi.new(type="concept", username = concept.username, token = concept.token, tid = concept.tid, concept_title = concept.title)
 
 @app.post("/topics/practice/new", tags = ["Topics", "Topic Practice", "W"])
-async def new_topic_practice(topic_practice: TopicPracticeNew):
-    return await catphi.new(type="topic_practice", username = topic_practice.username, token = topic_practice.token, question_type = topic_practice.type, tid = topic_practice.tid, question = topic_practice.question, answer = topic_practice.answer)
+async def new_topic_practice(topic_practice: TopicPracticeNew): 
+    return await catphi.new(type="topic_practice", username = topic_practice.username, token = topic_practice.token, question_type = topic_practice.type, tid = topic_practice.tid, question = topic_practice.question, correct_answer = topic_practice.correct_answer, answers = topic_practice.answers, solution = topic_practice.solution)
 
 # List Functions
 
@@ -783,13 +806,19 @@ async def get_topic_practice_count(tid: str):
 
 @app.get("/topics/practice/get", tags = ["Topics", "Topic Practice", "R"])
 async def get_concept_practice(tid: str, qid: int):
-    question = await db.fetch("SELECT type, question, answer, recommended_time FROM topic_practice_table WHERE tid = $1 AND qid = $2 ORDER BY qid ASC", tid, qid)
-    if len(question) == 0 or len(question) < int(qid) or int(qid) <= 0:
+    question = await db.fetch("SELECT type, question, correct_answer, answers, solution, recommended_time FROM topic_practice_table WHERE tid = $1 AND qid = $2 ORDER BY qid ASC", tid, qid)
+    if len(question) == 0 or int(qid) <= 0:
         return {"error": "0002"}
-    question = question[int(qid) - 1] # Get the absolute practice question ID
+    question = question[0] # Get the absolute practice question ID
+    if question["solution"] is None or len(question["solution"]) < 3:
+        solution = "There is no solution for this problem yet!"
+    else:
+        solution = question["solution"]
     return {
         "type": question["type"],
         "question": question["question"],
-        "answer": question["answer"],
+        "correct_answer": question["correct_answer"],
+        "answers": question["answers"],
+        "solution": solution,
         "recommended_time": question["recommended_time"],
     }

@@ -43,14 +43,17 @@ class BRS():
                 brs_dict[obj["tid"]].append([obj["topic_name"], obj["cid"], obj["concept_name"]])
             else:
                 brs_dict[obj["tid"]] = [[obj["topic_name"], obj["cid"], obj["concept_name"]]]
-            print(brs_dict)
         self.brs_dict = brs_dict
+
 # A wrapper arount Quart's render_template to make life easier
 async def render_template(f, **kwargs):
     # This is a BristleRootShadow (brs) object which basically contains 
     brs = BRS(requests.get("https://127.0.0.1:3000/bristlefrost/rootspring/shadowsight").json()).brs_dict
-    print(brs)
-    return await __rt__(f, username = session.get("username"), brs_list = brs, **kwargs)
+    if f.__contains__("login.html") or f.__contains__("register.html") or f.__contains__("reset"):
+        login_register = True
+    else:
+        login_register = False
+    return await __rt__(f, username = session.get("username"), brs_list = brs, login_register = login_register, **kwargs)
 
 @app.route("/favicon.ico")
 async def favicon():
@@ -75,7 +78,6 @@ async def topics_edit_menu(tid=None):
     return await render_template(
         "topic_edit_menu.html",
         tid=tid,
-        token=session.get("token"),
     )
 
 @app.route("/topics/<tid>/edit/concepts")
@@ -83,7 +85,7 @@ async def topic_edit_concepts(tid=None):
     if tid == None:
         return abort(404)
     elif session.get("token") == None:
-        session["redirect"] = "/topics/" + tid + "/edit"
+        session["redirect"] = "/topics/" + tid
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
@@ -102,7 +104,6 @@ async def topic_edit_concepts(tid=None):
         "topic_edit_concepts.html",
         tid=tid,
         concepts = concepts,
-        token=session.get("token"),
     )
 
 
@@ -111,7 +112,7 @@ async def topic_edit_concept(tid=None, cid=None):
     if tid is None or cid is None:
         return abort(404)
     elif session.get("token") == None:
-        session["redirect"] = "/topics/" + tid + "/edit/concept/" + str(cid)
+        session["redirect"] = "/topics/" + tid
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
@@ -149,7 +150,6 @@ async def topic_new_concept(tid=None):
         return await render_template(
             "topic_new_concept.html",
             tid=tid,
-            token=session.get("token"),
         )
     elif request.method == "POST":
         form = await request.form
@@ -158,7 +158,6 @@ async def topic_new_concept(tid=None):
             return await render_template(
                 "topic_new_concept.html",
                 tid=tid,
-                token=session.get("token"),
                 error = "You need to input a title!"
             )
         a = requests.post(
@@ -176,7 +175,7 @@ async def topic_new_concept(tid=None):
 @app.route("/topics/<tid>/edit/simulation")
 async def topics_edit_simulation(tid):
     if session.get("token") == None:
-        session["redirect"] = "/topics/" + tid + "/edit/simulation"
+        session["redirect"] = "/topics/" + tid
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
@@ -232,35 +231,40 @@ async def new_simulation():
         return abort(401)
     return await render_template(
         "admin_simulation_new.html",
-        token=session.get("token"),
     )
 
-@app.route("/concept/<cid>/practice/new", methods = ["GET", "POST"])
-async def new_practice_question(cid = None):
-    if cid == None:
+@app.route("/topics/<tid>/edit/practice/new", methods = ["GET", "POST"])
+async def new_practice_question(tid = None):
+    if tid == None:
         return abort(404)
     elif session.get("token") == None:
-        session["redirect"] = "/concept/" + cid + "/new"
+        session["redirect"] = "/topics/" + tid + "/edit/practice/new"
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
     if request.method == "GET":
-        return await render_template("concept_practice_new.html")
+        return await render_template("topic_practice_new.html")
     else:
         form = await request.form
-        if "type" not in form.keys() or "question" not in form.keys() or "answer" not in form.keys():
-            return await render_template("concept_practice_new.html",  error = "Not all required fields have been filled in")
-        elif form.get("type") == "MCQ" and len(form.get("answer").split("||")) != 4:
-            return await render_template("concept_practice_new.html",  error = "MCQ must have 4 questions seperated by ||")
+        if "type" not in form.keys() or "question" not in form.keys() or "correct_answer" not in form.keys() or "solution" not in form.keys():
+            return await render_template("topic_practice_new.html",  error = "Not all required fields have been filled in")
+        elif form.get("type") == "MCQ" and (form.get("answers") is None or form.get("correct_answer") not in ["A", "B", "C", "D"]):
+            return await render_template("topic_practice_new.html",  error = "Not all required fields have been filled in and/or the correct answer is invalid (must be one letter in an MCQ)")
+        elif form.get("type") == "MCQ" and len(form.get("answers").split("||")) != 4:
+            return await render_template("topic_practice_new.html",  error = "MCQ must have 4 questions seperated by ||")
 
-        return requests.post(api + "/concepts/practice/new", json = {
+        json = {
             "username": session.get('username'),
             "token": session.get("token"),
             "type": form.get("type"),
             "question": form.get("question"),
-            "answer": form.get("answer"),
-            "cid": cid,
-        }).json()
+            "correct_answer": form.get("correct_answer"),
+            "solution": form.get("solution"),
+            "tid": tid,
+        }
+        if form.get("type") == "MCQ":
+            json["answers"] = form.get("answers")
+        return requests.post(api + "/topics/practice/new", json = json).json()
 
 @app.route("/iframe/<sid>")
 async def iframe_simulation(sid = None):
@@ -287,22 +291,18 @@ async def new_topic():
             subjects.append([subject, subject_json[subject]])
     if request.method == "GET":
         if session.get("token") == None:
-            session["redirect"] = "/topics/new"
+            session["redirect"] = "/topics"
             return redirect("/login")
         elif session.get("admin") in [0, None, "0"]:
             return abort(401)
         return await render_template(
             "topic_new.html",
-            
-            token=session.get("token"),
             subjects = subjects
         )
     form = await request.form
     if "name" not in form.keys() or "description" not in form.keys() or "metaid" not in form.keys():
         return await render_template(
             "topic_new.html",
-            
-            token=session.get("token"),
             error="Invalid Topic Name And/Or Description And/Or Subject",
             subjects = subjects
         )
@@ -325,21 +325,17 @@ async def new_topic():
 async def new_subjects():
     if request.method == "GET":
         if session.get("token") == None:
-            session["redirect"] = "/subjects/new"
+            session["redirect"] = "/topics"
             return redirect("/login")
         if session.get("admin") in [0, None, "0"]:
             return abort(401)
         return await render_template(
             "subject_new.html",
-            
-            token=session.get("token"),
         )
     form = await request.form
     if "name" not in form.keys() or "description" not in form.keys():
         return await render_template(
             "subject_new.html",
-            
-            token=session.get("token"),
             error="Invalid Subject Name And/Or Description",
         )
     x = requests.post(
@@ -360,21 +356,17 @@ async def new_concept(topic=None):
         return abort(404)
     if request.method == "GET":
         if session.get("token") == None:
-            session["redirect"] = "/topics/new"
+            session["redirect"] = "/topics"
             return redirect("/login")
         if session.get("admin") in [0, None, "0"]:
             return abort(401)
         return await render_template(
             "concept_new.html",
-            
-            token=session.get("token"),
         )
     form = await request.form
     if "concept" not in form.keys():
         return await render_template(
             "concept_new.html",
-            
-            token=session.get("token"),
             error="Invalid Concept Name",
         )
     x = requests.post(
@@ -516,6 +508,7 @@ async def dashref():
 
 
 # Actual Code
+@app.route("/index/<path:fn>")
 @app.route("/js/<path:fn>")
 @app.route("/<folder1>/js/<path:fn>")
 @app.route("/<folder1>/<folder2>/js/<path:fn>")
@@ -912,12 +905,11 @@ async def redir_topic(tid=None):
         return redirect("/topics/" + tid + "/practice/" + cid)
 
 @app.route("/topics/<tid>/learn/<int:cid>")
-async def concept_page_view(tid, cid):
+async def topic_concept_learn(tid, cid):
     concept_json = requests.get(api + f"/topics/concepts/get?tid={tid}&cid={cid}").json()
     
     if concept_json.get("error") is not None:
         return abort(404)
-
     count_json = requests.get(
         api + f"/topics/concepts/get/count?tid={tid}"
     ).json()  # Get the page count of a concept
@@ -935,53 +927,72 @@ async def concept_page_view(tid, cid):
     return await render_template(
         "concept.html",
         tid=tid,
-        page=int(cid),
-        pages = pages,
-        page_count = count_json['concept_count'],
+        cid=int(cid),
+        concepts = pages,
+        concept_count = count_json['concept_count'],
         content = Markup(concept_json['content']),
         title = concept_json["title"],
         admin=session.get("admin"),
     )
 
-
-@app.route("/concept/<id>/practice/<question_number>")
-async def concept_practice_view(id, question_number):
-    practice_json = requests.get(api + f"/concepts/get/practice?id={id}&question_number={question_number}").json()
-
-    if practice_json.get("error") != None:
+@app.route("/topics/<tid>/practice")
+async def redir_topic_practice(tid=None):
+    if tid is None:
         return abort(404)
-
-    pjson = requests.get(
-        api + f"/concepts/get/practice/count?id={id}"
-    ).json()  # Get the practice count of a concept
-    track = False
-    
-    # Tracking code needs login
-    if "username" in session:
-        pn = requests.get(api + "/profile/track?username=" + session.get("username") + "&cid=" + id).json()
-        done = (pn['done'] == '1')
-        pg = pn['page']
-        if (int(pg) < int(question_number) and not done and pn["status"] == "PP") or pn["status"] == "LP":
-            print("Enabling tracker for cid " + id + " with page " + question_number)
-            track = True
-
-        if track:
-            tracker = requests.post(api + "/profile/track", json = {"username": session.get("username"), "status": "PP", "cid": id, "page": question_number}).json()
-
-    pages = [i for i in range(1, pjson['practice_count'] + 1)]
-    if practice_json["type"] == "MCQ":
-        answer = practice_json["answer"].split("||")
+    if "username" not in session:
+        return redirect("/topics/" + tid + "/practice/1")
+    tracker = requests.get(api + "/profile/track?username=" + session.get("username") + "&tid=" + tid).json()
+    cid = tracker['cid']
+    if tracker["status"] == "PP":
+        return redirect("/topics/" + tid + "/practice/" + cid)
     else:
-        answer = practice_json["answer"]
+        return redirect("/topics/" + tid + "/practice/1")
+
+
+@app.route("/topics/<tid>/practice/<int:qid>")
+async def topic_practice_view(tid, qid):
+    practice_json = requests.get(api + f"/topics/practice/get?tid={tid}&qid={qid}").json()
+    if practice_json.get("error") is not None:
+        return await render_template(
+            "generic_error.html",
+            practice_mode = True,
+            header="There are no practice question's for this topic yet...",
+            error="Check back later, brave explorer!",
+            tid = tid
+        )
+    print(practice_json)
+    count_json = requests.get(
+        api + f"/topics/practice/get/count?tid={tid}"
+    ).json()  # Get the page count of a concept
+    if "username" in session:
+        # User is logged in, track
+        track = False
+        tracker = requests.get(api + "/profile/track?username=" + session.get("username") + "&tid=" + tid).json()
+        done = (tracker['done'] == '1')
+        tracked_cid = tracker['cid']
+        if (int(tracked_cid) < int(qid) and not done) or tracker["status"] in ["LP", ""]:
+            track = True
+        if track:
+            tracker = requests.post(api + "/profile/track", json = {"username": session.get("username"), "status": "PP", "tid": tid, "cid": qid}).json() # Track the fact that he went here in this case
+    if practice_json["type"] == "MCQ":
+        answers = practice_json["answers"].split("||")
+    else:
+        answers = None
+    correct_answer = practice_json["correct_answer"]
+    pages = [i for i in range(1, count_json['practice_count'] + 1)]
     return await render_template(
-        "concept_practice.html",
-        cid=id,
-        page=int(question_number),
-        pages = pages,
-        page_count = pjson['practice_count'],
+        "topic_practice.html",
+        practice_mode = True,
+        tid=tid,
+        qid=int(qid),
+        questions = pages,
+        practice_count = count_json['practice_count'],
         type = practice_json["type"],
         question = Markup(practice_json["question"]),
-        answer = answer,
+        answers = answers,
+        correct_answer = correct_answer,
         admin=session.get("admin"),
+        solution = Markup(practice_json["solution"]),
     )
+
 

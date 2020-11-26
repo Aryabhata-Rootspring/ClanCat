@@ -6,11 +6,28 @@
 	canvas, html, .overlay {
 		text-align: center !important;
 	};
+	progress {
+  	 	margin-left: 10px;
+  	 	position: relative;
+  	 	top: 3px;
+ 	 	width:600px;
+	}
 </style>
 <script type="text/javascript" src="js/jquery-ui.custom.min.js" async></script>
 <script type="text/javascript" src="js/RSrun.3.0.min.js" async></script>
 <script type="text/javascript" src="js/glow.3.0.min.js" charset="UTF-8" async></script>
 <h3 style="text-align: center;"><strong>{{name}}</strong><br/><br/>
+
+<div id="please-wait">
+  <p>Please Wait...: 
+    <progress value=0 max=1000 style="color: white;">
+<!--             <div class="Progress-bar" role="presentation">
+            <span class="Progress-value" style="width: 80%;">&nbsp;</span>
+        </div> -->
+    </progress>
+  </p>
+</div>
+
 <button onclick="runCode()" class="btn btn-primary" style="margin: 2px;">Restart Experiment</button>
 <!-- This is the code for the experiment -->
 <div id="catphi-code" code="{{code}}">
@@ -148,6 +165,12 @@ function runCode() {
     var header = getHeader(false)
     gsErrordiv = $("#gserrors")[0]
     localCompile(header, ready, gsErrordiv, false)
+    try {
+	setTimeout(function(){$("#please-wait").remove(); }, 1000);
+    }
+    catch {
+
+    }
 }
 
 async function runprog(prog) { 
@@ -331,4 +354,13 @@ window.addEventListener('load', function () {
 <a href="/topics/{{tid}}/edit"><button class="btn btn-primary">Edit!</button></a>
 {%endif%}
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+<script>
+var animateProgress = anime({
+  targets: 'progress',
+  value: 1000,
+  easing: 'linear',
+  autoplay: true
+});
+</script>
 {%endblock%}

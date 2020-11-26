@@ -2,10 +2,19 @@
 {% block header %}
 <title>CatPhi Index</title>
 <meta name="description" content="Aryabhata Inc - CatPhi">
+<style>
+.el {
+  width: 28px;
+  height: 28px;
+  background: gray;
+  border-radius: 14px;
+  display: block;
+}
+</style>
 {% endblock %} 
 {% block content %}
   <h2 style="text-align: center;"><strong>Welcome To CatPhi</strong></h2>
-  <h3 style="text-align: center;">A place for explorers to learn <strong>and</strong> have fun!</h3>
+  <h3 style="text-align: center;"><strong>A place for explorers to learn Physics <i>and</i> have fun!</strong></h3>
   <br/>
   <div style="text-align: center;">
 	  <!-- https://tenor.com/view/universe-sun-glasses-bite-rotating-gif-14467089 -->
@@ -13,11 +22,90 @@
 	  <!-- https://tenor.com/view/science-billnye-gif-5246275 -->
 	  <img src="https://media.tenor.com/images/55c7ba3c5b108125f8b46085916adaaa/tenor.gif" alt="Mind-Blown Science!" style="text-align: right; width:280px;height:280px;">
 	  <br/>
-          <img src="https://media.tenor.com/images/a66bec255f77e0e71a9a387e67748b1d/tenor.gif" alt="Sun Nibbling Plant Revolving Around It" style="text-align: left; width:280px;height:280px;">
-          <img src="https://media.tenor.com/images/a66bec255f77e0e71a9a387e67748b1d/tenor.gif" alt="Sun Nibbling Plant Revolving Around It" style="text-align: right; width:280px;height:280px;">
+	  <!-- https://tenor.com/view/feeling-weekend-vibes-cliphy-not-lost-gif-13123636 -->
+          <img src="https://media.tenor.com/images/aeb920653d0c43c6c6d9a5b8e7370fea/tenor.gif" alt="I'm Not Lost, I'm Exploring!" style="text-align: left; width:280px;height:280px;">
+	  <!-- https://tenor.com/view/newtons-cradle-halloween-moon-pendulum-phases-gif-15055277 -->
+	  <!--<img src="https://media.tenor.com/images/603b9e1a1a3e3221c65fa882df76e4c3/tenor.gif" alt="Newton's Cradle" style="text-align: right; width:280px;height:280px;">-->
+	  <img src="/index/cradle.gif" alt="Newton's Cradle" style="text-align: right; width:280px;height:280px;">
 	  <br/><br/><br/><br/><br/><br/>
-	  <a href="/topics"><button class="btn btn-primary">Start Exploring</button></a><br/><br/>
-	  {% if not username %}
-	  <a href="/login">Login For The Best Experience And Special Features!</a><br/><br/>
-	  {%endif%}
+	  <h4>With over <strong><span class="round-log">0</span></strong>s of topics and experiments to explore from...</h4>
+	  <a href="/login"><button class="btn btn-primary">Let's Start Exploring!</button></a><br/><br/>
+	<div class="tick-demo" style="text-align: center; display: flex; justify-content: center;">
+		<i class="el" style="text-align: center;"></i><br/><br/><br/>
+		</div>
+	<input type="range" min="0" max="5" id="speed" value="1" step="0.01" /><br/>
+        <p>Drag the slider and see what happens!</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+<script>
+var roundLogEl = document.querySelector('.round-log');
+
+anime({
+  targets: roundLogEl,
+  innerHTML: [0, 1000],
+  easing: 'linear',
+  round: 1 // Will round the animated value to 1 decimal
+});
+
+
+
+// Animation One
+class TimeMagic {
+  constructor(speed) {
+    this.accumulateTime = -1;
+    this.lastTime = -1;
+    this.speed = speed;
+  }
+
+  updateTime(t) {
+    if (this.accumulateTime === -1) {
+      this.accumulateTime = t;
+    } else {
+      const deltaT = t - this.lastTime;
+      this.accumulateTime += deltaT * this.speed;
+    }
+
+    this.lastTime = t;
+  }
+
+  updateSpeed(speed) {
+    this.speed = speed;
+  }
+
+  getTime() {
+    return this.accumulateTime;
+  }
+}
+
+window.setTimeout(() => {
+  const $speed = document.querySelector("#speed");
+
+  const timeManager = new TimeMagic(1);
+
+  $speed.addEventListener("change", (event) => {
+    timeManager.updateSpeed(parseFloat(event.target.value));
+  });
+
+  const animation = anime({
+    targets: ".tick-demo .el",
+    translateX: 270,
+    direction: "alternate",
+    loop: true,
+    easing: "easeInOutQuad",
+    autoplay: false
+  });
+
+  function loop(t) {
+    timeManager.updateTime(t);
+
+    animation.tick(timeManager.getTime());
+
+    requestAnimationFrame(loop);
+  }
+
+  requestAnimationFrame(loop);
+}, 0);
+
+
+</script>
 {% endblock %}
