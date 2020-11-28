@@ -216,7 +216,22 @@ iframe {
 	var globalBtnList = []
 	var incorrect = 0;
 	var lives = 2;
+	var c = false; // This is the counter that checks if we should stop accepting answers
+	var choices = []
+	function disableCab() {
+                cab = document.querySelector("#check-answers")
+                var butdis = document.createAttribute("disabled");
+                var butdis_aria = document.createAttribute("aria-disabled");
+                butdis_aria.value = "true";
+                cab.setAttributeNode(butdis);
+                cab.setAttributeNode(butdis_aria);
+		return cab;
+	}
+
 	function selectB(element) {
+		if(c == true) {
+			return
+		}
 		// Remove all current things first
 		for(let i = 0; i < globalBtnList.length; i++) {
 			globalBtnList[i].classList.remove("btn-primary")
@@ -238,14 +253,32 @@ iframe {
 	}
 
 	function checkAnswer(element) {
-		answer = globalBtnList[0].id; 
+		answer = globalBtnList[0].id;
+		choices.push(answer)
+		post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/practice/{{qid}}/solve";
+        	console.log(post_url);
+        	post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "given_answer":  answer, "remaining_lives": lives - incorrect, "choices": choices.join("|")};
+        	$.post(post_url, post_data, function(data, status, jqXHR) {console.log(data.error)});
+                globalBtnList[0].setAttribute("onclick", "#")
+
 		if(answer == "{{correct_answer}}") {
-			// TODO: Track correct
                         if(lives - incorrect <= 0) {
                                 // TODO: Track incorrect twice
                                 $('#dincorrectModal').modal()
+                        	globalBtnList[0].classList.remove("btn-primary")
+                        	globalBtnList[0].classList.add("btn-warning")
+				globalBtnList = []
+				c = true;
+				cab = disableCab();
+				cab.innerHTML = "Out Of Lives :("
                                 return;
                         }
+			globalBtnList[0].classList.remove("btn-primary")
+			globalBtnList[0].classList.add("btn-secondary")
+			globalBtnList = []
+			c = true;
+			cab = disableCab();
+			cab.innerHTML = "Let's move on, young explorer!"
 			$('#correctModal').modal()
 		}
 		else {
@@ -254,8 +287,17 @@ iframe {
 			if(lives - incorrect <= 0) {
 				// TODO: Track incorrect twice
                         	$('#dincorrectModal').modal()
+                        	globalBtnList[0].classList.remove("btn-primary")
+                        	globalBtnList[0].classList.add("btn-danger")
+                                globalBtnList = []
+				c = true;
+				cab = disableCab();
+                                cab.innerHTML = "Out Of Lives :("
 				return;
 			}
+                        globalBtnList[0].classList.remove("btn-primary")
+                        globalBtnList[0].classList.add("btn-danger")
+                        globalBtnList = []
 			// TODO: Track incorrect with remaining lives
 			mlives.innerHTML = "Remaining Lives: " + (lives - incorrect).toString();
                         $('#incorrectModal').modal()
@@ -263,12 +305,11 @@ iframe {
 	}
 
 	window.addEventListener('load', function () {
-   		cab = document.querySelector("#check-answers")
-   		var butdis = document.createAttribute("disabled");
-   		var butdis_aria = document.createAttribute("aria-disabled");
-   		butdis_aria.value = "true";
-   		cab.setAttributeNode(butdis);
-   		cab.setAttributeNode(butdis_aria);
+		disableCab();
+		{% if solved %}
+			// Set the current thing
+			alert("{{solved}}");
+		{% endif %}
 	})
 
 	function tryAgain(element) {

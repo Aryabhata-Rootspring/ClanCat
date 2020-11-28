@@ -23,11 +23,12 @@ import re
 import secrets
 import string
 import logging
+from quart import jsonify
 logging.captureWarnings(True)
 """ Configuration """
 
 app = Quart(__name__, static_url_path="/static")
-app.config["SECRET_KEY"] = "qEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Dd"
+app.config["SECRET_KEY"] = "qEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Ddrejrj34jfjrc4j3fwkjVrT34jkFj34jkgce3jfqkeieiei3jd44584830290riuejnfdiuwrjncjnwe8uefhnewfu553kf84EyfFH48SHSWk"
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 csrf = CSRFProtect(app)  # CSRF Form Protection
 api = "https://127.0.0.1:3000"
@@ -802,6 +803,7 @@ async def login():
     )
     rc = rc.json()
     if rc["error"] == "1000":
+        session.clear() # remove old session
         # Check if the user is an admin
         if "admin" in rc["scopes"].split(":"):
             session["admin"] = 1
@@ -977,8 +979,17 @@ async def topic_practice_view(tid, qid):
         answers = None
     correct_answer = practice_json["correct_answer"]
     pages = [i for i in range(1, count_json['practice_count'] + 1)]
+
+    # Check if they already answered said question
+    try:
+        key = "|".join(["practice", "qa", tid, str(qid)])
+        solved = session[key]
+    except:
+        solved = None
+    print(session, solved)
     return await render_template(
         "topic_practice.html",
+        token = session.get("token"),
         practice_mode = True,
         tid=tid,
         qid=int(qid),
@@ -990,6 +1001,20 @@ async def topic_practice_view(tid, qid):
         correct_answer = correct_answer,
         admin=session.get("admin"),
         solution = Markup(practice_json["solution"]),
+        solved = solved,
     )
 
-
+# They have solved the question, save it on server session and on other locations (a database) if logged in
+@app.route("/topics/<tid>/practice/<int:qid>/solve", methods = ["POST"])
+async def topic_practice_solve(tid, qid):
+    data = await request.form
+    if "username" not in data.keys() or "token" not in data.keys() or "given_answer" not in data.keys() or "remaining_lives" not in data.keys() or "choices" not in data.keys():
+        return jsonify({"error": "1001"})
+    key = "|".join(["practice", "qa", tid, str(qid)])
+    session[key] = data["given_answer"]
+    key = "|".join(["practice", "lives", tid, str(qid)])
+    session[key] = data["remaining_lives"]
+    key = "|".join(["practice", "choices", tid, str(qid)])
+    session[key] = data["choices"]
+    print(session, data["given_answer"])
+    return jsonify({"error": "1000"}) 

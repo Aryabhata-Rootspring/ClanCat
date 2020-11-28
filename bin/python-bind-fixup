@@ -1,2 +1,1 @@
-sudo setcap cap_net_bind_service=ep /usr/bin/python3.9
-sudo setcap cap_net_bind_service=ep /usr/local/bin/pypy3
+sudo setcap cap_net_bind_service=ep /usr/bin/python3b

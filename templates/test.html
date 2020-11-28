@@ -1,21 +1,130 @@
-{% extends 'template.html' %}
-{% block header %}
-<title role="banner">CatPhi Index</title>
-<meta name="description" content="Aryabhata Inc - CatPhi">
-{% endblock %} 
-{% block content %}
-<h2 style="text-align: center;"><strong> CatPhi Test Interface </strong></h2>
-  <br/>
-  <div style="text-align: center;">
-  </a>
-  {% for topic, items in brs_list.items() %}
-  	<strong>Topic ID: </strong>{{topic}}<br/>
-	<strong>Topic Name: </strong>{{items[0][0]}}<br/><br/>
-	{%for concept in items %}
-		<strong>Concept ID: </strong>{{concept[1]}}<br/>
-                <strong>Concept Name: </strong>{{concept[2]}}<br/>
-		<strong>Link: </strong><a href="/topics/{{topic}}/learn/{{concept[1]}}">{{concept[2]}}</a><br/><br/>
-  	{%endfor%}
-	<br/>
-  {%endfor%}
-{% endblock %}
+{%extends 'template.html'%}
+{%block reg %}
+<head>
+<title role="banner">ThreeJS Animation Test</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style>
+.CodeMirror {
+      resize: vertical;
+    }
+</style>
+</head>
+
+<body class="GlowScriptBody">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" integrity="sha512-UxcTlYsLkcuGZL9JNnMsfo3p7VFSmcgBjH1VUSM82Okk5ni52bk7vz9f2p+D1VnMcNUmMzbzgWqWcdJ2j8Svow==" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" integrity="sha512-xIf9AdJauwKIVtrVRZ0i4nHP61Ogx9fSRAkCLecmE2dL/U8ioWpDvFCAy4dcfecN72HHB9+7FfQj3aiO68aaaw==" crossorigin="anonymous" />
+<!-- CodeMirror Modes -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r123/three.min.js" integrity="sha512-Q+IG0h7As6sfqE2t1Xf5IeamNyCXb4EXxGCA9Mlbpv7xtwurVHNdVDbyWeSQ3ulPf2FRlqeu77Ec3SJDdIR63w==" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"></script>
+</body>
+
+<button onclick="runCode()" class="btn btn-primary" style="margin: 2px;">Run Experiment</button>
+<button onclick="pauseCode()" class="btn btn-primary" style="margin: 2px;">Pause Experiment</button>
+<div class="form-group">
+  <label for="editor">Write your simulation in python here!</label>
+  <textarea class="form-control rounded-0" id="editor" rows="15"></textarea>
+</div>
+<div style="text-align: center" class="d-flex justify-content-center" id="result"></div>
+<script>
+var elem = null;
+function empty(elem) {
+    while (elem.lastChild) elem.removeChild(elem.lastChild);
+}
+var editorTextArea = document.querySelector("#editor")
+var ob = null;
+var sr = null;
+const defaultCode = `// Baseline JavaScript For ThreeJS
+var scene = new THREE.Scene();
+sr = 1;
+var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 100 );
+var renderer = new THREE.WebGLRenderer();
+renderer.setSize( window.innerWidth/4, window.innerHeight/2.45 );
+
+// Place all objects here
+
+
+/* Example: Cube */
+const geometry = new THREE.BoxGeometry();
+const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+const cube = new THREE.Mesh( geometry, material );
+scene.add( cube );
+camera.position.z = 5;
+
+
+
+// Put all objects above
+var result = document.querySelector("#result");
+result.appendChild( renderer.domElement );
+function animate() {
+	id = requestAnimationFrame( animate );
+	// Place all animations here
+
+	/* Example: Cube */
+	cube.rotation.x += 0.01;
+	cube.rotation.y += 0.01;
+
+	// End
+	renderer.render( scene, camera );
+}
+animate();`
+var editor = CodeMirror.fromTextArea(editorTextArea, {
+    lineNumbers: true,
+    mode: "javascript",
+  })
+paused = false;
+running = false;
+si = null
+editor.setValue(defaultCode);
+function runCode() {
+	if(paused == true) {
+		// Just clearing the interval and reanimating should do
+		// clear interval
+		while (si--) {
+		window.clearInterval(si);
+		}
+                clearInterval(si)
+		paused = false;
+		running = true;
+		si = null;
+		animate()
+		return;
+	}
+	var result = document.querySelector("#result");
+	try {
+		result.innerHTML = '';
+		result = null
+	}
+	catch {
+		console.log("KKK")
+	}
+	if(ob != null) {
+		ob.remove();
+	}
+	var js = editor.getValue().replaceAll(/const/g, ""); // This is the only way
+	var oScript = document.createElement("script");
+	var oScriptText = document.createTextNode(js);
+	oScript.appendChild(oScriptText);
+	running = true;
+	document.body.appendChild(oScript);
+	ob = oScript
+}
+
+function caf() {
+      if(running == false) {
+	cancelAnimationFrame( id );
+	}
+     }
+
+function pauseCode() {
+		if(running == false) {return}
+		running = false;
+		paused = true;
+		si = setInterval(caf, 0);
+  }
+</script>
+<!-- Bootstrap comes with Popper, but not jquery which is anyways OK-->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
+{%endblock%}
