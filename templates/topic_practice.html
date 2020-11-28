@@ -97,6 +97,13 @@ iframe {
 		<h4>{{question|safe}}</h4>
 	</div>
 </div>
+
+{% if admin %}
+<div class="catphi_page_content d-flex justify-content-center mt-auto">
+<a href="/topics/{{tid}}/practice/{{qid}}/edit"><button class="btn btn-primary">Edit</button></a><br/><br/>
+</div>
+{% endif %}
+
 <br/><br/><br/><br/><br/>
 {% if type == "MCQ" %}
 <div id="answer" class="d-flex">
@@ -106,7 +113,7 @@ iframe {
 	<button id="D" class="btn btn-block btn-lg btn-outline-primary animate-header-true-right" style="margin: auto;" onclick="selectB(this)">D - {{answers[3]}}</button>
 </div>
 {%endif%}
-<br/><br/><br/>
+<br/><br/><br/><br/>
 <button style="text-align: center;" type="button" id="check-answers" class="btn btn-success btn-lg btn-block justify-content-center" disabled aria-disabled="true" onClick="checkAnswer(this);" >Check Answer!</button>
 <!--<footer class="footer mt-auto py-3">-->
 <footer class="footer">
@@ -255,11 +262,7 @@ iframe {
 	function checkAnswer(element) {
 		answer = globalBtnList[0].id;
 		choices.push(answer)
-		post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/practice/{{qid}}/solve";
-        	console.log(post_url);
-        	post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "given_answer":  answer, "remaining_lives": lives - incorrect, "choices": choices.join("|")};
-        	$.post(post_url, post_data, function(data, status, jqXHR) {console.log(data.error)});
-                globalBtnList[0].setAttribute("onclick", "#")
+                globalBtnList[0].setAttribute("onclick", "")
 
 		if(answer == "{{correct_answer}}") {
                         if(lives - incorrect <= 0) {
@@ -271,12 +274,14 @@ iframe {
 				c = true;
 				cab = disableCab();
 				cab.innerHTML = "Out Of Lives :("
+				track()
                                 return;
                         }
 			globalBtnList[0].classList.remove("btn-primary")
 			globalBtnList[0].classList.add("btn-secondary")
 			globalBtnList = []
 			c = true;
+			track()
 			cab = disableCab();
 			cab.innerHTML = "Let's move on, young explorer!"
 			$('#correctModal').modal()
@@ -291,6 +296,7 @@ iframe {
                         	globalBtnList[0].classList.add("btn-danger")
                                 globalBtnList = []
 				c = true;
+				track()
 				cab = disableCab();
                                 cab.innerHTML = "Out Of Lives :("
 				return;
@@ -298,6 +304,7 @@ iframe {
                         globalBtnList[0].classList.remove("btn-primary")
                         globalBtnList[0].classList.add("btn-danger")
                         globalBtnList = []
+			track()
 			// TODO: Track incorrect with remaining lives
 			mlives.innerHTML = "Remaining Lives: " + (lives - incorrect).toString();
                         $('#incorrectModal').modal()
@@ -308,13 +315,51 @@ iframe {
 		disableCab();
 		{% if solved %}
 			// Set the current thing
-			alert("{{solved}}");
+			var button = document.querySelector("#{{solved}}")
+                        button.classList.remove("btn-outline-primary")
+                        button.setAttribute("onclick", "")
+			choices.push(button.id)
+			if(button.id == "{{correct_answer}}") { // They got it correct
+                                button.classList.add("btn-secondary")
+				c = true;
+                        	cab = disableCab();
+                        	cab.innerHTML = "Let's move on, young explorer!"
+				return;
+			}
+			lives = parseInt("{{lives}}")
+			if(lives == 1) {
+                                button.classList.add("btn-danger")
+                                return;
+			}
+			if(lives == 0) {
+				c = true;
+                                cab = disableCab();
+                                cab.innerHTML = "Out Of Lives :("
+				{% for choice in choices %}
+					button = document.querySelector("#{{choice}}")
+					try {
+						button.classList.remove("btn-outline-primary")
+					}
+					catch {}
+					button.classList.add("btn-danger")
+					button.setAttribute("onclick", "")
+				{%endfor%}
+			}
 		{% endif %}
 	})
 
 	function tryAgain(element) {
             $('#incorrectModal').modal('hide')
 	}
+
+	function track() {
+                post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/practice/{{qid}}/solve";
+                console.log(post_url);
+		console.log(choices.join("|"))
+                post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "given_answer":  answer, "remaining_lives": lives - incorrect, "choices": choices.join("|")};
+                $.post(post_url, post_data, function(data, status, jqXHR) {console.log(data.error)});
+        }
+
 </script>
 </div>
 {% endblock %}

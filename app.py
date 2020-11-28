@@ -30,6 +30,7 @@ logging.captureWarnings(True)
 app = Quart(__name__, static_url_path="/static")
 app.config["SECRET_KEY"] = "qEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Ddrejrj34jfjrc4j3fwkjVrT34jkFj34jkgce3jfqkeieiei3jd44584830290riuejnfdiuwrjncjnwe8uefhnewfu553kf84EyfFH48SHSWk"
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
+app.config["SESSION_COOKIE_SECURE"] = True
 csrf = CSRFProtect(app)  # CSRF Form Protection
 api = "https://127.0.0.1:3000"
 """ Favicon """
@@ -65,10 +66,8 @@ async def test():
     return await render_template("test.html")
 
 @app.route("/topics/<tid>/edit")
-async def topics_edit_menu(tid=None):
-    if tid == None:
-        return abort(404)
-    elif session.get("token") == None:
+async def topics_edit_menu(tid):
+    if session.get("token") == None:
         session["redirect"] = "/topics/" + tid + "/edit"
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
@@ -77,15 +76,13 @@ async def topics_edit_menu(tid=None):
     if topic_exp_json.get("error"):
         return abort(404)
     return await render_template(
-        "topic_edit_menu.html",
-        tid=tid,
-    )
+            "topic_edit_menu.html",
+            tid=tid,
+            )
 
 @app.route("/topics/<tid>/edit/concepts")
-async def topic_edit_concepts(tid=None):
-    if tid == None:
-        return abort(404)
-    elif session.get("token") == None:
+async def topic_edit_concepts(tid):
+    if session.get("token") == None:
         session["redirect"] = "/topics/" + tid
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
@@ -102,39 +99,35 @@ async def topic_edit_concepts(tid=None):
         for concept in concepts_json.keys():
             concepts.append([concept, concepts_json[concept]])
     return await render_template(
-        "topic_edit_concepts.html",
-        tid=tid,
-        concepts = concepts,
-    )
+            "topic_edit_concepts.html",
+            tid=tid,
+            concepts = concepts,
+            )
 
 
 @app.route("/topics/<tid>/edit/concept/<int:cid>")
-async def topic_edit_concept(tid=None, cid=None):
-    if tid is None or cid is None:
-        return abort(404)
-    elif session.get("token") == None:
+async def topic_edit_concept(tid, cid):
+    if session.get("token") == None:
         session["redirect"] = "/topics/" + tid
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
     concept_json = requests.get(api + f"/topics/concepts/get?tid={tid}&cid={str(cid)}").json()
     print(concept_json)
-        
+
     if concept_json.get("error") or int(cid) < 0:
         return abort(404)
     return await render_template(
-        "topic_concept_editor.html",
-        tid=tid,
-        cid=cid,
-        content = Markup(concept_json.get("content").replace("<script", "").replace("</script", "")),
-        token=session.get("token"),
-    )
+            "topic_concept_editor.html",
+            tid=tid,
+            cid=cid,
+            content = Markup(concept_json.get("content").replace("<script", "").replace("</script", "")),
+            token=session.get("token"),
+            )
 
 @app.route("/topics/<tid>/edit/concept/new", methods=["GET", "POST"])
-async def topic_new_concept(tid=None):
-    if tid == None:
-        return abort(404)
-    elif session.get("token") == None:
+async def topic_new_concept(tid):
+    if session.get("token") == None:
         session["redirect"] = "/topics/" + tid + "/edit/concept/new"
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
@@ -191,10 +184,8 @@ async def topics_edit_simulation(tid):
 
 
 @app.route("/experiment/<sid>/edit")
-async def experiment_edit_simulation(sid=None):
-    if sid == None:
-        return abort(404)
-    elif session.get("token") == None:
+async def experiment_edit_simulation(sid):
+    if session.get("token") == None:
         session["redirect"] = "/experiment/" + sid + "/edit"
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
@@ -232,10 +223,8 @@ async def new_simulation():
     )
 
 @app.route("/topics/<tid>/edit/practice/new", methods = ["GET", "POST"])
-async def new_practice_question(tid = None):
-    if tid == None:
-        return abort(404)
-    elif session.get("token") == None:
+async def new_practice_question(tid):
+    if session.get("token") == None:
         session["redirect"] = "/topics/" + tid + "/edit/practice/new"
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
@@ -265,9 +254,7 @@ async def new_practice_question(tid = None):
         return requests.post(api + "/topics/practice/new", json = json).json()
 
 @app.route("/iframe/<sid>")
-async def iframe_simulation(sid = None):
-    if sid == None:
-        return abort(404)
+async def iframe_simulation(sid):
     simulation = requests.get(api + "/experiment/get?sid=" + sid).json()
     if simulation.get("error"):
         return abort(404)
@@ -349,9 +336,7 @@ async def new_subjects():
 
 
 @app.route("/topics/<topic>/concepts/new", methods=["GET", "POST"])
-async def new_concept(topic=None):
-    if topic == None:
-        return abort(404)
+async def new_concept(topic):
     if request.method == "GET":
         if session.get("token") == None:
             session["redirect"] = "/topics"
@@ -398,7 +383,7 @@ async def profile_redir_1(state = "private"):
     return redirect("/profile/" + session.get("username") + "/me/" + state)
 
 @app.route("/profile/<username>/me/<state>")
-async def profile_public_set(username = None, state = "private"):
+async def profile_public_set(username, state):
     if session.get("token") == None or session.get("username") == None:
         session["redirect"] = "/profile/me/" + state
         return redirect("/login")
@@ -430,9 +415,7 @@ async def profile_public_set(username = None, state = "private"):
 
 
 @app.route("/profile/<username>")
-async def profile(username=None):
-    if username == None:
-        return abort(404)
+async def profile(username):
     # TODO: Finish profile
     if session.get("token") == None:
         profile = requests.get(api + "/profile?username=" + username).json()
@@ -464,7 +447,7 @@ async def profile(username=None):
         p_username=profile["username"],
         token=session.get("token"),
         admin="admin" in profile["scopes"].split(":"),
-        join_date=time.strftime("%dth %b %Y", time.localtime(profile["join"])),
+        join_date=profile["join"],
         profile_owner = profile_owner,
         private = priv
     )
@@ -640,9 +623,7 @@ async def reset_pwd():
     )
 
 @app.route("/topics/<tid>/experiment/save", methods=["POST"])
-async def save_topics(tid=None):
-    if tid == None:
-        return {"error": "Invalid Concept Specified"}
+async def save_topics(tid):
     data = await request.form
     if (
         "username" not in data.keys()
@@ -664,9 +645,7 @@ async def save_topics(tid=None):
 
 
 @app.route("/experiment/<sid>/save", methods=["POST"])
-async def experiment_save(sid = None):
-    if sid == None:
-        return {"error": "Invalid Concept Specified"}
+async def experiment_save(sid):
     data = await request.form
     if (
         "username" not in data.keys()
@@ -688,9 +667,7 @@ async def experiment_save(sid = None):
 
 
 @app.route("/topics/<tid>/concepts/<cid>/save", methods=["POST"])
-async def save_page(tid=None, cid=None):
-    if cid == None or tid == None:
-        return {"error": "Invalid Concept Or Topic Specified"}
+async def save_page(tid, cid):
     data = await request.form
     if (
         "username" not in data.keys()
@@ -775,11 +752,13 @@ async def logout():
 
 @app.route("/login", methods=["GET", "POST"])
 async def login():
-    if session.get("token") != None:
+    if session.get("token") is not None:
         return redirect("/redir")
 
     if request.method == "GET":
-        if session.get("defmsg") == None:
+        if session.get("redirect") is not None and session.get('defmsg') is None:
+            session['defmsg'] = "You need to login in order to access this resource"
+        if session.get("defmsg") is None:
             return await render_template("login.html")
         else:
             defmsg = session.get("defmsg")
@@ -839,11 +818,9 @@ async def handle_csrf_error(e):
         400,
     )
 
-
 @app.errorhandler(404)
 async def handle_404_error(e):
     return await render_template("404.html", )
-
 
 @app.route("/")
 async def index():
@@ -869,15 +846,12 @@ async def topics():
 
 @app.route("/topics/<tid>")
 @app.route("/topics/<tid>/")
-async def get_topic_index(tid=None):
-    if tid is None:
-        return abort(404)
+async def get_topic_index(tid):
     topic_exp_json = requests.get(
         api + f"/topics/experiment/get?tid={tid}"
     ).json()  # Get the experiment pertaining to the topic
-    
     try:
-        if topic_exp_json.get("error") != None:
+        if topic_exp_json.get("error") is not None:
             return abort(404)
     except TypeError:
         return abort(404)
@@ -889,39 +863,32 @@ async def get_topic_index(tid=None):
         admin=session.get("admin"),
     )
 
-
 @app.route("/topics/<tid>/learn")
-async def redir_topic(tid=None):
-    if tid is None:
-        return abort(404)
+async def redir_topic(tid):
     if "username" not in session:
         return redirect("/topics/" + tid + "/learn/1")
-    tracker = requests.get(api + "/profile/track?username=" + session.get("username") + "&tid=" + tid).json()
-    cid = tracker['cid']
-    if tracker["status"] == "LP":
+    tracker_r = requests.get(api + "/profile/track?username=" + session.get("username") + "&tid=" + tid).json()
+    cid = tracker_r['cid']
+    if tracker_r["status"] == "LP":
         return redirect("/topics/" + tid + "/learn/" + cid)
-    elif tracker["status"] == "PP":
+    elif tracker_r["status"] == "PP":
         return redirect("/topics/" + tid + "/practice/" + cid)
 
 @app.route("/topics/<tid>/learn/<int:cid>")
 async def topic_concept_learn(tid, cid):
     concept_json = requests.get(api + f"/topics/concepts/get?tid={tid}&cid={cid}").json()
-    
     if concept_json.get("error") is not None:
         return abort(404)
     count_json = requests.get(
         api + f"/topics/concepts/get/count?tid={tid}"
     ).json()  # Get the page count of a concept
     if "username" in session:
-        # User is logged in, track
-        track = False
-        tracker = requests.get(api + "/profile/track?username=" + session.get("username") + "&tid=" + tid).json()
-        done = (tracker['done'] == '1')
-        tracked_cid = tracker['cid']
-        if int(tracked_cid) < int(cid) and not done and tracker["status"] == "LP":
-            track = True
-        if track:
-            tracker = requests.post(api + "/profile/track", json = {"username": session.get("username"), "status": "LP", "tid": tid, "cid": cid}).json() # Track the fact that he went here in this case
+        # User is logged in, track their progress
+        tracker_r = requests.get(api + "/profile/track?username=" + session.get("username") + "&tid=" + tid).json()
+        done = (tracker_r['done'] == '1')
+        tracked_cid = tracker_r['cid']
+        if int(tracked_cid) < int(cid) and not done and tracker_r["status"] == "LP":
+            tracker_w = requests.post(api + "/profile/track", json = {"username": session.get("username"), "status": "LP", "tid": tid, "cid": cid}).json() # Track the fact that he went here in this case
     pages = [i for i in range(1, count_json['concept_count'] + 1)]
     return await render_template(
         "concept.html",
@@ -935,9 +902,7 @@ async def topic_concept_learn(tid, cid):
     )
 
 @app.route("/topics/<tid>/practice")
-async def redir_topic_practice(tid=None):
-    if tid is None:
-        return abort(404)
+async def redir_topic_practice(tid):
     if "username" not in session:
         return redirect("/topics/" + tid + "/practice/1")
     tracker = requests.get(api + "/profile/track?username=" + session.get("username") + "&tid=" + tid).json()
@@ -984,9 +949,15 @@ async def topic_practice_view(tid, qid):
     try:
         key = "|".join(["practice", "qa", tid, str(qid)])
         solved = session[key]
+        key = "|".join(["practice", "lives", tid, str(qid)])
+        lives = str(session[key])
+        key = "|".join(["practice", "choices", tid, str(qid)])
+        choices = session[key].split("|")
     except:
         solved = None
-    print(session, solved)
+        lives = None
+        choices = None
+    print(solved, lives, choices)
     return await render_template(
         "topic_practice.html",
         token = session.get("token"),
@@ -1002,6 +973,8 @@ async def topic_practice_view(tid, qid):
         admin=session.get("admin"),
         solution = Markup(practice_json["solution"]),
         solved = solved,
+        lives = lives,
+        choices = choices
     )
 
 # They have solved the question, save it on server session and on other locations (a database) if logged in
@@ -1017,4 +990,13 @@ async def topic_practice_solve(tid, qid):
     key = "|".join(["practice", "choices", tid, str(qid)])
     session[key] = data["choices"]
     print(session, data["given_answer"])
-    return jsonify({"error": "1000"}) 
+    return jsonify({"error": "1000"})
+
+@app.route("/topics/<tid>/practice/<int:qid>/edit", methods = ["POST"])
+async def topic_practice_edit(tid, qid):
+    if session.get("token") == None:
+        session["redirect"] = "/topics/" + tid + "/practice/" + str(qid) + "/edit"
+        return redirect("/login")
+    elif session.get("admin") in [0, None, "0"]:
+        return abort(401)
+

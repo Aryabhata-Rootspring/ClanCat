@@ -11,6 +11,7 @@ from typing import Optional
 from passlib.context import CryptContext
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import json
+from datetime import date
 
 SERVER_URL = "https://127.0.0.1:443"  # Main Server URL
 HASH_SALT = "66801b86-06ff-49c7-a163-eeda39b8cba9_66bc6c6c-24e3-11eb-adc1-0242ac120002_66bc6c6c-24e3-11eb-adc1-0242ac120002"
@@ -64,12 +65,12 @@ async def setup_db():
     )
     # A profile of a user
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS profile (username TEXT, join_epoch BIGINT, public BOOLEAN, exp_points BIGINT, badges TEXT)"
+        "CREATE TABLE IF NOT EXISTS profile (username TEXT, joindate DATE, public BOOLEAN, exp_points BIGINT, badges TEXT)"
     )
     # Create an index for the three things that will never/rarely change,
     # namely join date , username and public/private profile
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS profile_index ON profile (username, join_epoch, public)"
+        "CREATE INDEX IF NOT EXISTS profile_index ON profile (username, joindate, public)"
     )
     # All the topics a user has completed or is working on
     await __db.execute(
@@ -174,11 +175,16 @@ class Save(UserModel):
                 self.tid,
                 int(absolute_cid),
             )
+        # tid TEXT, qid INTEGER, type TEXT, question TEXT, answers TEXT, correct_answer TEXT, solution TEXT DEFAULT 'There is no solution for this problem yet!', recommended_time INTEGER
         elif type == "topic_practice":
             await db.execute(
-                "UPDATE topic_practice_table SET question = $1, answer = $2  WHERE tid = $3",
+                "UPDATE topic_practice_table SET type = $1, question = $2, answers = $3, correct_answer = $4, solution = $5, recommended_time = $6, WHERE tid = $7",
+                self.type,
                 self.question,
-                self.answer,
+                self.answers,
+                self.correct_answer, 
+                self.solution,
+                self.recommended_time,
                 self.tid,
             )
         return {"error": "Successfully saved entity!"}
@@ -196,7 +202,7 @@ class SaveTopicPractice(Save):
     type: str
     tid: str
     question: str
-    answer: str
+    answers: str
 
 class SaveExperiment(Save):
     sid: str
@@ -572,9 +578,9 @@ async def register(register: AuthRegisterRequest):
     )
     # Register their join date
     await db.execute(
-        "INSERT INTO profile (username, join_epoch, public, exp_points) VALUES ($1, $2, $3, $4);",
+        "INSERT INTO profile (username, joindate, public, exp_points) VALUES ($1, $2, $3, $4);",
         username,
-        int(round(time.time())),
+        date.today(),
         True,
         0,
     )
@@ -646,7 +652,7 @@ async def change_visibility(pvr: ProfileVisibleRequest):
 async def get_profile(username: str, token: str = None):
     # Get the profile
     profile_db = await db.fetchrow(
-        "SELECT public, join_epoch, exp_points FROM profile WHERE username = $1",
+        "SELECT public, joindate, exp_points FROM profile WHERE username = $1",
         username,
     )
     profile_scopes = await db.fetchrow(
@@ -666,11 +672,12 @@ async def get_profile(username: str, token: str = None):
             return {"error": "1002"}  # Private
     else:
         priv = 0
-
+    join_obj = profile_db['joindate']
+    join = join_obj.strftime("%dth %b %Y")
     return {
             "username": username,
             "scopes": profile_scopes["scopes"],
-            "join": profile_db["join_epoch"],
+            "join": join,
             "priv": priv,
             "experience": profile_db["exp_points"],
         }
