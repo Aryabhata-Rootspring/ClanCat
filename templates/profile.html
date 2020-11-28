@@ -22,7 +22,11 @@
   <h2 style="text-align: center;"><strong> {{p_username}}'s profile</strong></h2>
   {% if admin == 1 %}
   <div class="flex-container">
-  	<h5 class="dash-important round">Admin</h5>
+  	<h5 class="dash-important round">CatPhi Admin</h5>
+  </div>
+  {% else %}
+  <div class="flex-container">
+        <h5 class="dash-important round">CatPhi Member</h5>
   </div>
   {%endif%}
   <div style="text-align: center;">

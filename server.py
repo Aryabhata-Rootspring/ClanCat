@@ -652,14 +652,10 @@ async def change_visibility(pvr: ProfileVisibleRequest):
 async def get_profile(username: str, token: str = None):
     # Get the profile
     profile_db = await db.fetchrow(
-        "SELECT public, joindate, exp_points FROM profile WHERE username = $1",
+        "SELECT profile.public, profile.joindate, profile.exp_points, login.scopes FROM profile INNER JOIN login ON profile.username = login.username WHERE profile.username = $1",
         username,
     )
-    profile_scopes = await db.fetchrow(
-        "SELECT scopes FROM login WHERE username = $1",
-        username,
-    )
-    if profile_db is None or profile_scopes is None:
+    if profile_db is None:
         return {"error": "1001"}
     elif not profile_db["public"]:
         priv = 1
@@ -676,7 +672,7 @@ async def get_profile(username: str, token: str = None):
     join = join_obj.strftime("%dth %b %Y")
     return {
             "username": username,
-            "scopes": profile_scopes["scopes"],
+            "scopes": profile_db["scopes"],
             "join": join,
             "priv": priv,
             "experience": profile_db["exp_points"],
