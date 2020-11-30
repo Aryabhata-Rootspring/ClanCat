@@ -12,9 +12,9 @@ from quart import (
     make_push_promise,
     url_for,
     escape,
-    Markup
+    Markup,
+    jsonify,
 )
-import aioredis
 from lib.catphi_csrf import CSRFProtect, CSRFError  # CSRF Form Protection
 import asyncio
 import requests
@@ -23,7 +23,6 @@ import re
 import secrets
 import string
 import logging
-from quart import jsonify
 logging.captureWarnings(True)
 """ Configuration """
 
@@ -37,7 +36,7 @@ api = "https://127.0.0.1:3000"
 
 class BRS():
     def __init__(self, request_json):
-        # NOTE: We currently ignore metaid/subject for now until there is need for it
+        # NOTE: We cureently ignore metaid/subject for now until there is need for it
         brs_dict = {} # {tid: []}
         for obj in request_json:
             if obj["tid"] in brs_dict.keys():
