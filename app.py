@@ -63,7 +63,7 @@ async def favicon():
 
 @app.route("/test")
 async def test():
-    return await render_template("test.html")
+    return await render_template("test.html", a = {"a": "1"})
 
 @app.route("/topics/<tid>/edit")
 async def topics_edit_menu(tid):
@@ -224,21 +224,22 @@ async def new_simulation():
 
 @app.route("/topics/<tid>/edit/practice/new", methods = ["GET", "POST"])
 async def new_practice_question(tid):
+    default_values = {"type": "MCQ", "question": "", "answers": "", "correct_answer": "", "solution": ""}
     if session.get("token") == None:
         session["redirect"] = "/topics/" + tid + "/edit/practice/new"
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
     if request.method == "GET":
-        return await render_template("topic_practice_new.html")
+        return await render_template("topic_practice_new.html", default_values = default_values, mode = "new")
     else:
         form = await request.form
         if "type" not in form.keys() or "question" not in form.keys() or "correct_answer" not in form.keys() or "solution" not in form.keys():
-            return await render_template("topic_practice_new.html",  error = "Not all required fields have been filled in")
+            return await render_template("topic_practice_new.html",  error = "Not all required fields have been filled in", default_values = default_values, mode = "new")
         elif form.get("type") == "MCQ" and (form.get("answers") is None or form.get("correct_answer") not in ["A", "B", "C", "D"]):
-            return await render_template("topic_practice_new.html",  error = "Not all required fields have been filled in and/or the correct answer is invalid (must be one letter in an MCQ)")
+            return await render_template("topic_practice_new.html",  error = "Not all required fields have been filled in and/or the correct answer is invalid (must be one letter in an MCQ)", default_values = default_values, mode = "new")
         elif form.get("type") == "MCQ" and len(form.get("answers").split("||")) != 4:
-            return await render_template("topic_practice_new.html",  error = "MCQ must have 4 questions seperated by ||")
+            return await render_template("topic_practice_new.html",  error = "MCQ must have 4 questions seperated by ||", default_values = form, mode = "new")
 
         json = {
             "username": session.get('username'),
@@ -953,10 +954,16 @@ async def topic_practice_view(tid, qid):
         lives = str(session[key])
         key = "|".join(["practice", "choices", tid, str(qid)])
         choices = session[key].split("|")
+        if len(choices) == 2 or (len(choices) == 1 and choices[0] != correct_answer):
+            # They had two chances, get the incorrect one and store in a variable
+            inans = choices[0] # This was their first choice
+        else:
+            inans = None
     except:
         solved = None
         lives = None
         choices = None
+        inans = None
     print(solved, lives, choices)
     return await render_template(
         "topic_practice.html",
@@ -974,7 +981,8 @@ async def topic_practice_view(tid, qid):
         solution = Markup(practice_json["solution"]),
         solved = solved,
         lives = lives,
-        choices = choices
+        choices = choices,
+        inans = inans,
     )
 
 # They have solved the question, save it on server session and on other locations (a database) if logged in
@@ -992,11 +1000,46 @@ async def topic_practice_solve(tid, qid):
     print(session, data["given_answer"])
     return jsonify({"error": "1000"})
 
-@app.route("/topics/<tid>/practice/<int:qid>/edit", methods = ["POST"])
+@app.route("/topics/<tid>/practice/<int:qid>/edit", methods = ["GET", "POST"])
 async def topic_practice_edit(tid, qid):
-    if session.get("token") == None:
-        session["redirect"] = "/topics/" + tid + "/practice/" + str(qid) + "/edit"
-        return redirect("/login")
-    elif session.get("admin") in [0, None, "0"]:
-        return abort(401)
+    practice_json = requests.get(api + f"/topics/practice/get?tid={tid}&qid={qid}").json()
+    if practice_json.get("error") is not None:
+        return await render_template(
+            "generic_error.html",
+            header="This practice question doesn't exist yet",
+            error=f"Please check the database for this topic and question ID\nTID: {{tid}}\nQID: {{qid}}",
+            tid = tid,
+        )
+
+    # GET
+    if request.method == "GET":
+        if session.get("token") == None:
+            session["redirect"] = "/topics/" + tid + "/practice/" + str(qid) + "/edit"
+            return redirect("/login")
+        elif session.get("admin") in [0, None, "0"]:
+            return abort(401)
+        return await render_template("topic_practice_new.html", default_values = practice_json, mode = "edit")
+    # POST
+    else:
+        form = await request.form
+        if "type" not in form.keys() or "question" not in form.keys() or "correct_answer" not in form.keys() or "solution" not in form.keys():
+            return await render_template("topic_practice_new.html",  error = "Not all required fields have been filled in", default_values = form, mode = "edit")
+        elif form.get("type") == "MCQ" and (form.get("answers") is None or form.get("correct_answer") not in ["A", "B", "C", "D"]):
+            return await render_template("topic_practice_new.html",  error = "Not all required fields have been filled in and/or the correct answer is invalid (must be one letter in an MCQ)", default_values = form, mode = "edit")
+        elif form.get("type") == "MCQ" and len(form.get("answers").split("||")) != 4:
+            return await render_template("topic_practice_new.html",  error = "MCQ must have 4 questions seperated by ||", default_values = form, mode = "edit")
+
+        json = {
+            "username": session.get('username'),
+            "token": session.get("token"),
+            "type": form.get("type"),
+            "question": form.get("question"),
+            "correct_answer": form.get("correct_answer"),
+            "solution": form.get("solution"),
+            "tid": tid,
+            "qid": qid,
+        }
+        if form.get("type") == "MCQ":
+            json["answers"] = form.get("answers")
+        return requests.post(api + "/topics/practice/save", json = json).json()
 

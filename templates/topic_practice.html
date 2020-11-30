@@ -218,7 +218,7 @@ iframe {
   </div>
 </div>
 
-
+{% if type == "MCQ" %}
 <script>
 	var globalBtnList = []
 	var incorrect = 0;
@@ -272,6 +272,7 @@ iframe {
                         	globalBtnList[0].classList.add("btn-warning")
 				globalBtnList = []
 				c = true;
+                                setCorrectAns()
 				cab = disableCab();
 				cab.innerHTML = "Out Of Lives :("
 				track()
@@ -297,6 +298,7 @@ iframe {
                                 globalBtnList = []
 				c = true;
 				track()
+                                setCorrectAns()
 				cab = disableCab();
                                 cab.innerHTML = "Out Of Lives :("
 				return;
@@ -313,12 +315,19 @@ iframe {
 
 	window.addEventListener('load', function () {
 		disableCab();
-		{% if solved %}
+		{% if solved%}
 			// Set the current thing
 			var button = document.querySelector("#{{solved}}")
                         button.classList.remove("btn-outline-primary")
                         button.setAttribute("onclick", "")
 			choices.push(button.id)
+			{% if inans %}
+			var inc_button = document.querySelector("#{{inans}}")
+			console.log(inc_button)
+			inc_button.classList.remove("btn-outline-primary")
+			inc_button.classList.add("btn-danger")
+			inc_button.setAttribute("onclick", "")
+			{%endif%}
 			if(button.id == "{{correct_answer}}") { // They got it correct
                                 button.classList.add("btn-secondary")
 				c = true;
@@ -326,14 +335,11 @@ iframe {
                         	cab.innerHTML = "Let's move on, young explorer!"
 				return;
 			}
-			lives = parseInt("{{lives}}")
-			if(lives == 1) {
-                                button.classList.add("btn-danger")
-                                return;
-			}
+                        lives = parseInt("{{lives}}")
 			if(lives == 0) {
 				c = true;
                                 cab = disableCab();
+				setCorrectAns()
                                 cab.innerHTML = "Out Of Lives :("
 				{% for choice in choices %}
 					button = document.querySelector("#{{choice}}")
@@ -360,6 +366,14 @@ iframe {
                 $.post(post_url, post_data, function(data, status, jqXHR) {console.log(data.error)});
         }
 
+	function setCorrectAns() {
+              cbutton = document.querySelector("#{{correct_answer}}")
+              cbutton.classList.remove("btn-outline-primary")
+	      cbutton.classList.add("btn-secondary")
+	}
 </script>
+{% endif %}
+
+
 </div>
 {% endblock %}

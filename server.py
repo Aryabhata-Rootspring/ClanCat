@@ -178,7 +178,7 @@ class Save(UserModel):
         # tid TEXT, qid INTEGER, type TEXT, question TEXT, answers TEXT, correct_answer TEXT, solution TEXT DEFAULT 'There is no solution for this problem yet!', recommended_time INTEGER
         elif type == "topic_practice":
             await db.execute(
-                "UPDATE topic_practice_table SET type = $1, question = $2, answers = $3, correct_answer = $4, solution = $5, recommended_time = $6, WHERE tid = $7",
+                "UPDATE topic_practice_table SET type = $1, question = $2, answers = $3, correct_answer = $4, solution = $5, recommended_time = $6 WHERE tid = $7 AND qid = $8",
                 self.type,
                 self.question,
                 self.answers,
@@ -186,6 +186,7 @@ class Save(UserModel):
                 self.solution,
                 self.recommended_time,
                 self.tid,
+                self.qid,
             )
         return {"error": "Successfully saved entity!"}
 
@@ -200,9 +201,13 @@ class SaveTopicConcept(Save):
 
 class SaveTopicPractice(Save):
     type: str
-    tid: str
     question: str
-    answers: str
+    answers: Optional[str] = None
+    correct_answer: str
+    tid: str
+    qid: int
+    solution: str
+    recommended_time: Optional[int] = 0
 
 class SaveExperiment(Save):
     sid: str
