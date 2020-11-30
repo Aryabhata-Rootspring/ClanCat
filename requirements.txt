@@ -1,0 +1,5 @@
+asyncpg
+fastapi
+quart
+requests
+passlib
