@@ -983,7 +983,7 @@ async def topic_practice_view(tid, qid):
         choices = choices,
         inans = inans,
     )
-
+#TODO: Save on server session
 # They have solved the question, save it on server session and on other locations (a database) if logged in
 @app.route("/topics/<tid>/practice/<int:qid>/solve", methods = ["POST"])
 async def topic_practice_solve(tid, qid):

@@ -96,7 +96,6 @@ async def setup_db():
     await __db.execute(
         "CREATE INDEX IF NOT EXISTS topic_practice_index ON topic_practice_table (tid, qid, type, question, answers, correct_answer, solution, recommended_time)"
     )
-
     return __db
 
 # resetDict is a dictionary of password reset requests
@@ -107,11 +106,45 @@ eresetDict = {}
 SENDER_EMAIL = "sandhoners123@gmail.com"
 SENDER_PASS = "Ravenpaw11,"
 
+# Badge Data
+# Format is bid = {name: Name of the badge, image: Image URL to the badge, experience: Experience needed to get the badge}.
+# To make sure it works on older clients, send the entire BADGES dict in a badge request
+
+BADGES = {
+    "FIRST_TIME": {
+        "name": "First time registration badge",
+        "image": "https://interactive-examples.mdn.mozilla.net/media/cc0-images/grapefruit-slice-332-332.jpg",
+        "experience": 0
+    },
+    "DEMO_BADGE_1": {
+        "name": "Demo Badge 1",
+        "image": "https://interactive-examples.mdn.mozilla.net/media/cc0-images/grapefruit-slice-332-332.jpg",
+        "experience": 10,
+    },
+    "DEMO_BADGE_2": {
+        "name": "Demo Badge 2",
+        "image": "https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885__340.jpg",
+        "experience": 20, 
+    },
+}
+
+# Get all new badges given a current set of badges and the new exp_point value
+def get_new_badges(curr_badges, exp_points):
+    new_badges = []
+    for badge in BADGES.keys():
+        if badge in curr_badges:
+            continue # Ignore badges we already have
+        if int(BADGES[badge]["experience"]) <= int(exp_points):
+            new_badges.append(badge)
+    return "||".join(new_badges), "||".join(curr_badges.split("||") + new_badges)
+
+
+
+
 class Settings(BaseSettings):
     openapi_url: str = "/rootspring/openapi.json"
 
 settings = Settings()
-
 
 app = FastAPI(openapi_url=settings.openapi_url)
 
@@ -581,13 +614,14 @@ async def register(register: AuthRegisterRequest):
         email,
         "user"
     )
-    # Register their join date
+    # Register their join date and add the first time registration badge
     await db.execute(
-        "INSERT INTO profile (username, joindate, public, exp_points) VALUES ($1, $2, $3, $4);",
+        "INSERT INTO profile (username, joindate, public, exp_points, badges) VALUES ($1, $2, $3, $4, $5);",
         username,
         date.today(),
         True,
         0,
+        "FIRST_TIME",
     )
     # Login Was Successful!
     return {"error": "1000", "token": token}
@@ -688,7 +722,7 @@ async def get_profile(username: str, token: str = None):
 @app.post("/profile/track", tags = ["Profile", "W"])
 async def profile_track_writer(tracker: ProfileTrackWriter):
     mode = 0 # Do nothing mode
-    entry = await db.fetchrow("SELECT done FROM profile_topic WHERE tid = $1 AND username = $2", tracker.tid, tracker.username)
+    entry = await db.fetchrow("SELECT profile_topic.done, profile.badges, profile.exp_points FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username WHERE profile_topic.tid = $1 AND profile.username = $2", tracker.tid, tracker.username)
     if entry is None:
         mode = 1 # Don't update, use insert statement mode
     elif entry["done"] is not True:
@@ -697,12 +731,28 @@ async def profile_track_writer(tracker: ProfileTrackWriter):
         await db.execute("INSERT INTO profile_topic (username, tid, progress, done) VALUES ($1, $2, $3, $4)", tracker.username, tracker.tid, tracker.status + tracker.cid, False)
     elif mode == 2:
         await db.execute("UPDATE profile_topic SET progress = $3 WHERE username = $1 AND tid = $2", tracker.username, tracker.tid, tracker.status + tracker.cid)
-    return {"error": "1000", "debug": mode}
+    elif mode == 0:
+        return {"error": "1000", "debug": mode}
+    
+    try:
+        exp_points = int(entry["exp_points"]) + 10 # 10 new experience points per page
+    except ValueError:
+        exp_points = 10
+
+    # Get all the new badges a user has unlocked
+    new_badges = get_new_badges(entry["badges"], exp_points)
+    if new_badges[0] == '':
+        await db.execute("UPDATE profile SET exp_points = $2 WHERE username = $1", tracker.username, exp_points)
+        return {"error": "1000", "debug": mode}
+    await db.execute("UPDATE profile SET badges = $2, exp_points = $3 WHERE username = $1", tracker.username, new_badges[1], exp_points)
+    return {"error": "1000", "debug": mode, "exp_points": exp_points, "new_badges": new_badges[0]}
+
+
 
 @app.get("/profile/track", tags = ["Profile", "R"])
 async def profile_track_reader(tid: str, username: str):
     info = await db.fetchrow("SELECT progress, done FROM profile_topic WHERE username = $1 AND tid = $2", username, tid) # Get the page info
-    if info is None:
+    if info is None or info["progress"] is None:
         return {
             "status": "LP", # Default State is LP
             "cid": '1',
