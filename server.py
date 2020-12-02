@@ -112,19 +112,24 @@ SENDER_PASS = "Ravenpaw11,"
 
 BADGES = {
     "FIRST_TIME": {
-        "name": "First time registration badge",
+        "name": "Welcome To CatPhi!!!",
         "image": "https://interactive-examples.mdn.mozilla.net/media/cc0-images/grapefruit-slice-332-332.jpg",
         "experience": 0
     },
-    "DEMO_BADGE_1": {
-        "name": "Demo Badge 1",
+    "FIRST_BADGE": {
+        "name": "First Badge",
         "image": "https://interactive-examples.mdn.mozilla.net/media/cc0-images/grapefruit-slice-332-332.jpg",
         "experience": 10,
     },
-    "DEMO_BADGE_2": {
-        "name": "Demo Badge 2",
+    "APPRENTICE_I": {
+        "name": "CatPhi Apprentice I",
         "image": "https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885__340.jpg",
-        "experience": 20, 
+        "experience": 40, 
+    },
+    "APPRENTICE_II": {
+        "name": "CatPhi Apprentice II",
+        "image": "https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885__340.jpg",
+        "experience": 90,
     },
 }
 
