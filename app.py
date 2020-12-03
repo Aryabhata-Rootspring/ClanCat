@@ -445,11 +445,15 @@ async def profile(username):
     return await render_template(
         "profile.html",
         p_username=profile["username"],
+        experience=profile["experience"],
         token=session.get("token"),
+        p_admin=session.get("admin"),
         admin="admin" in profile["scopes"].split(":"),
         join_date=profile["join"],
         profile_owner = profile_owner,
-        private = priv
+        private = priv,
+        badges = profile["badges"],
+        level = profile["level"]
     )
 
 @app.route("/settings/<username>")

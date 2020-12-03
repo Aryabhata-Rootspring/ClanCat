@@ -1,45 +1,118 @@
 {% extends 'template.html' %}
 {% block header %}
-<title role="banner">{{p_username}}'s profile - CatPhi</title>
+<title role="banner">{{p_username}}'s Passport - CatPhi</title>
 <meta name="description" content="Aryabhata Inc - CatPhi Dashboard">
 <style>
-	.dash-important {
-		text-align: center;
-		border-style: solid;
-		background-color: blue;
-		color: white;
-		border-radius: 15px;
-		padding: 4px;
+	hr {
+		background-color: black;
 	}
-	.flex-container {
-  		display: flex;
-		align-items: center;
-		justify-content: center;
+	img {
+  		border-radius: 50%;
 	}
 </style>
 {% endblock %} 
 {% block content %}
-  <h2 style="text-align: center;"><strong> {{p_username}}'s profile</strong></h2>
-  {% if admin == 1 %}
-  <div class="flex-container">
-  	<h5 class="dash-important round">CatPhi Admin</h5>
-  </div>
-  {% else %}
-  <div class="flex-container">
-        <h5 class="dash-important round">CatPhi Member</h5>
-  </div>
-  {%endif%}
-  <div style="text-align: center;">
-  <h3 style="text-align: center;"><strong> Badges </strong></h3>
-  	<h4 style="text-align: center;">Not Yet Done (WIP)</h4><br/><br/><br/>
-	<h5 style="text-align: center;"> This user has been on CatPhi since {{join_date}}</h5>
-          {% if profile_owner %}
+<div style="text-align: center;">
+<h2><strong>{{p_username}}'s profile</strong></h2>
+     <hr/>
+     <h3>Portfolio</h3>
+     <button class="btn btn-outline-info" onClick="modalShow('#expModal')"><i class="fas fa-magic" style="margin-right: 3px"></i>{{experience}}</button><br/><br/>
+     <h4>Rank</h4><br/>
+        {% if admin == 1 %}
+  		<button class="btn btn-outline-info" onClick="modalShow('#adminModal')">CatPhi Leader</button>
+  	{% endif %}
+  	{% if level == "apprentice" %}
+  		<button class="btn btn-outline-info" onClick="modalShow('#memberModal')">CatPhi Apprentice</button><br/><br/>
+  	{%endif%}
+  <hr/>
+  <h3>Badges</h3>
+  	{% for badge_id, badge_dict in badges.items()%}
+		<a href="javascript:void(0)"><img src='{{badge_dict["image"]}}' alt='{{badge_dict["name"] + " badge"}}' height="50px" width="50px" onclick="modalShow('#{{badge_id}}')"/></a>
+
+		<!-- Modal Member -->
+		<div class="modal fade" id="{{badge_id}}" tabindex="-1"  aria-labelledby="{{badge_id}}Label" aria-hidden="true">
+  			<div class="modal-dialog modal-dialog-centered">
+    				<div class="modal-content">
+      					<div class="modal-header">
+						<h5 class="modal-title" id="{{badge_id}}Label">{{badge_dict["name"]}}</h5>
+      					</div>
+      					<div class="modal-body">
+					{{badge_dict["description"]}}<br/><br/>
+					{% if not profile_owner%}
+						{% if badge_dict["experience"] == 0 %}
+							<strong><em>Register for CatPhi to automatically earn this badge!</em></strong>
+						{% elif not username %}
+							<strong><em>Register for CatPhi to earn this and many other badges and prizes!</em></strong>
+						{% else %}
+							<strong><em>Earn {{badge_dict["experience"]}} experience points to earn this badge</em></strong>
+						{%endif%}
+					{%endif%}
+					</div>
+    				</div>
+  			</div>
+		</div>
+  	{%endfor%}
+	<br/><br/><br/><br/><br/>
+	<hr/>
+	<h3>Passport Info</h3>
+	<h5>This user has been on CatPhi since {{join_date}}</h5>
+          {% if p_admin or profile_owner %}
 	  <a href="/settings/{{p_username}}"><button class="btn btn-primary">Settings</button></a><br/><br/>
           {% endif %}
 
 	{% if admin == 1 and profile_owner%}
-	  <br/><h2><strong> Admin Stuff </strong></h1>
 	  <a href="/experiment/new"><button class="btn btn-primary">New General Simulation</button></a><br/>
 	  {% endif %}
-   </div>
+
+	  <br/><br/>
+
+
+<!-- Modal Apprentice -->
+<div class="modal fade" id="memberModal" tabindex="-1"  aria-labelledby="memberModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="memberModalLabel" style="text-align: center; justify-content: center;">CatPhi Apprentice</h5>
+      </div>
+      <div class="modal-body">
+	      A new explorer arrives... It's OK! Everone has to start somewhere!<br/><br/><strong><em>Earn 100 experience points to become a Young Warrior!</em></strong>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Admin -->
+<div class="modal fade" id="adminModal" tabindex="-1"  aria-labelledby="adminModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="adminModalLabel">CatPhi Leader</h5>
+      </div>
+      <div class="modal-body">
+	      A CatPhi Leader. They make sure that CatPhi works correctly and they handle the entire website including the backend!<br/><strong><em>Not much else is known about them...</strong></em>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Experience Points -->
+<div class="modal fade" id="expModal" tabindex="-1"  aria-labelledby="expModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="expModalLabel">Experience Points</h5>
+      </div>
+      <div class="modal-body">
+              A rare mystical substance found in the land of CatPhi that can do some magical and mysterious things. You can earn these from the Witches Of CatPhi by doing more topics and solving more practice questions<br/><strong><em>There is no other known way to get these...</strong></em>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+<script>
+	function modalShow(id) {
+                        $(id).modal()
+	}
+</script>
 {% endblock %}

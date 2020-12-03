@@ -12,6 +12,9 @@ from passlib.context import CryptContext
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import json
 from datetime import date
+import inflect
+
+inflect_engine = inflect.engine()
 
 SERVER_URL = "https://127.0.0.1:443"  # Main Server URL
 HASH_SALT = "66801b86-06ff-49c7-a163-eeda39b8cba9_66bc6c6c-24e3-11eb-adc1-0242ac120002_66bc6c6c-24e3-11eb-adc1-0242ac120002"
@@ -65,12 +68,12 @@ async def setup_db():
     )
     # A profile of a user
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS profile (username TEXT, joindate DATE, public BOOLEAN, exp_points BIGINT, badges TEXT)"
+        "CREATE TABLE IF NOT EXISTS profile (username TEXT, joindate DATE, public BOOLEAN, exp_points BIGINT, badges TEXT, level TEXT)"
     )
     # Create an index for the three things that will never/rarely change,
     # namely join date , username and public/private profile
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS profile_index ON profile (username, joindate, public)"
+        "CREATE INDEX IF NOT EXISTS profile_index ON profile (username, joindate, public, badges, level)"
     )
     # All the topics a user has completed or is working on
     await __db.execute(
@@ -113,21 +116,25 @@ SENDER_PASS = "Ravenpaw11,"
 BADGES = {
     "FIRST_TIME": {
         "name": "Welcome To CatPhi!!!",
+        "description": "Thank you for registering with CatPhi",
         "image": "https://interactive-examples.mdn.mozilla.net/media/cc0-images/grapefruit-slice-332-332.jpg",
         "experience": 0
     },
     "FIRST_BADGE": {
         "name": "First Badge",
-        "image": "https://interactive-examples.mdn.mozilla.net/media/cc0-images/grapefruit-slice-332-332.jpg",
+        "description": "It's your first badge! Enjoy!!!!",
+        "image": "https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885__340.jpg",
         "experience": 10,
     },
     "APPRENTICE_I": {
         "name": "CatPhi Apprentice I",
+        "description": "Congratulations on your first accomplishment as an apprentice",
         "image": "https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885__340.jpg",
         "experience": 40, 
     },
     "APPRENTICE_II": {
         "name": "CatPhi Apprentice II",
+        "description": "Your almost a warrior now.",
         "image": "https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885__340.jpg",
         "experience": 90,
     },
@@ -621,12 +628,13 @@ async def register(register: AuthRegisterRequest):
     )
     # Register their join date and add the first time registration badge
     await db.execute(
-        "INSERT INTO profile (username, joindate, public, exp_points, badges) VALUES ($1, $2, $3, $4, $5);",
+        "INSERT INTO profile (username, joindate, public, exp_points, badges, level) VALUES ($1, $2, $3, $4, $5, $6);",
         username,
         date.today(),
         True,
         0,
         "FIRST_TIME",
+        "apprentice",
     )
     # Login Was Successful!
     return {"error": "1000", "token": token}
@@ -696,7 +704,7 @@ async def change_visibility(pvr: ProfileVisibleRequest):
 async def get_profile(username: str, token: str = None):
     # Get the profile
     profile_db = await db.fetchrow(
-        "SELECT profile.public, profile.joindate, profile.exp_points, login.scopes FROM profile INNER JOIN login ON profile.username = login.username WHERE profile.username = $1",
+        "SELECT profile.public, profile.joindate, profile.exp_points, profile.badges, profile.level, login.scopes FROM profile INNER JOIN login ON profile.username = login.username WHERE profile.username = $1",
         username,
     )
     if profile_db is None:
@@ -713,13 +721,30 @@ async def get_profile(username: str, token: str = None):
     else:
         priv = 0
     join_obj = profile_db['joindate']
-    join = join_obj.strftime("%dth %b %Y")
+    
+    # Format date
+    day = join_obj.strftime("%-d")
+    day = inflect_engine.ordinal(day)
+    year = join_obj.strftime("%Y")
+    month = join_obj.strftime("%-B")
+    join = " ".join((month, day + ",", year))
+    
+    # Get badge URLs
+    badges = {}
+    for badge in profile_db["badges"].split("||"):
+        try:
+            badges[badge] = {"name": BADGES[badge]["name"], "image": BADGES[badge]["image"], "experience": BADGES[badge]["experience"], "description": BADGES[badge]["description"]}
+        except:
+            continue # Illegal badge
+
     return {
             "username": username,
             "scopes": profile_db["scopes"],
             "join": join,
             "priv": priv,
             "experience": profile_db["exp_points"],
+            "badges": badges,
+            "level": profile_db["level"],
         }
 
 # Track users progress
