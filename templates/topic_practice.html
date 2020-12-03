@@ -112,6 +112,8 @@ iframe {
 	<button id="C" class="btn btn-block btn-lg btn-outline-primary animate-header-true-right" style="margin: auto;" onclick="selectB(this)">C - {{answers[2]}}</button>
 	<button id="D" class="btn btn-block btn-lg btn-outline-primary animate-header-true-right" style="margin: auto;" onclick="selectB(this)">D - {{answers[3]}}</button>
 </div>
+{% elif type == "SAQ" %}
+	<input id="ans" style="margin-left: 3px; margin-right: 3px;" class="form-control" type="text" placeholder="Enter your answer here!"/>
 {%endif%}
 <br/><br/><br/><br/>
 <button style="text-align: center;" type="button" id="check-answers" class="btn btn-success btn-lg btn-block justify-content-center" disabled aria-disabled="true" onClick="checkAnswer(this);" >Check Answer!</button>

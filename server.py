@@ -766,7 +766,7 @@ async def profile_track_writer(tracker: ProfileTrackWriter):
     
     try:
         exp_points = int(entry["exp_points"]) + 10 # 10 new experience points per page
-    except ValueError:
+    except:
         exp_points = 10
 
     # Get all the new badges a user has unlocked
