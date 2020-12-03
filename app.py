@@ -445,6 +445,7 @@ async def profile(username):
     return await render_template(
         "profile.html",
         p_username=profile["username"],
+        p_capusername = profile["username"].capitalize(),
         experience=profile["experience"],
         token=session.get("token"),
         p_admin=session.get("admin"),
@@ -824,11 +825,11 @@ async def handle_csrf_error(e):
 
 @app.errorhandler(404)
 async def handle_404_error(e):
-    return await render_template("404.html", )
+    return await render_template("404.html"), 404
 
 @app.route("/")
 async def index():
-    return await render_template("index.html", )
+    return await render_template("index.html")
 
 @app.route("/topics/")
 @app.route("/topics")
