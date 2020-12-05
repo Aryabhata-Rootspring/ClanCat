@@ -107,7 +107,7 @@ resetDict = {}
 eresetDict = {}
 
 SENDER_EMAIL = "sandhoners123@gmail.com"
-SENDER_PASS = "Rootspring11,"
+SENDER_PASS = "onsybsptaicdvtwc"
 
 # Badge Data
 # Format is bid = {name: Name of the badge, image: Image URL to the badge, experience: Experience needed to get the badge}.
