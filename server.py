@@ -13,7 +13,10 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import json
 from datetime import date
 import inflect
-
+import hashlib
+import hmac
+import math
+import pyotp
 inflect_engine = inflect.engine()
 
 SERVER_URL = "https://127.0.0.1:443"  # Main Server URL
@@ -21,11 +24,18 @@ HASH_SALT = "66801b86-06ff-49c7-a163-eeda39b8cba9_66bc6c6c-24e3-11eb-adc1-0242ac
 EXP_RATE = 11 # This is the rate at which users will get experience per concept (11 exp points per completed concept)
 pwd_context = CryptContext(schemes=["pbkdf2_sha512"], deprecated="auto")
 
-def get_token(length):
+def get_token(length: str) -> str:
     secure_str = "".join(
         (secrets.choice(string.ascii_letters + string.digits) for i in range(length))
     )
     return secure_str
+
+def error(code: str, s: str, support: bool = False, **kwargs) -> dict:
+    eMsg =  {"error_code": code, "error_html": f"<p style='text-align: center; color: red'>{s}", "context": kwargs}
+    if support is True:
+        eMsg["error_html"] += "<br/>Contact CatPhi Support for more information and support."
+    eMsg["error_html"] += "</p>"
+    return eMsg
 
 async def setup_db():
     print("Setting up DB")
@@ -60,11 +70,11 @@ async def setup_db():
     )
     # Represents a single login in the database
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT, status INTEGER, scopes TEXT)"
+        "CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT, status INTEGER, scopes TEXT, mfa BOOLEAN, mfa_shared_key TEXT)"
     )
     # Create an index for login
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS login_index ON login (token, username, password, email, status, scopes)"
+        "CREATE INDEX IF NOT EXISTS login_index ON login (token, username, password, email, status, scopes, mfa, mfa_shared_key)"
     )
     # A profile of a user
     await __db.execute(
@@ -104,7 +114,7 @@ async def setup_db():
 # resetDict is a dictionary of password reset requests
 # currently present
 resetDict = {}
-eresetDict = {}
+mfaDict = {}
 
 SENDER_EMAIL = "sandhoners123@gmail.com"
 SENDER_PASS = "onsybsptaicdvtwc"
@@ -303,6 +313,11 @@ class AuthLoginRegister(UserPassModel):
 
 class AuthLoginRequest(AuthLoginRegister):
     pass
+
+class AuthMFARequest(BaseModel):
+    username: str
+    mfaToken: str
+    otp: str
 
 class AuthLogoutRequest(BaseModel):
     username: str
@@ -609,7 +624,7 @@ async def login(login: AuthLoginRequest):
         return {"error": "0001"}
     username = login.username
     pwd = await db.fetchrow(
-        "SELECT password from login WHERE username = $1",
+        "SELECT password, mfa from login WHERE username = $1",
         username
     )
     if pwd is None:
@@ -617,24 +632,54 @@ async def login(login: AuthLoginRequest):
         return {"error": "1001"}
 
     elif pwd_context.verify("Shadowsight1" + HASH_SALT + username + login.password, pwd["password"]) == False:
-        # Invalid Username Or Password
-        return {"error": "1001"}
+        return error("INVALID_USER_PASS", "Invalid username or password.", support = False)
+
+    # Check for MFA
+    elif pwd["mfa"] is True:
+        flag = True
+        while flag:
+            token = get_token(101)
+            if token not in mfaDict.values() and token not in mfaDict.keys():
+                flag = False
+        mfaDict[login.username] = token
+        return {"mfaChallenge": "mfa", "mfaToken": token}
 
     login_creds = await db.fetchrow(
         "SELECT token, status, scopes from login WHERE username = $1",
         username,
     )
     if login_creds is None:
-        # Invalid Username Or Password
         return {"error": "1001"}
     if login_creds["status"] in [None, 0]:
         pass
     else:
         # This account is flagged as disabled (1) or disabled-by-admin (2)
-        return {"error": "1002", "status": login_creds["status"]} # Flagged Account
-    # Add you to the list of logged in users
-    return {"error": "1000", "token": login_creds["token"], "scopes": login_creds["scopes"]}
+        return error(code =  "ACCOUNT_DISABLED", status = login_creds["status"]) # Flagged Account
+    return error(code = None, s = "SUCCESS", token = login_creds["token"], scopes = login_creds["scopes"])
 
+
+@app.post("/auth/mfa", tags = ["Authentication", "Login/Logout", "RW"])
+async def multi_factor_authentication(mfa: AuthMFARequest):
+    if mfa.username not in mfaDict.keys() or mfaDict.get(mfa.username) != mfa.mfaToken:
+        return error("FORBIDDEN", "Forbidden Request", support = True) # Forbidden as mfaToken and username are not the same
+    login_creds = await db.fetchrow(
+        "SELECT mfa_shared_key, token, status, scopes FROM login WHERE username = $1",
+        mfa.username,
+    )
+    if login_creds is None or login_creds["mfa_shared_key"] is None:
+        return error("MFA_NOT_FOUND" ,"No MFA Shared Key was found.", support = True)
+    mfa_shared_key = login_creds["mfa_shared_key"] 
+    print(mfa_shared_key)
+    otp = pyotp.TOTP(mfa_shared_key)
+    if otp.verify(mfa.otp) is False:
+        return error("INVALID_OTP", "Invalid OTP. Please try again", support = True)
+
+    if login_creds["status"] in [None, 0]:
+        pass
+    else:
+        # This account is flagged as disabled (1) or disabled-by-admin (2)
+        return error(code =  "ACCOUNT_DISABLED", status = login_creds["status"]) # Flagged Account
+    return error(code = None, s = "SUCCESS", token = login_creds["token"], scopes = login_creds["scopes"])
 
 @app.post("/auth/register", tags = ["Authentication", "Registration", "RW"])
 async def register(register: AuthRegisterRequest):
@@ -661,12 +706,13 @@ async def register(register: AuthRegisterRequest):
             continue
         flag = False
     await db.execute(
-        "INSERT INTO login (token, username, password, email, status, scopes) VALUES ($1, $2, $3, $4, 0, $5);",
+        "INSERT INTO login (token, username, password, email, status, scopes, mfa) VALUES ($1, $2, $3, $4, 0, $5);",
         token,
         username,
         password,
         email,
         "user",
+        False
     )
     # Register their join date and add the first time registration badge
     await db.execute(

@@ -790,7 +790,10 @@ async def login():
         api + "/auth/login", json={"username": r["username"], "password": r["password"]}
     )
     rc = rc.json()
-    if rc["error"] == "1000":
+    if "mfaChallenge" in rc.keys():
+        return redirect(f"/login/mfa/{r['username']}/{rc['mfaToken']}")
+    elif rc["error_code"] == None:
+        rc = rc["context"] # Get the status context
         session.clear() # remove old session
         # Check if the user is an admin
         if "admin" in rc["scopes"].split(":"):
@@ -800,15 +803,64 @@ async def login():
         session["username"] = r["username"]
         session["token"] = rc["token"]
         return redirect("/topics")
-    if rc["error"] == "1001":
+    if rc["error_code"] == "INVALID_USER_PASS":
         return await render_template(
             "login.html",
-            error="Invalid Username Or Password",
+            error=Markup(rc["error_html"]),
         )
-    if rc["error"] in "1002":
-        if rc["status"] == 1:
+    if rc["error_code"] == "ACCOUNT_DISABLED":
+        if rc["context"]["status"] == 1:
             msg = "We could not log you in as you have disabled your account. Please click <a href='/reset'>here</a> to reset your password and re-enable your account"
-        elif rc["status"] == 2:
+        elif rc["context"]["status"] == 2:
+            msg = "We could not log you in as an admin has disabled your account. Please click <a href='/contactus'>here</a> to contact our customer support"
+        else:
+            msg = f"Unknown account state. Please click <a href='/contactus'>here</a> to contact our customer support"
+        return await render_template(
+            "login.html",
+            error=msg,
+        )
+    return rc
+
+@app.route("/login/mfa/<username>/<token>", methods = ["GET", "POST"])
+async def login_mfa(username, token):
+    if request.method == "GET":
+        return await render_template("login_mfa.html")
+    r = await request.form
+    if "otp" not in r.keys():
+        return await render_template("login_mfa.html", error = "Please enter the OTP from your authentication app")
+    try:
+        otp = str(int(r['otp']))
+    except:
+        return await render_template("login_mfa.html", error = "OTP must be 6 characters long")
+    if len(otp) != 6:
+        return await render_template("login_mfa.html", error = "OTP must be 6 characters long")
+    rc = requests.post(api + "/auth/mfa", json = {
+        "username": username,
+        "mfaToken": token,
+        "otp": otp
+    }).json()
+    if rc["error_code"] == "INVALID_OTP":
+        return await render_template("login_mfa.html", error = rc["error_html"])
+    elif rc["error_code"] == None:
+        rc = rc["context"] # Get the status context
+        session.clear() # remove old session
+        # Check if the user is an admin
+        if "admin" in rc["scopes"].split(":"):
+            session["admin"] = 1
+        else:
+            session["admin"] = 0
+        session["username"] = username
+        session["token"] = rc["token"]
+        return redirect("/topics")
+    if rc["error_code"] == "INVALID_USER_PASS":
+        return await render_template(
+            "login.html",
+            error=Markup(rc["error_html"]),
+        )
+    if rc["error_code"] == "ACCOUNT_DISABLED":
+        if rc["context"]["status"] == 1:
+            msg = "We could not log you in as you have disabled your account. Please click <a href='/reset'>here</a> to reset your password and re-enable your account"
+        elif rc["context"]["status"] == 2:
             msg = "We could not log you in as an admin has disabled your account. Please click <a href='/contactus'>here</a> to contact our customer support"
         else:
             msg = f"Unknown account state. Please click <a href='/contactus'>here</a> to contact our customer support"
