@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, BackgroundTasks
 import asyncio
 import secrets
 import string
@@ -68,12 +68,12 @@ async def setup_db():
     )
     # A profile of a user
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS profile (username TEXT, joindate DATE, public BOOLEAN, exp_points BIGINT, badges TEXT, level TEXT)"
+        "CREATE TABLE IF NOT EXISTS profile (username TEXT, joindate DATE, public BOOLEAN, badges TEXT, level TEXT, listing BOOLEAN, items TEXT)"
     )
     # Create an index for the three things that will never/rarely change,
     # namely join date , username and public/private profile
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS profile_index ON profile (username, joindate, public, badges, level)"
+        "CREATE INDEX IF NOT EXISTS profile_index ON profile (username, joindate, public, badges, level, listing, items)"
     )
     # All the topics a user has completed or is working on
     await __db.execute(
@@ -107,7 +107,7 @@ resetDict = {}
 eresetDict = {}
 
 SENDER_EMAIL = "sandhoners123@gmail.com"
-SENDER_PASS = "Ravenpaw11,"
+SENDER_PASS = "Rootspring11,"
 
 # Badge Data
 # Format is bid = {name: Name of the badge, image: Image URL to the badge, experience: Experience needed to get the badge}.
@@ -138,6 +138,36 @@ BADGES = {
         "image": "https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885__340.jpg",
         "experience": 90,
     },
+}
+
+RANKS = {
+    "leader": {
+        "name": "Leader",
+        "desc": "A CatPhi Leader. They make sure that CatPhi works correctly and they handle the entire website including the backend!<br/><strong><em>Not much else is known about them...</strong></em>",
+    },
+    "apprentice": {
+        "name": "Apprentice",
+        "desc": "A new explorer arrives... It's OK! Everone has to start somewhere!",
+        "levelup": 100,
+        "next": "young_warrior"
+    },
+    "young_warrior": {
+        "name": "Young Warrior",
+        "desc": "TODO",
+        "levelup": 600,
+        "next": "TODO"
+    }
+}
+
+ITEMS = {
+    "experience": {
+        "name": "Experience Points",
+        "desc": "A rare mystical substance found in the land of CatPhi that can do some magical and mysterious things. You can earn these from the Witches Of CatPhi by doing more topics and solving more practice questions<br/><strong><em>There is no other known way to get these...</strong></em>",
+        "display": "<i class='fas fa-magic' style='margin-right: 3px'></i>",
+        "special_effects": {
+            "levelup:young_warrior": 100
+        }
+    }, 
 }
 
 # Get all new badges given a current set of badges and the new exp_point value
@@ -475,7 +505,7 @@ async def topic_practice_save(save: SaveTopicPractice):
 
 # Send a reset email (stage2 auth)
 @app.post("/auth/reset/send", tags = ["Authentication", "Password Reset", "RW"])
-async def reset_password_send(reset: AuthResetRequest):
+async def reset_password_send(reset: AuthResetRequest, background_tasks: BackgroundTasks):
     if reset.username is None and reset.email is not None:
         login_cred = await db.fetchrow(
             "SELECT token, username FROM login WHERE email = $1", reset.email
@@ -508,17 +538,21 @@ async def reset_password_send(reset: AuthResetRequest):
     # Now send an email to the user
     reset_link = SERVER_URL + "/reset/stage2?token=" + atok
     reset_message = f"Subject: CCTP Password Reset\n\nUsername {login_cred['username']}\nPlease use {reset_link} to reset your password.\n\nIf you didn't authorize this action, please change your password immediately"
+    background_tasks.add_task(send_email, email, reset_message)
+    return {"error": "1000"}  # Success
+
+def send_email(email: str, reset_message: str = ""):
+    print("got here")
     email_session = smtplib.SMTP("smtp.gmail.com", 587)
     email_session.starttls()  # TLS for security
     email_session.login(SENDER_EMAIL, SENDER_PASS)  # Email Auth
     email_session.sendmail(SENDER_EMAIL, email, reset_message)
     email_session.close()
-    return {"error": "1000"}  # Success
 
 
 # Change the actual password (stage3 auth)
 @app.post("/auth/reset/change", tags = ["Authentication", "Password Reset", "W"])
-async def reset_password_change(reset: AuthResetChange):
+async def reset_password_change(reset: AuthResetChange, background_tasks: BackgroundTasks):
     if reset.token not in resetDict.values():
         # Reset Token Not Authorized
         return {"error": "1001"}
@@ -538,14 +572,22 @@ async def reset_password_change(reset: AuthResetChange):
     password = pwd_context.hash("Shadowsight1" + HASH_SALT + username + reset.new_password)
     # Make sure we cant use the same token again
     resetDict[token] = None
-    await db.execute("UPDATE login SET password = $1 WHERE token = $2", password, token)
-    await db.execute("UPDATE login SET status = 0 WHERE token = $1", token)
+    
+    # Get a new token
+    flag = True
+    while flag:
+        # Keep getting and checking token with DB
+        new_token = get_token(1037)
+        login_creds = await db.fetchrow(
+            "SELECT username from login WHERE token = $1", new_token
+        )
+        if login_creds is not None:
+            continue
+        flag = False
+    await db.execute("UPDATE login SET password = $1, token = $3 WHERE token = $2", password, token, new_token)
+    await db.execute("UPDATE login SET status = 0 WHERE token = $1", new_token)
     reset_message = "Subject: Your CCTP Password Was Just Reset\n\nYour CatPhi password was just reset\n\nIf you didn't authorize this action, please change your password immediately"
-    email_session = smtplib.SMTP("smtp.gmail.com", 587)
-    email_session.starttls()  # TLS for security
-    email_session.login(SENDER_EMAIL, SENDER_PASS)  # Email Auth
-    email_session.sendmail(SENDER_EMAIL, login_cred["email"], reset_message)
-    email_session.close()
+    background_tasks.add_task(send_email, login_cred["email"], reset_message)
     return {"error": "1000"}  # Success
 
 
@@ -624,17 +666,17 @@ async def register(register: AuthRegisterRequest):
         username,
         password,
         email,
-        "user"
+        "user",
     )
     # Register their join date and add the first time registration badge
     await db.execute(
-        "INSERT INTO profile (username, joindate, public, exp_points, badges, level) VALUES ($1, $2, $3, $4, $5, $6);",
+        "INSERT INTO profile (username, joindate, public, badges, level, items) VALUES ($1, $2, $3, $4, $5, $6);",
         username,
         date.today(),
         True,
-        0,
         "FIRST_TIME",
         "apprentice",
+        "experience:0",
     )
     # Login Was Successful!
     return {"error": "1000", "token": token}
@@ -704,7 +746,7 @@ async def change_visibility(pvr: ProfileVisibleRequest):
 async def get_profile(username: str, token: str = None):
     # Get the profile
     profile_db = await db.fetchrow(
-        "SELECT profile.public, profile.joindate, profile.exp_points, profile.badges, profile.level, login.scopes FROM profile INNER JOIN login ON profile.username = login.username WHERE profile.username = $1",
+        "SELECT profile.public, profile.joindate, profile.badges, profile.level, profile.items, login.scopes FROM profile INNER JOIN login ON profile.username = login.username WHERE profile.username = $1",
         username,
     )
     if profile_db is None:
@@ -736,46 +778,73 @@ async def get_profile(username: str, token: str = None):
             badges[badge] = {"name": BADGES[badge]["name"], "image": BADGES[badge]["image"], "experience": BADGES[badge]["experience"], "description": BADGES[badge]["description"]}
         except:
             continue # Illegal badge
+    
+    # Get rank
+    if "admin" in profile_db["scopes"].split(":"):
+        level = RANKS["leader"]
+        levelup_name = None
+    else:
+        level = RANKS[profile_db["level"]]
+        levelup_name = RANKS[level["next"]]["name"]
+
+    # Get items
+    idict = []
+    i = 0
+    for item_obj in profile_db["items"].split("||"):
+        item = item_count = item_obj.split(":")[0]
+        item_count = item_obj.split(":")[1]
+        idict.append({})
+        idict[i] = ITEMS[item]
+        idict[i]["internal_name"] = item
+        idict[i]["count"] = int(item_count)
+        i+=1
 
     return {
             "username": username,
             "scopes": profile_db["scopes"],
             "join": join,
             "priv": priv,
-            "experience": profile_db["exp_points"],
             "badges": badges,
-            "level": profile_db["level"],
-        }
+            "level": level,
+            "levelup_name": levelup_name,
+            "items": idict 
+    }
 
 # Track users progress
 # TODO: Add quizzes and other things
 @app.post("/profile/track", tags = ["Profile", "W"])
 async def profile_track_writer(tracker: ProfileTrackWriter):
     mode = 0 # Do nothing mode
-    entry = await db.fetchrow("SELECT profile_topic.done, profile.badges, profile.exp_points FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username WHERE profile_topic.tid = $1 AND profile.username = $2", tracker.tid, tracker.username)
+    entry = await db.fetchrow("SELECT profile_topic.done, profile.badges, profile.items FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username WHERE profile_topic.tid = $1 AND profile.username = $2", tracker.tid, tracker.username)
     if entry is None:
         mode = 1 # Don't update, use insert statement mode
     elif entry["done"] is not True:
         mode = 2 # Update mode
     if mode == 1:
         await db.execute("INSERT INTO profile_topic (username, tid, progress, done) VALUES ($1, $2, $3, $4)", tracker.username, tracker.tid, tracker.status + tracker.cid, False)
+        entry = await db.fetchrow("SELECT profile_topic.done, profile.badges, profile.items FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username WHERE profile_topic.tid = $1 AND profile.username = $2", tracker.tid, tracker.username)
     elif mode == 2:
         await db.execute("UPDATE profile_topic SET progress = $3 WHERE username = $1 AND tid = $2", tracker.username, tracker.tid, tracker.status + tracker.cid)
     elif mode == 0:
         return {"error": "1000", "debug": mode}
-    
-    try:
-        exp_points = int(entry["exp_points"]) + 10 # 10 new experience points per page
-    except:
-        exp_points = 10
 
+    item_list = []
+    for item in entry["items"].split("||"):
+        if item.split(":")[0] != "experience":
+            item_list.append(item)
+            continue
+        exp_points = str(int(item.split(":")[1]) + 10) # 10 new experience points per page
+        item_list.append("experience:" + exp_points)
+        break
+    items = "||".join(item_list)
+    exp_points = int(exp_points)
     # Get all the new badges a user has unlocked
     new_badges = get_new_badges(entry["badges"], exp_points)
     if new_badges[0] == '':
-        await db.execute("UPDATE profile SET exp_points = $2 WHERE username = $1", tracker.username, exp_points)
+        await db.execute("UPDATE profile SET items = $2 WHERE username = $1", tracker.username, items)
         return {"error": "1000", "debug": mode}
-    await db.execute("UPDATE profile SET badges = $2, exp_points = $3 WHERE username = $1", tracker.username, new_badges[1], exp_points)
-    return {"error": "1000", "debug": mode, "exp_points": exp_points, "new_badges": new_badges[0]}
+    await db.execute("UPDATE profile SET badges = $2, items = $3 WHERE username = $1", tracker.username, new_badges[1], items)
+    return {"error": "1000", "debug": mode, "items": items, "new_badges": new_badges[0]}
 
 
 

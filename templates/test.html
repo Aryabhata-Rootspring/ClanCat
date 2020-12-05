@@ -17,8 +17,11 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" integrity="sha512-xIf9AdJauwKIVtrVRZ0i4nHP61Ogx9fSRAkCLecmE2dL/U8ioWpDvFCAy4dcfecN72HHB9+7FfQj3aiO68aaaw==" crossorigin="anonymous" />
 <!-- CodeMirror Modes -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r123/three.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"></script>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://cdn.babylonjs.com/viewer/babylon.viewer.js"></script>
+<script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+<script src="https://code.jquery.com/pep/0.4.3/pep.js"></script>
 </body>
 <h3>TEST:{{a["a"]}}</h3>
 <button onclick="runCode()" class="btn btn-primary" style="margin: 2px;">Run Experiment</button>
@@ -28,7 +31,59 @@
   <textarea class="form-control rounded-0" id="editor" rows="15"></textarea>
 </div>
 <div style="text-align: center" class="d-flex justify-content-center" id="result"></div>
+<canvas id="renderCanvas" height="600px" width="600px"></canvas>
 <script>
+const defaultCode = `
+var canvas = document.getElementById("renderCanvas"); // Get the canvas element
+var engine = new BABYLON.Engine(canvas, true); // Generate the BABYLON 3D engine
+/******* Add the create scene function ******/
+var createScene = function () {
+	// Create the scene space
+	var scene = new BABYLON.Scene(engine);
+
+	// Add a camera to the scene and attach it to the canvas
+	var camera = new BABYLON.ArcRotateCamera("Camera", Math.PI / 2, 15 * Math.PI / 32, 25, BABYLON.Vector3.Zero(), scene);
+	camera.attachControl(canvas, true);
+
+	// Add lights to the scene
+	var light1 = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(1, 1, 0), scene);
+	var light2 = new BABYLON.PointLight("Omni0", new BABYLON.Vector3(0, 1, -1), scene);
+
+
+	// Add and manipulate meshes in the scene
+	var box = BABYLON.MeshBuilder.CreateBox("box", {width:5, height:5}, scene);
+	box.position.y = 2.5;
+	const roof = BABYLON.MeshBuilder.CreateCylinder("roof", {diameter: 8.3, height: 5.2, tessellation: 3});
+	roof.scaling.x = 0.75;
+	roof.rotation.z = Math.PI / 2;
+	roof.position.y = (2/1.22)*3;
+	const roofMat = new BABYLON.StandardMaterial("roofMat");
+	roofMat.diffuseTexture = new BABYLON.Texture("https://assets.babylonjs.com/environments/roof.jpg", scene);
+	const boxMat = new BABYLON.StandardMaterial("roofMat");
+	boxMat.diffuseTexture = new BABYLON.Texture("https://www.babylonjs-playground.com/textures/floor.png");
+	roof.material = roofMat;
+	box.material = boxMat;
+	const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:10, height:10});
+	const groundMat = new BABYLON.StandardMaterial("groundMat");
+	groundMat.diffuseColor = new BABYLON.Color3.Blue();
+
+	ground.material = groundMat; //Place the material property of the ground
+
+	return scene;
+};
+
+/******* End of the create scene function ******/
+var scene = createScene(); //Call the createScene function
+
+engine.runRenderLoop(function () { // Register a render loop to repeatedly render the scene
+	scene.render();
+});
+
+
+window.addEventListener("resize", function () { // Watch for browser/canvas resize events
+	engine.resize();
+});
+`
 var elem = null;
 function empty(elem) {
     while (elem.lastChild) elem.removeChild(elem.lastChild);
@@ -36,50 +91,14 @@ function empty(elem) {
 var editorTextArea = document.querySelector("#editor")
 var ob = null;
 var sr = null;
-const defaultCode = `// Baseline JavaScript For ThreeJS
-var scene = new THREE.Scene();
-sr = 1;
-var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 100 );
-var renderer = new THREE.WebGLRenderer();
-renderer.setSize( window.innerWidth/4, window.innerHeight/2.45 );
-
-// Place all objects here
-
-
-/* Example: Cube */
-const geometry = new THREE.BoxGeometry();
-const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-const cube = new THREE.Mesh( geometry, material );
-scene.add( cube );
-camera.position.z = 5;
-
-
-
-// Put all objects above
-var result = document.querySelector("#result");
-result.appendChild( renderer.domElement );
-function animate() {
-	id = requestAnimationFrame( animate );
-	// Place all animations here
-
-
-
-	/* Example: Cube */
-	cube.rotation.x += 0.01;
-	cube.rotation.y += 0.01;
-
-	// End
-	renderer.render( scene, camera );
-}
-animate();`
 var editor = CodeMirror.fromTextArea(editorTextArea, {
     lineNumbers: true,
     mode: "javascript",
   })
+editor.setValue(defaultCode)
 paused = false;
 running = false;
 si = null
-editor.setValue(defaultCode);
 function runCode() {
 	if(paused == true) {
 		// Just clearing the interval and reanimating should do

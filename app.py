@@ -442,11 +442,11 @@ async def profile(username):
         priv = "Public"
     else:
         priv = "Private"
+
     return await render_template(
         "profile.html",
         p_username=profile["username"],
         p_capusername = profile["username"].capitalize(),
-        experience=profile["experience"],
         token=session.get("token"),
         p_admin=session.get("admin"),
         admin="admin" in profile["scopes"].split(":"),
@@ -454,7 +454,11 @@ async def profile(username):
         profile_owner = profile_owner,
         private = priv,
         badges = profile["badges"],
-        level = profile["level"]
+        rank_name = profile["level"]["name"],
+        rank_desc = profile["level"]["desc"],
+        rank_levelup = profile["level"].get("levelup"),
+        rank_levelup_name = profile["levelup_name"],
+        items = profile["items"]
     )
 
 @app.route("/settings/<username>")

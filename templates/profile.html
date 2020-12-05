@@ -16,14 +16,11 @@
 <h2><strong>{{p_capusername}}'s Passport</strong></h2>
      <hr/>
      <h3>Portfolio</h3>
-     <button class="btn btn-outline-info" onClick="modalShow('#expModal')"><i class="fas fa-magic" style="margin-right: 3px"></i>{{experience}}</button><br/><br/>
+     {% for item in items %}
+     <button class="btn btn-outline-info" onClick="modalShow('#item-{{loop.index}}')">{{item["display"]|safe}}{{item["count"]}}</button><br/><br/>
+     {%endfor%}
      <h4>Rank</h4><br/>
-        {% if admin == 1 %}
-  		<button class="btn btn-outline-info" onClick="modalShow('#adminModal')">CatPhi Leader</button>
-  	{% endif %}
-  	{% if level == "apprentice" %}
-  		<button class="btn btn-outline-info" onClick="modalShow('#memberModal')">CatPhi Apprentice</button><br/><br/>
-  	{%endif%}
+		<button class="btn btn-outline-info" onClick="modalShow('#memberModal')">{{rank_name}}</button><br/><br/>
   <hr/>
   <h3>Badges</h3>
   	{% for badge_id, badge_dict in badges.items()%}
@@ -67,48 +64,35 @@
 	  <br/><br/>
 
 
-<!-- Modal Apprentice -->
+<!-- Modal All -->
 <div class="modal fade" id="memberModal" tabindex="-1"  aria-labelledby="memberModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="memberModalLabel" style="text-align: center; justify-content: center;">CatPhi Apprentice</h5>
+	      <h5 class="modal-title" id="memberModalLabel" style="text-align: center; justify-content: center;">{{rank_name}}</h5>
       </div>
       <div class="modal-body">
-	      A new explorer arrives... It's OK! Everone has to start somewhere!<br/><br/><strong><em>Earn 100 experience points to become a Young Warrior!</em></strong>
+	      {{rank_desc|safe}}{% if admin == 0 %}<br/><br/><strong><em>Earn {{rank_levelup}} experience points to become a {{rank_levelup_name}}!</em></strong>{%endif%}
       </div>
     </div>
   </div>
 </div>
 
-<!-- Modal Admin -->
-<div class="modal fade" id="adminModal" tabindex="-1"  aria-labelledby="adminModalLabel" aria-hidden="true">
+{% for item in items %}
+<!-- Modal Item -->
+<div class="modal fade" id='item-{{loop.index}}' tabindex="-1"  aria-labelledby='item-{{loop.index}}Label' aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="adminModalLabel">CatPhi Leader</h5>
+	      <h5 class="modal-title" id='item-{{loop.index}}Label'>{{item["name"]}}</h5>
       </div>
       <div class="modal-body">
-	      A CatPhi Leader. They make sure that CatPhi works correctly and they handle the entire website including the backend!<br/><strong><em>Not much else is known about them...</strong></em>
+	      {{item["desc"]|safe}}
       </div>
     </div>
   </div>
 </div>
-
-<!-- Modal Experience Points -->
-<div class="modal fade" id="expModal" tabindex="-1"  aria-labelledby="expModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="expModalLabel">Experience Points</h5>
-      </div>
-      <div class="modal-body">
-              A rare mystical substance found in the land of CatPhi that can do some magical and mysterious things. You can earn these from the Witches Of CatPhi by doing more topics and solving more practice questions<br/><strong><em>There is no other known way to get these...</strong></em>
-      </div>
-    </div>
-  </div>
-</div>
-
+{%endfor%}
 </div>
 <script>
 	function modalShow(id) {
