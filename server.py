@@ -116,7 +116,12 @@ async def setup_db():
 # resetDict is a dictionary of password reset requests
 # currently present
 resetDict = {}
+
+# mfaDict is a dictionary for MFA Logins
 mfaDict = {}
+
+# mfaNewDict is a dictionary for new MFA setup
+mfaNewDict = {}
 
 SENDER_EMAIL = "sandhoners123@gmail.com"
 SENDER_PASS = "onsybsptaicdvtwc"
@@ -318,9 +323,10 @@ class AuthLoginRegister(UserPassModel):
 class AuthLoginRequest(AuthLoginRegister):
     pass
 
-class AuthMFARequest(BaseModel):
-    username: str
-    mfaToken: str
+class AuthMFANewRequest(TokenModel):
+    pass
+
+class AuthMFARequest(TokenModel):
     otp: str
 
 class AuthLogoutRequest(BaseModel):
@@ -486,13 +492,13 @@ async def startup():
 async def shutdown():
     await db.close()
 
-@app.get("/", tags=["Server Status", "R"])
+@app.get("/", tags=["Server Status"])
 async def root():
     return {"message": "Pong!"}
 
 # Experiments
 
-@app.get("/experiment/get", tags=["Experiments", "R"])
+@app.get("/experiment/get", tags=["Experiments"])
 async def get_experiment(sid: str = None):
     if sid == None:
         return {"error": "0001"}  # Invalid Arguments
@@ -503,27 +509,27 @@ async def get_experiment(sid: str = None):
 
 # Saving
 
-@app.post("/experiment/save", tags=["Experiments", "W"])
+@app.post("/experiment/save", tags=["Experiments"])
 async def save_experiment(save: SaveExperiment):
     return await save.save_experiment("generic")
 
 
-@app.post("/topics/experiment/save", tags=["Experiments", "Topic Experiments", "W"])
+@app.post("/topics/experiment/save", tags=["Experiments", "Topic Experiments"])
 async def topic_experiment_save(save: SaveTopicExperiment):
     return await save.save_experiment("topic")
 
-@app.post("/topics/concepts/save", tags=["Topics", "Concepts", "W"])
+@app.post("/topics/concepts/save", tags=["Topics", "Concepts"])
 async def topic_concept_save(save: SaveTopicConcept):
     return await save.save_experiment("concept")
 
-@app.post("/topics/practice/save", tags = ["Topics", "Topic Practice", "W"])
+@app.post("/topics/practice/save", tags = ["Topics", "Topic Practice"])
 async def topic_practice_save(save: SaveTopicPractice):
     return await save.save_experiment("topic_practice")
 
 # Authentication Code
 
 # Send a reset email (stage2 auth)
-@app.post("/auth/reset/send", tags = ["Authentication", "Password Reset", "RW"])
+@app.post("/auth/reset/send", tags = ["Authentication", "Password Reset"])
 async def reset_password_send(reset: AuthResetRequest, background_tasks: BackgroundTasks):
     if reset.username is None and reset.email is not None:
         login_cred = await db.fetchrow(
@@ -570,7 +576,7 @@ def send_email(email: str, reset_message: str = ""):
 
 
 # Change the actual password (stage3 auth)
-@app.post("/auth/reset/change", tags = ["Authentication", "Password Reset", "W"])
+@app.post("/auth/reset/change", tags = ["Authentication", "Password Reset"])
 async def reset_password_change(reset: AuthResetChange, background_tasks: BackgroundTasks):
     if reset.token not in resetDict.values():
         # Reset Token Not Authorized
@@ -614,7 +620,7 @@ async def reset_password_change(reset: AuthResetChange, background_tasks: Backgr
 # returns the result
 
 
-@app.get("/auth/reset/check/token", tags = ["Authentication", "Password Reset", "R"])
+@app.get("/auth/reset/check/token", tags = ["Authentication", "Password Reset"])
 async def check_reset_token(token: str = None):
     if token is None or token not in resetDict.values():
         return {"status": "0"}
@@ -622,20 +628,19 @@ async def check_reset_token(token: str = None):
         return {"status": "1"}
 
 
-@app.post("/auth/login", tags = ["Authentication", "Login/Logout", "RW"])
+@app.post("/auth/login", tags = ["Authentication", "Login/Logout"])
 async def login(login: AuthLoginRequest):
     if login.username is None or login.password is None:
         return error(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
-    username = login.username
     pwd = await db.fetchrow(
         "SELECT password, mfa from login WHERE username = $1",
-        username
+        login.username
     )
     if pwd is None:
         # Invalid Username Or Password
         return error(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
 
-    elif pwd_context.verify("Shadowsight1" + HASH_SALT + username + login.password, pwd["password"]) == False:
+    elif pwd_context.verify("Shadowsight1" + HASH_SALT + login.username + login.password, pwd["password"]) == False:
         return error(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
 
     # Check for MFA
@@ -645,12 +650,12 @@ async def login(login: AuthLoginRequest):
             token = get_token(101)
             if token not in mfaDict.values() and token not in mfaDict.keys():
                 flag = False
-        mfaDict[login.username] = token
+        mfaDict[token] = login.username
         return error(mfaChallenge = "mfa", mfaToken = token)
 
     login_creds = await db.fetchrow(
         "SELECT token, status, scopes from login WHERE username = $1",
-        username,
+        login.username,
     )
     if login_creds is None:
         return {"error": "1001"}
@@ -662,46 +667,80 @@ async def login(login: AuthLoginRequest):
     return error(token = login_creds["token"], scopes = login_creds["scopes"])
 
 
-@app.post("/auth/mfa", tags = ["Authentication", "MFA", "RW"])
+@app.post("/auth/mfa", tags = ["Authentication", "MFA"])
 async def multi_factor_authentication(mfa: AuthMFARequest):
-    if mfa.username not in mfaDict.keys() or mfaDict.get(mfa.username) != mfa.mfaToken:
-        return error("FORBIDDEN", "Forbidden Request", support = True) # Forbidden as mfaToken and username are not the same
+    if mfa.token not in mfaDict.keys():
+        return error("FORBIDDEN", "Forbidden Request", support = True) # Forbidden as mfa token is wrong
     login_creds = await db.fetchrow(
         "SELECT mfa_shared_key, token, status, scopes FROM login WHERE username = $1",
-        mfa.username,
+        mfaDict[mfa.token],
     )
     if login_creds is None or login_creds["mfa_shared_key"] is None:
         return error(code = "MFA_NOT_FOUND", html = "No MFA Shared Key was found.", support = True)
-    mfa_shared_key = login_creds["mfa_shared_key"] 
-    print(mfa_shared_key)
+    mfa_shared_key = login_creds["mfa_shared_key"]
     otp = pyotp.TOTP(mfa_shared_key)
     if otp.verify(mfa.otp) is False:
-        return error(error = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
-    del mfaDict[mfa.username]
+        return error(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
+    del mfaDict[mfa.token]
     if login_creds["status"] in [None, 0]:
         pass
     else:
         # This account is flagged as disabled (1) or disabled-by-admin (2)
-        return error(code =  "ACCOUNT_DISABLED", status = login_creds["status"]) # Flagged Account
+        return error(code =  "ACCOUNT_DISABLED", status = login_creds["status"]) # Flagged or disabled account
     return error(token = login_creds["token"], scopes = login_creds["scopes"])
 
 
-#@app.post("/auth/mfa/setup/3", tags = ["Authentication", "MFS", "RW"])
-
-
-
-@app.post("/auth/mfa/setup/3", tags = ["Authentication", "Login/Logout", "RW"])
-async def multi_factor_authentication_enable(mfa: AuthMFARequest):
-    if mfa.username not in mfaDict.keys() or mfaDict.get(mfa.username) != mfa.mfaToken:
-        return error(code = "FORBIDDEN", html = "Forbidden Request", support = True) # Forbidden as mfaToken and username are not the same
-    mfa_shared_key = mfaDict["shared_key"]
+@app.post("/auth/mfa/disable", tags = ["Authentication", "MFA"])
+async def multi_factor_authentication_disable(mfa: AuthMFARequest):
+    login_creds = await db.fetchrow(
+        "SELECT mfa_shared_key FROM login WHERE token = $1",
+        mfa.token,
+    )
+    if login_creds is None or login_creds["mfa_shared_key"] is None:
+        return error(code = "MFA_NOT_FOUND", html = "No MFA Shared Key was found.", support = True)
+    mfa_shared_key = login_creds["mfa_shared_key"]
     otp = pyotp.TOTP(mfa_shared_key)
     if otp.verify(mfa.otp) is False:
         return error(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
-    await db.execute("UPDATE login SET mfa = $1, mfa_shared_key = $2 WHERE username = $3", True, mfa_shared_key, mfa.username)
+    await db.execute("UPDATE login SET mfa = $1, mfa_shared_key = $2 WHERE token = $3", False, None, mfa.token)
     return error(code = None)
 
-@app.post("/auth/register", tags = ["Authentication", "Registration", "RW"])
+
+@app.post("/auth/mfa/setup/1", tags = ["Authentication", "MFA"])
+async def multi_factor_authentication_generate_shared_key(token: AuthMFANewRequest):
+    login_creds = await db.fetchrow(
+        "SELECT mfa_shared_key, status, scopes FROM login WHERE token = $1",
+        token.token,
+    )
+    if login_creds == None or login_creds["status"] not in [None, 0]:
+        return error(code = "ACCOUNT_DISABLED_OR_DOES_NOT_EXIST") # Flagged or disabled account and/or account does not exist
+    key = pyotp.random_base32() # MFA Shared Key
+    mfaNewDict[token.token] = {"key": key, "verified": False}
+    return error(code = None, key = key)
+
+
+@app.post("/auth/mfa/setup/2", tags = ["Authentication", "MFA"])
+async def multi_factor_authentication_otp_check_setup(mfa: AuthMFARequest):
+    if mfa.token not in mfaNewDict.keys() or mfaNewDict[mfa.token]["verified"] == True:
+        return error(code = "FORBIDDEN", html = "Forbidden Request", support = True) # The other steps have not yet been done yet 
+    otp = pyotp.TOTP(mfaNewDict[mfa.token]["key"])
+    print(mfa.otp)
+    if otp.verify(mfa.otp) is False:
+        return error(error = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
+    mfaNewDict[mfa.token]["verified"] = True
+    return error(code = None)
+
+
+@app.post("/auth/mfa/setup/3", tags = ["Authentication", "MFA"])
+async def multi_factor_authentication_enable(mfa: AuthMFANewRequest):
+    if mfa.token not in mfaNewDict.keys() or mfaNewDict[mfa.token]["verified"] == False:
+        return error(code = "FORBIDDEN", html = "Forbidden Request", support = True) # The other steps have not yet been done yet
+    mfa_shared_key = mfaNewDict[mfa.token]["key"]
+    await db.execute("UPDATE login SET mfa = $1, mfa_shared_key = $2 WHERE token = $3", True, mfa_shared_key, mfa.token)
+    return error(code = None)
+
+
+@app.post("/auth/register", tags = ["Authentication", "Registration"])
 async def register(register: AuthRegisterRequest):
     # For every password and email, encode it to bytes and
     # SHA512 to get hash
@@ -749,7 +788,7 @@ async def register(register: AuthRegisterRequest):
 
 
 # Profile
-@app.post("/profile/visible", tags=["Profile", "RW"])
+@app.post("/profile/visible", tags=["Profile"])
 async def change_visibility(pvr: ProfileVisibleRequest):
     # This includes account disabling which is also changing the visibility as well
     if pvr.state not in ["public", "private", "disable", "enable"]:
@@ -808,7 +847,7 @@ async def change_visibility(pvr: ProfileVisibleRequest):
         return {"error": "1000"}
 
 
-@app.get("/profile", tags = ["Profile", "R"])
+@app.get("/profile", tags = ["Profile"])
 async def get_profile(username: str, token: str = None):
     # Get the profile
     profile_db = await db.fetchrow(
@@ -882,7 +921,7 @@ async def get_profile(username: str, token: str = None):
 
 # Track users progress
 # TODO: Add quizzes and other things
-@app.post("/profile/track", tags = ["Profile", "W"])
+@app.post("/profile/track", tags = ["Profile"])
 async def profile_track_writer(tracker: ProfileTrackWriter):
     mode = 0 # Do nothing mode
     entry = await db.fetchrow("SELECT profile_topic.done, profile.badges, profile.items FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username WHERE profile_topic.tid = $1 AND profile.username = $2", tracker.tid, tracker.username)
@@ -918,7 +957,7 @@ async def profile_track_writer(tracker: ProfileTrackWriter):
 
 
 
-@app.get("/profile/track", tags = ["Profile", "R"])
+@app.get("/profile/track", tags = ["Profile"])
 async def profile_track_reader(tid: str, username: str):
     info = await db.fetchrow("SELECT progress, done FROM profile_topic WHERE username = $1 AND tid = $2", username, tid) # Get the page info
     if info is None or info["progress"] is None:
@@ -943,29 +982,29 @@ async def profile_track_reader(tid: str, username: str):
 
 # New Stuff!!!
 
-@app.post("/experiment/new", tags = ["Experiments", "RW"])
+@app.post("/experiment/new", tags = ["Experiments"])
 async def new_experiment(experiment: GenericExperimentNew):
     return await catphi.new(type="experiment", username = experiment.username, token = experiment.token, description = experiment.description)
 
-@app.post("/topics/new", tags = ["Topics", "W"])
+@app.post("/topics/new", tags = ["Topics"])
 async def new_topic(topic: TopicNew):
     return await catphi.new(type="topic", username = topic.username, token = topic.token, name = topic.name, description = topic.description, metaid = topic.metaid)
 
-@app.post("/subjects/new", tags = ["Subjects", "W"])
+@app.post("/subjects/new", tags = ["Subjects"])
 async def new_subject(subject: SubjectNew):
     return await catphi.new(type="subject", username = subject.username, token = subject.token, name = subject.name, description = subject.description)
 
-@app.post("/topics/concepts/new", tags = ["Concepts", "W"])
+@app.post("/topics/concepts/new", tags = ["Concepts"])
 async def new_concept(concept: ConceptNew):
     return await catphi.new(type="concept", username = concept.username, token = concept.token, tid = concept.tid, concept_title = concept.title)
 
-@app.post("/topics/practice/new", tags = ["Topics", "Topic Practice", "W"])
+@app.post("/topics/practice/new", tags = ["Topics", "Topic Practice"])
 async def new_topic_practice(topic_practice: TopicPracticeNew): 
     return await catphi.new(type="topic_practice", username = topic_practice.username, token = topic_practice.token, question_type = topic_practice.type, tid = topic_practice.tid, question = topic_practice.question, correct_answer = topic_practice.correct_answer, answers = topic_practice.answers, solution = topic_practice.solution)
 
 # List Functions
 
-@app.get("/topics/concepts/list", tags = ["Concepts", "R"])
+@app.get("/topics/concepts/list", tags = ["Concepts"])
 async def list_concepts(tid: str):
     concepts = await db.fetch("SELECT title FROM concept_table WHERE tid = $1 ORDER BY title ASC", tid)
     if len(concepts) == 0:
@@ -978,7 +1017,7 @@ async def list_concepts(tid: str):
         i+=1
     return cjson
 
-@app.get("/topics/list", tags = ["Topics", "R"])
+@app.get("/topics/list", tags = ["Topics"])
 async def list_topics():
     topics = await db.fetch("SELECT name, tid FROM topic_table")
     tjson = {}
@@ -986,7 +1025,7 @@ async def list_topics():
         tjson[topic["name"]] = topic["tid"]
     return tjson
 
-@app.get("/subjects/list", tags = ["Subjects", "R"])
+@app.get("/subjects/list", tags = ["Subjects"])
 async def list_subjects():
     subjects = await db.fetch("SELECT name, metaid FROM subject_table")
     sjson = {}
@@ -995,15 +1034,15 @@ async def list_subjects():
     return sjson
 
 # List All Route (Called /bristlefrost/rootspring/shadowsight
-@app.get("/bristlefrost/rootspring/shadowsight")
-async def bristlefrost_rootspring_shadowsight():
+@app.get("/bristlefrost/rootspring/shadowsight", tags = ["Clan Cat"])
+async def bristlefrost_x_rootspring_x_shadowsight():
     # Get all topics
     topics = await db.fetch("SELECT subject_table.metaid, topic_table.tid, topic_table.name AS topic_name, concept_table.cid, concept_table.title AS concept_name from concept_table INNER JOIN topic_table ON topic_table.tid = concept_table.tid INNER JOIN subject_table ON topic_table.metaid = subject_table.metaid ORDER BY tid, cid ASC")
     return topics
 
 # Get Functions
 
-@app.get("/topics/experiment/get", tags = ["Topics", "Topic Experiments", "R"])
+@app.get("/topics/experiment/get", tags = ["Topics", "Topic Experiments"])
 async def get_topic_experiment(tid: str):
     topic = await db.fetchrow("SELECT name, topic_experiment FROM topic_table WHERE tid = $1", tid)
     if topic is None:
@@ -1014,24 +1053,24 @@ async def get_topic_experiment(tid: str):
         code = topic["topic_experiment"]
     return {"name": topic["name"], "code": code}
 
-@app.get("/topics/concepts/get/count", tags = ["Topics", "Concepts", "R"])
+@app.get("/topics/concepts/get/count", tags = ["Topics", "Concepts"])
 async def get_concept_count(tid: str):
     concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", tid)
     return {"concept_count": concept_count[0]["count"]}
 
-@app.get("/topics/concepts/get", tags = ["Topics", "Concepts", "R"])
+@app.get("/topics/concepts/get", tags = ["Topics", "Concepts"])
 async def get_concept(tid: str, cid: int):
     concept = await db.fetch("SELECT title, content FROM concept_table WHERE tid = $1 ORDER BY cid ASC", tid)
     if len(concept) == 0 or len(concept) < int(cid) or int(cid) <= 0:
         return {"error": "0002"} # Invalid Parameters
     return {"title": concept[int(cid) - 1]["title"], "content": concept[int(cid) - 1]["content"]}
 
-@app.get("/topics/practice/get/count", tags = ["Topics", "Topic Practice", "R"])
+@app.get("/topics/practice/get/count", tags = ["Topics", "Topic Practice"])
 async def get_topic_practice_count(tid: str):
     topic_practice = await db.fetch("SELECT COUNT(1) FROM topic_practice_table WHERE tid = $1", tid)
     return {"practice_count": topic_practice[0]["count"]}
 
-@app.get("/topics/practice/get", tags = ["Topics", "Topic Practice", "R"])
+@app.get("/topics/practice/get", tags = ["Topics", "Topic Practice"])
 async def get_concept_practice(tid: str, qid: int):
     question = await db.fetch("SELECT type, question, correct_answer, answers, solution, recommended_time FROM topic_practice_table WHERE tid = $1 AND qid = $2 ORDER BY qid ASC", tid, qid)
     if len(question) == 0 or int(qid) <= 0:

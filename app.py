@@ -375,14 +375,7 @@ async def profile_me():
         return redirect("/login")
     return redirect("/profile/" + session.get("username"))
 
-@app.route("/profile/me/<state>")
-async def profile_redir_1(state = "private"):
-    if session.get("token") == None or session.get("username") == None:
-        session["redirect"] = "/profile/me/" + state
-        return redirect("/login")
-    return redirect("/profile/" + session.get("username") + "/me/" + state)
-
-@app.route("/profile/<username>/me/s/<state>")
+@app.route("/profile/<username>/me/state/<state>")
 async def profile_state_set(username, state):
     if session.get("token") == None or session.get("username") == None:
         session["redirect"] = "/profile/me/" + state
@@ -413,6 +406,40 @@ async def profile_state_set(username, state):
         return redirect("/logout")
     return redirect("/settings/" + username)
 
+
+@app.route("/profile/<username>/me/mfa/<state>", methods = ["GET", "POST"])
+async def profile_mfa_set(username, state):
+    if username != session.get("username"):
+        return abort(403)
+
+    elif state not in ["enable", "disable"]:
+        return abort(404)
+    if state == "enable":
+        if request.method == "GET":
+            # GET CODE
+            rc = requests.post(api + "/auth/mfa/setup/1", json = {
+                "token": session.get("token")
+            }).json()
+            if rc["error_code"] != None:
+                return redirect("/logout")
+            return await render_template("mfa.html", mode = "setup", key = rc["context"]["key"])
+        else:
+            # POST CODE
+            pass # TODO
+    if state == "disable":
+        if request.method == "GET":
+            return await render_template("mfa.html", mode = "disable")
+        else:
+            obj = await request.form
+            if len(obj["otp"]) != 6:
+                return await render_template("mfa.html", mode = "disable", error = "OTP must be 6 characters long")
+            rc = requests.post(api + "/auth/mfa/disable", json = {
+                "token": session.get("token"),
+                "otp": obj["otp"]
+            }).json()
+            if rc["error_code"] != None:
+                return await render_template("mfa.html", mode = "disable", error = "Invalid OTP")
+            return redirect("/settings/" + username)
 
 @app.route("/profile/<username>")
 async def profile(username):
@@ -837,11 +864,10 @@ async def login_mfa(username, token):
     if len(otp) != 6:
         return await render_template("mfa.html", mode = "login", error = "OTP must be 6 characters long")
     rc = requests.post(api + "/auth/mfa", json = {
-        "username": username,
-        "mfaToken": token,
+        "token": token,
         "otp": otp
     }).json()
-    if rc["error_code"] == "INVALID_OTP":
+    if rc["error_code"] != None:
         return await render_template("mfa.html", mode = "login", error = rc["error_html"])
     elif rc["error_code"] == None:
         rc = rc["context"] # Get the status context
@@ -854,11 +880,6 @@ async def login_mfa(username, token):
         session["username"] = username
         session["token"] = rc["token"]
         return redirect("/topics")
-    if rc["error_code"] == "INVALID_USER_PASS":
-        return await render_template(
-            "login.html",
-            error=Markup(rc["error_html"]),
-        )
     if rc["error_code"] == "ACCOUNT_DISABLED":
         if rc["context"]["status"] == 1:
             msg = "We could not log you in as you have disabled your account. Please click <a href='/reset'>here</a> to reset your password and re-enable your account"

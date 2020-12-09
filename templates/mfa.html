@@ -4,12 +4,23 @@
 <meta name="description" content="Aryabhata Inc - CatPhi Login">
 {% endblock %}
 {% block content %}
-  <h3 style="text-align: center;"><strong> Login To CatPhi </strong></h3>
+<h3 style="text-align: center;"><strong>{%if mode == "login"%}Login To CatPhi{%else%}Enter OTP{%endif%}</strong></h3>
   {% if error %}
   	<p style="text-align: center; color: red;"><strong>{{error|safe}}</strong></p>
   {%endif%}
   <br/>
-  <p style="text-align: center;"><strong>{%if mode == "login"%}This account is protected by Multi Factor Authentication.{%elif mode == "setup"%}In order to continue enabling MFA, we need you to do a few things.{%endif%} Please type in the OTP from your authentication app</strong></p><br/>
+  <p style="text-align: center;"><strong>{%if mode == "login"%}This account is protected by Multi Factor Authentication.{%elif mode == "setup"%}In order to continue enabling MFA, we need you to do a few things.{%else%} Please type in the OTP from your authentication app in order to perform this action{%endif%}</strong></p><br/>
+  
+  {%if mode == "setup"%}
+	<p style="text-align: center;">
+		<strong>
+			Step 1: Download an authentication app on your phone such as Google Authenticator or Authy<br/>
+			Step 2: Create a new account using the code {{key}}.<br/>
+			Step 3: Enter the OTP you get here.<br/>
+		</strong>
+	</p>
+  {%endif%}
+
   <div style="text-align: center;">
 	<form method='post' class="needs-validation" novalidate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>

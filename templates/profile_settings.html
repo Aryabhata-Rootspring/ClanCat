@@ -23,21 +23,21 @@
   	<div style="text-align: center;" class="profile_settings" role="profile_settings">
                 <h4><strong> Profile Status: </strong>{{private}}</h4>
 			{% if private == "Private" %}
-			<a href="/profile/{{p_username}}/me/s/public"><button class="btn btn-primary">Make Public</button></a>
+			<a href="/profile/{{p_username}}/me/state/public"><button class="btn btn-primary">Make Public</button></a>
 			{% else %}
-			<a href="/profile/{{p_username}}/me/s/private"><button class="btn btn-primary">Make Private</button></a>
+			<a href="/profile/{{p_username}}/me/state/private"><button class="btn btn-primary">Make Private</button></a>
 			{% endif %}
 			<br/><br/>
 			{% if listing == "Disabled" %}
-			<a href="/profile/{{p_username}}/me/l/alist"><button class="btn btn-primary">Allow Listing</button></a>
+			<a href="/profile/{{p_username}}/me/list/allow"><button class="btn btn-primary">Allow Listing</button></a>
 			{% else %}
-			<a href="/profile/{{p_username}}/me/l/blist"><button class="btn btn-primary">Block Listing</button></a>
+			<a href="/profile/{{p_username}}/me/list/block"><button class="btn btn-primary">Block Listing</button></a>
 			{% endif %}
 			<br/><br/>
 			{% if mfa %}
-                        <a href="/profile/{{p_username}}/me/mfa/mfa_disable"><button class="btn btn-primary">Disable Multi Factor Authentication</button></a>
+                        <a href="/profile/{{p_username}}/me/mfa/disable"><button class="btn btn-primary">Disable Multi Factor Authentication</button></a>
 			{% else %}
-                        <a href="/profile/{{p_username}}/me/mfa/mfa_enable"><button class="btn btn-primary">Enable Multi Factor Authentication</button></a>
+                        <a href="/profile/{{p_username}}/me/mfa/enable"><button class="btn btn-primary">Enable Multi Factor Authentication</button></a>
 			{%endif%}
 			<br/><br/><br/><br/><br/>
 			<a href="/profile/me/delete"><button class="btn btn-danger">Delete Account</button></a><br/>
