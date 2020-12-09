@@ -382,8 +382,8 @@ async def profile_redir_1(state = "private"):
         return redirect("/login")
     return redirect("/profile/" + session.get("username") + "/me/" + state)
 
-@app.route("/profile/<username>/me/<state>")
-async def profile_public_set(username, state):
+@app.route("/profile/<username>/me/s/<state>")
+async def profile_state_set(username, state):
     if session.get("token") == None or session.get("username") == None:
         session["redirect"] = "/profile/me/" + state
         return redirect("/login")
@@ -423,13 +423,13 @@ async def profile(username):
         profile = requests.get(
             api + "/profile?username=" + username + "&token=" + session.get("token")
         ).json()
-    if profile.get("error") == "1002":
+    if profile.get("error_code") == "PRIVATE_PROFILE":
         return await render_template(
             "generic_error.html",
             header="Profile Error",
             error="Profile is private",
         )
-    elif profile.get("error") == "1001":
+    elif profile.get("error_code") == "INVALID_PROFILE":
         return await render_template(
             "generic_error.html",
             header="Profile Error",
@@ -437,11 +437,11 @@ async def profile(username):
         )
     
     profile_owner = (session.get("username") == username or session.get("admin") == 1)
-    priv = profile['priv']
-    if int(priv) == 0:
-        priv = "Public"
+    private = profile['private']
+    if not private:
+        private = "Public"
     else:
-        priv = "Private"
+        private = "Private"
 
     return await render_template(
         "profile.html",
@@ -452,7 +452,7 @@ async def profile(username):
         admin="admin" in profile["scopes"].split(":"),
         join_date=profile["join"],
         profile_owner = profile_owner,
-        private = priv,
+        private = private,
         badges = profile["badges"],
         rank_name = profile["level"]["name"],
         rank_desc = profile["level"]["desc"],
@@ -477,7 +477,8 @@ async def settings(username):
             header="Profile Error",
             error="Profile is private",
         )
-    priv = profile['priv']
+    priv = profile['private']
+    mfa = profile["mfa"]
     if int(priv) == 0:
         priv = "Public"
     else:
@@ -486,7 +487,8 @@ async def settings(username):
         "profile_settings.html",
         p_username=profile["username"],
         token=session.get("token"),
-        private = priv
+        private = priv,
+        mfa = profile["mfa"]
     )
 
 
@@ -790,8 +792,8 @@ async def login():
         api + "/auth/login", json={"username": r["username"], "password": r["password"]}
     )
     rc = rc.json()
-    if "mfaChallenge" in rc.keys():
-        return redirect(f"/login/mfa/{r['username']}/{rc['mfaToken']}")
+    if rc["context"].get("mfaChallenge") != None:
+        return redirect(f"/login/mfa/{r['username']}/{rc['context']['mfaToken']}")
     elif rc["error_code"] == None:
         rc = rc["context"] # Get the status context
         session.clear() # remove old session
@@ -824,23 +826,23 @@ async def login():
 @app.route("/login/mfa/<username>/<token>", methods = ["GET", "POST"])
 async def login_mfa(username, token):
     if request.method == "GET":
-        return await render_template("login_mfa.html")
+        return await render_template("mfa.html", mode = "login")
     r = await request.form
     if "otp" not in r.keys():
-        return await render_template("login_mfa.html", error = "Please enter the OTP from your authentication app")
+        return await render_template("mfa.html", mode = "login", error = "Please enter the OTP from your authentication app")
     try:
         otp = str(int(r['otp']))
     except:
-        return await render_template("login_mfa.html", error = "OTP must be 6 characters long")
+        return await render_template("mfa.html", mode = "login", error = "OTP must be 6 characters long")
     if len(otp) != 6:
-        return await render_template("login_mfa.html", error = "OTP must be 6 characters long")
+        return await render_template("mfa.html", mode = "login", error = "OTP must be 6 characters long")
     rc = requests.post(api + "/auth/mfa", json = {
         "username": username,
         "mfaToken": token,
         "otp": otp
     }).json()
     if rc["error_code"] == "INVALID_OTP":
-        return await render_template("login_mfa.html", error = rc["error_html"])
+        return await render_template("mfa.html", mode = "login", error = rc["error_html"])
     elif rc["error_code"] == None:
         rc = rc["context"] # Get the status context
         session.clear() # remove old session

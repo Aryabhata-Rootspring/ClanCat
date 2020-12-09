@@ -20,7 +20,7 @@ import pyotp
 inflect_engine = inflect.engine()
 
 SERVER_URL = "https://127.0.0.1:443"  # Main Server URL
-HASH_SALT = "66801b86-06ff-49c7-a163-eeda39b8cba9_66bc6c6c-24e3-11eb-adc1-0242ac120002_66bc6c6c-24e3-11eb-adc1-0242ac120002"
+HASH_SALT = "SALT"
 EXP_RATE = 11 # This is the rate at which users will get experience per concept (11 exp points per completed concept)
 pwd_context = CryptContext(schemes=["pbkdf2_sha512"], deprecated="auto")
 
@@ -42,7 +42,7 @@ def error(*, code: str = None, html: str = None, support: bool = False, **kwargs
 async def setup_db():
     print("Setting up DB")
     __db = await asyncpg.create_pool(
-        host="127.0.0.1", user="catphi", password="Rootspring11,", database="catphi"
+        host="127.0.0.1", user="catphi", password="PASS", database="catphi"
     )  # Login stuff
     # Always do this to ensure best performance
     await __db.execute("VACUUM")
@@ -118,8 +118,8 @@ async def setup_db():
 resetDict = {}
 mfaDict = {}
 
-SENDER_EMAIL = "sandhoners123@gmail.com"
-SENDER_PASS = "onsybsptaicdvtwc"
+SENDER_EMAIL = "EMAIL"
+SENDER_PASS = "PASS"
 
 # Badge Data
 # Format is bid = {name: Name of the badge, image: Image URL to the badge, experience: Experience needed to get the badge}.

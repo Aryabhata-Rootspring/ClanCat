@@ -9,7 +9,7 @@
   	<p style="text-align: center; color: red;"><strong>{{error|safe}}</strong></p>
   {%endif%}
   <br/>
-  <p style="text-align: center;"><strong>This account is protected by Multi Factor Authentication. Please type in the OTP from your authentication app</strong></p><br/>
+  <p style="text-align: center;"><strong>{%if mode == "login"%}This account is protected by Multi Factor Authentication.{%elif mode == "setup"%}In order to continue enabling MFA, we need you to do a few things.{%endif%} Please type in the OTP from your authentication app</strong></p><br/>
   <div style="text-align: center;">
 	<form method='post' class="needs-validation" novalidate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -21,7 +21,7 @@
                         Please enter the OTP from your authentication app
                 </div>
 	</div><br/>
-  	<button type="submit" class="btn btn-primary">Login</button>
+	<button type="submit" class="btn btn-primary">{%if mode == "login"%}Login{%elif mode == "setup" %}Enable MFA{%else%}Verify OTP{%endif%}</button>
 	</form><br/><br/>
   </div>
 <script>
