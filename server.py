@@ -72,11 +72,11 @@ async def setup_db():
     )
     # Represents a single login in the database
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT, status INTEGER, scopes TEXT, mfa BOOLEAN, mfa_shared_key TEXT)"
+        "CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT, status INTEGER, scopes TEXT, mfa BOOLEAN, mfa_shared_key TEXT, mfa_backup TEXT)"
     )
     # Create an index for login
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS login_index ON login (token, username, password, email, status, scopes, mfa, mfa_shared_key)"
+        "CREATE INDEX IF NOT EXISTS login_index ON login (token, username, password, email, status, scopes, mfa, mfa_shared_key, mfa_backup)"
     )
     # A profile of a user
     await __db.execute(
@@ -328,6 +328,10 @@ class AuthMFANewRequest(TokenModel):
 
 class AuthMFARequest(TokenModel):
     otp: str
+
+class AuthMFARecoveryRequest(BaseModel):
+    username: str
+    backup_code: str
 
 class AuthLogoutRequest(BaseModel):
     username: str
@@ -670,7 +674,7 @@ async def login(login: AuthLoginRequest):
 @app.post("/auth/mfa", tags = ["Authentication", "MFA"])
 async def multi_factor_authentication(mfa: AuthMFARequest):
     if mfa.token not in mfaDict.keys():
-        return error("FORBIDDEN", "Forbidden Request", support = True) # Forbidden as mfa token is wrong
+        return error(code = "FORBIDDEN", html = "Forbidden Request<br/>Try logging out and back in again", support = True) # Forbidden as mfa token is wrong
     login_creds = await db.fetchrow(
         "SELECT mfa_shared_key, token, status, scopes FROM login WHERE username = $1",
         mfaDict[mfa.token],
@@ -702,42 +706,52 @@ async def multi_factor_authentication_disable(mfa: AuthMFARequest):
     otp = pyotp.TOTP(mfa_shared_key)
     if otp.verify(mfa.otp) is False:
         return error(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
-    await db.execute("UPDATE login SET mfa = $1, mfa_shared_key = $2 WHERE token = $3", False, None, mfa.token)
+    await db.execute("UPDATE login SET mfa = $1 WHERE token = $2", False, mfa.token)
     return error(code = None)
+
+
+@app.post("/auth/mfa/recovery")
+async def multi_factor_authentication_recovery(mfa: AuthMFARecoveryRequest):
+    login_creds = await db.fetchrow(
+        "SELECT mfa, mfa_backup FROM login WHERE username = $1",
+        mfa.username,
+    )
+    if login_creds == None or login_creds["mfa"] in [None, False]:
+        return error(code = "MFA_DISABLED", html = "Either MFA is already disabled or your account does not exist. Try logging in normally")
+    if mfa.backup_code.upper() != login_creds["mfa_backup"].upper():
+        return error(code = "INVALID_BACKUP_CODE", html = "Invalid Backup Code. Please try again", support = False)
+    await db.execute("UPDATE login SET mfa = $1 WHERE username = $2", False, mfa.username)
+    return error(code = None)
+
 
 
 @app.post("/auth/mfa/setup/1", tags = ["Authentication", "MFA"])
 async def multi_factor_authentication_generate_shared_key(token: AuthMFANewRequest):
     login_creds = await db.fetchrow(
-        "SELECT mfa_shared_key, status, scopes FROM login WHERE token = $1",
+        "SELECT mfa_shared_key, status, email FROM login WHERE token = $1",
         token.token,
     )
     if login_creds == None or login_creds["status"] not in [None, 0]:
         return error(code = "ACCOUNT_DISABLED_OR_DOES_NOT_EXIST") # Flagged or disabled account and/or account does not exist
     key = pyotp.random_base32() # MFA Shared Key
-    mfaNewDict[token.token] = {"key": key, "verified": False}
+    mfaNewDict[token.token] = {"key": key, "email": login_creds["email"]}
     return error(code = None, key = key)
 
 
 @app.post("/auth/mfa/setup/2", tags = ["Authentication", "MFA"])
-async def multi_factor_authentication_otp_check_setup(mfa: AuthMFARequest):
-    if mfa.token not in mfaNewDict.keys() or mfaNewDict[mfa.token]["verified"] == True:
+async def multi_factor_authentication_enable(mfa: AuthMFARequest, background_tasks: BackgroundTasks):
+    if mfa.token not in mfaNewDict.keys():
         return error(code = "FORBIDDEN", html = "Forbidden Request", support = True) # The other steps have not yet been done yet 
     otp = pyotp.TOTP(mfaNewDict[mfa.token]["key"])
     print(mfa.otp)
     if otp.verify(mfa.otp) is False:
-        return error(error = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
-    mfaNewDict[mfa.token]["verified"] = True
-    return error(code = None)
-
-
-@app.post("/auth/mfa/setup/3", tags = ["Authentication", "MFA"])
-async def multi_factor_authentication_enable(mfa: AuthMFANewRequest):
-    if mfa.token not in mfaNewDict.keys() or mfaNewDict[mfa.token]["verified"] == False:
-        return error(code = "FORBIDDEN", html = "Forbidden Request", support = True) # The other steps have not yet been done yet
-    mfa_shared_key = mfaNewDict[mfa.token]["key"]
-    await db.execute("UPDATE login SET mfa = $1, mfa_shared_key = $2 WHERE token = $3", True, mfa_shared_key, mfa.token)
-    return error(code = None)
+        return error(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
+    backup_code = ""
+    for i in range(0, 3):
+        backup_code += pyotp.random_hex()
+    await db.execute("UPDATE login SET mfa = $1, mfa_shared_key = $2, mfa_backup = $3 WHERE token = $4", True, mfaNewDict[mfa.token]["key"], backup_code, mfa.token)
+    background_tasks.add_task(send_email, mfaNewDict[mfa.token]["email"], f"Hi there\n\nSomeone has just tried to enable MFA on your account. If it wasn't you, please take note of the following backup code: {backup_code} and disable and re-enable MFA immediately using your backup code.\n\nThank you and have a nice day!")
+    return error(code = None, backup_code = backup_code)
 
 
 @app.post("/auth/register", tags = ["Authentication", "Registration"])

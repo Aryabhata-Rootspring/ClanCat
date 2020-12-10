@@ -4,12 +4,12 @@
 <meta name="description" content="Aryabhata Inc - CatPhi Login">
 {% endblock %}
 {% block content %}
-<h3 style="text-align: center;"><strong>{%if mode == "login"%}Login To CatPhi{%else%}Enter OTP{%endif%}</strong></h3>
+<h3 style="text-align: center;"><strong>{%if mode == "login"%}Login To CatPhi{%elif mode == 'backup'%}Account Recovery{%else%}Enter OTP{%endif%}</strong></h3>
   {% if error %}
   	<p style="text-align: center; color: red;"><strong>{{error|safe}}</strong></p>
   {%endif%}
   <br/>
-  <p style="text-align: center;"><strong>{%if mode == "login"%}This account is protected by Multi Factor Authentication.{%elif mode == "setup"%}In order to continue enabling MFA, we need you to do a few things.{%else%} Please type in the OTP from your authentication app in order to perform this action{%endif%}</strong></p><br/>
+  <p style="text-align: center;"><strong>{%if mode == "login"%}This account is protected by Multi Factor Authentication.<br/>Please enter the code on your authentication app.{%elif mode == "setup"%}In order to continue enabling MFA, we need you to do a few things.{%elif mode == "backup"%}Please enter your backup code to disable MFA and restore access to your account.{%else%} Please type in the OTP from your authentication app in order to perform this action{%endif%}</strong></p><br/>
   
   {%if mode == "setup"%}
 	<p style="text-align: center;">
@@ -26,14 +26,21 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 	<div class="form-group">
 	   <div class="form-inline" style="justify-content: center; text-align: center;">
-    		<label for="otp" style="margin-right: 7px; text-align: left; justify-content: left;">OTP </label>
-    		<input style="margin: 7px;" type="text" name='otp' class="form-control" id="otp" aria-describedby="userHelp" placeholder="Enter 6 Digit OTP" required aria-required="true">
+		   <label for="otp" style="margin-right: 7px; text-align: left; justify-content: left;">{% if mode == "backup" %}Backup Code {%else%}OTP {%endif%}</label>
+		   <input style="margin: 7px;" type="text" name='otp' class="form-control" id="otp" aria-describedby="userHelp" placeholder="Enter {% if mode == 'backup'%}Backup Code {% else %}6 Digit OTP{%endif%}" required aria-required="true">
                 <div class="invalid-feedback">
-                        Please enter the OTP from your authentication app
+			Please enter {%if mode == 'backup'%}the backup code{%else%}the OTP from your authentication app{%endif%}
                 </div>
 	</div><br/>
-	<button type="submit" class="btn btn-primary">{%if mode == "login"%}Login{%elif mode == "setup" %}Enable MFA{%else%}Verify OTP{%endif%}</button>
-	</form><br/><br/>
+	<button type="submit" class="btn btn-primary">{%if mode == "login"%}Login{%elif mode == "setup" %}Enable MFA{%elif mode == "backup"%}Disable MFA{%else%}Verify OTP{%endif%}</button>
+	</form>
+	</div>
+	{%if mode != "backup"%}
+	<br/><br/><br/><br/><br/>
+	<p><strong>Lost your device?<strong></p>
+	<a href="/recovery/mfa/{{proposed_username}}"><button class="btn btn-primary">Use A Backup Code</button></a>
+	{% endif %}
+	<br/><br/>
   </div>
 <script>
 (function() {

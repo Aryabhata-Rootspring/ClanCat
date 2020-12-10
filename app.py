@@ -422,10 +422,22 @@ async def profile_mfa_set(username, state):
             }).json()
             if rc["error_code"] != None:
                 return redirect("/logout")
+            session["mfa_key"] = rc["context"]["key"]
             return await render_template("mfa.html", mode = "setup", key = rc["context"]["key"])
         else:
             # POST CODE
-            pass # TODO
+            obj = await request.form
+            if len(obj["otp"]) != 6:
+                return await render_template("mfa.html", mode = "setup", error = "OTP must be 6 characters long", key = session["mfa_key"])
+            rc = requests.post(api + "/auth/mfa/setup/2", json = {
+                "token": session.get("token"),
+                "otp": obj["otp"]
+            }).json()
+            if rc["error_code"] != None:
+                return await render_template("mfa.html", mode = "setup", error = Markup(rc["error_html"]), key = session["mfa_key"])
+            del session["mfa_key"]
+            return await render_template("mfa_backup_keys.html", backup_code = rc["context"]["backup_code"])
+
     if state == "disable":
         if request.method == "GET":
             return await render_template("mfa.html", mode = "disable")
@@ -438,7 +450,7 @@ async def profile_mfa_set(username, state):
                 "otp": obj["otp"]
             }).json()
             if rc["error_code"] != None:
-                return await render_template("mfa.html", mode = "disable", error = "Invalid OTP")
+                return await render_template("mfa.html", mode = "disable", error = Markup(rc["error_html"]))
             return redirect("/settings/" + username)
 
 @app.route("/profile/<username>")
@@ -852,23 +864,25 @@ async def login():
 
 @app.route("/login/mfa/<username>/<token>", methods = ["GET", "POST"])
 async def login_mfa(username, token):
+    if session.get("token") is not None:
+        return redirect("/redir")
     if request.method == "GET":
-        return await render_template("mfa.html", mode = "login")
+        return await render_template("mfa.html", mode = "login", proposed_username = username)
     r = await request.form
     if "otp" not in r.keys():
-        return await render_template("mfa.html", mode = "login", error = "Please enter the OTP from your authentication app")
+        return await render_template("mfa.html", mode = "login", error = "Please enter the OTP from your authentication app", proposed_username = username)
     try:
         otp = str(int(r['otp']))
     except:
-        return await render_template("mfa.html", mode = "login", error = "OTP must be 6 characters long")
+        return await render_template("mfa.html", mode = "login", error = "OTP must be 6 characters long", proposed_username = username)
     if len(otp) != 6:
-        return await render_template("mfa.html", mode = "login", error = "OTP must be 6 characters long")
+        return await render_template("mfa.html", mode = "login", error = "OTP must be 6 characters long", proposed_username = username)
     rc = requests.post(api + "/auth/mfa", json = {
         "token": token,
         "otp": otp
     }).json()
     if rc["error_code"] != None:
-        return await render_template("mfa.html", mode = "login", error = rc["error_html"])
+        return await render_template("mfa.html", mode = "login", error = rc["error_html"], proposed_username = username)
     elif rc["error_code"] == None:
         rc = rc["context"] # Get the status context
         session.clear() # remove old session
@@ -888,10 +902,31 @@ async def login_mfa(username, token):
         else:
             msg = f"Unknown account state. Please click <a href='/contactus'>here</a> to contact our customer support"
         return await render_template(
-            "login.html",
-            error=msg,
+            "mfa.html",
+            mode = "login",
+            error=Markup(msg),
         )
     return rc
+
+@app.route("/recovery/mfa/<username>", methods = ["GET", "POST"])
+async def recovery_mfa(username):
+    if request.method == "GET":
+        return await render_template("mfa.html", mode = "backup")
+    else:
+        obj = await request.form
+        if "otp" not in obj.keys() or len(obj["otp"]) == 0:
+            return await render_template("mfa.html", mode = "backup", error = "No backup code was entered")
+        rc = requests.post(api + "/auth/mfa/recovery", json = {
+            "username": username,
+            "backup_code": obj["otp"]
+        }).json()
+        if rc["error_code"] != None:
+            return await render_template("mfa.html", mode = "backup", error = Markup(rc["error_html"]))
+        return await render_template(
+            "mfa.html",
+            mode = "backup",
+            error="Account successfully recovered. Please login again",
+        )
 
 @app.errorhandler(CSRFError)
 async def handle_csrf_error(e):

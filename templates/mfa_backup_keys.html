@@ -1,0 +1,22 @@
+{% extends 'template.html' %}
+{% block header %}
+<title role="banner">CatPhi - Backup Keys</title>
+<meta name="description" content="Aryabhata Inc - CatPhi Login">
+{% endblock %}
+{% block content %}
+<h3 style="text-align: center;"><strong>Backup Keys</strong></h3>
+  {% if error %}
+  	<p style="text-align: center; color: red;"><strong>{{error|safe}}</strong></p>
+  {%endif%}
+  <div style="text-align: center">
+  	<h4><strong>The below code is your code to disable MFA. Please keep this extremely safe as they are the only way to disable MFA if you lose your phone.</strong></h4><br/><br/><br/>
+  	<p><strong>Backup Code: {{backup_code}}</strong></p>
+	<br/><br/>
+	<p><strong>How to use a backup key to disable MFA:<br/>
+		Step 1: Logout (if you are currently logged in)<br/>
+		Step 2: Login normally using your username and password until you reach MFA<br/>
+		Step 3: Click the "Use Backup Code" button and enter your backup code<br/>
+		Step 4: This will turn off MFA and will send an email as well<br/>
+  	<a href="/settings/{{username}}"><button class="btn btn-primary">Return To Settings</button></a>
+  </div>
+{% endblock %}
