@@ -17,13 +17,24 @@ from quart import (
 )
 from lib.catphi_csrf import CSRFProtect, CSRFError  # CSRF Form Protection
 import asyncio
-import requests
+import requests as __r__
 import time
 import re
 import secrets
 import string
 import logging
 logging.captureWarnings(True)
+secure_mode = False
+
+# A wrapper around requests
+class requests():
+    @staticmethod
+    def get(url):
+        return __r__.get(url, verify = secure_mode)
+    @staticmethod
+    def post(url, json):
+        return __r__.post(url, json = json, verify = secure_mode)
+
 """ Configuration """
 
 app = Quart(__name__, static_url_path="/static")
@@ -1102,12 +1113,13 @@ async def topic_practice_view(tid, qid):
         choices = choices,
         inans = inans,
     )
+
 #TODO: Save on server session
 # They have solved the question, save it on server session and on other locations (a database) if logged in
 @app.route("/topics/<tid>/practice/<int:qid>/solve", methods = ["POST"])
 async def topic_practice_solve(tid, qid):
     data = await request.form
-    if "username" not in data.keys() or "token" not in data.keys() or "given_answer" not in data.keys() or "remaining_lives" not in data.keys() or "choices" not in data.keys():
+    if "given_answer" not in data.keys() or "remaining_lives" not in data.keys() or "choices" not in data.keys():
         return jsonify({"error": "1001"})
     key = "|".join(["practice", "qa", tid, str(qid)])
     session[key] = data["given_answer"]

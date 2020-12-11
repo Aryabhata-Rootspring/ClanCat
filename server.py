@@ -779,7 +779,7 @@ async def register(register: AuthRegisterRequest):
             continue
         flag = False
     await db.execute(
-        "INSERT INTO login (token, username, password, email, status, scopes, mfa) VALUES ($1, $2, $3, $4, 0, $5);",
+        "INSERT INTO login (token, username, password, email, status, scopes, mfa) VALUES ($1, $2, $3, $4, 0, $5, $6);",
         token,
         username,
         password,

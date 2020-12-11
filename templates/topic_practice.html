@@ -115,8 +115,7 @@ iframe {
 {% elif type == "SAQ" %}
 	<input id="ans" style="margin-left: 3px; margin-right: 3px; margin-bottom: 30px;" class="form-control animate-header-true-right" type="text" placeholder="Enter your answer here!"/>
 {%endif%}
-<button style="text-align: center;" type="button" id="check-answers" class="btn btn-success btn-lg btn-block justify-content-center animate-header-true-left" disabled aria-disabled="true" onClick="checkAnswer(this);" >Check Answer!</button>
-<br/><br/>
+<button style="text-align: center; margin-bottom: 15px;" type="button" id="check-answers" class="btn btn-success btn-lg btn-block justify-content-center animate-header-true-left" disabled aria-disabled="true" onClick="checkAnswer(this);" >Check Answer!</button>
 <div style="display: block; text-align: center; margin-bottom: 276px;">
 <button id="view-solution" style="visibility: hidden; text-align: center;" class="btn btn-outline-dark btn-block animate-header-true-right" onclick="viewSolution(false, null)">View Solution</button>
 </div>
@@ -269,6 +268,14 @@ iframe {
                 $('#solutionModal').modal()
         }
 
+	function tryAgain(element) {
+            $('#incorrectModal').modal('hide')
+        }
+
+        function showSolButton() {
+                document.querySelector("#view-solution").style.visibility = "visible";
+        }
+
 	{% if type == "MCQ" %}
 	/* MCQ */
 	var globalBtnList = []
@@ -405,15 +412,11 @@ iframe {
 		{% endif %}
 	})
 
-	function tryAgain(element) {
-            $('#incorrectModal').modal('hide')
-	}
-
 	function track() {
                 post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/practice/{{qid}}/solve";
                 console.log(post_url);
 		console.log(choices.join("|"))
-                post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "given_answer":  answer, "remaining_lives": lives - incorrect, "choices": choices.join("|")};
+                post_data = {"csrf_token": "{{csrf_token()}}", "given_answer":  answer, "remaining_lives": lives - incorrect, "choices": choices.join("|")};
                 $.post(post_url, post_data, function(data, status, jqXHR) {console.log(data.error)});
         }
 
@@ -423,14 +426,14 @@ iframe {
 	      cbutton.classList.add("btn-secondary")
 	}
 
-	function showSolButton() {
-		document.querySelector("#view-solution").style.visibility = "visible";
-	}
 	{% endif %}
 	{% if type == "SAQ" or type == "SAQS" %}
 	/* SAQ/SAQS */
 	var typed = false; // Has the user even typed anything yet
 	function inputListener() {
+		if(c == true) {
+			return;
+		}
 		cab = document.querySelector("#check-answers")
 		ans_field = document.querySelector("#ans")
 		if(ans_field.value != "") {
@@ -445,9 +448,95 @@ iframe {
 			disableCab();
 		}
 	}
+
+        function checkAnswer(element) {
+		if(c == true) {
+			return;
+		}
+		answer = document.querySelector("#ans").value;
+                if(answer == "{{correct_answer}}") {
+                        if(lives - incorrect <= 0) {
+                                $('#dincorrectModal').modal()
+                                c = true;
+                                cab = document.querySelector("#check-answers")
+                                cab.innerHTML = "Out Of Lives :("
+                                cab.classList.remove("btn-success")
+                                cab.classList.add("btn-danger")
+				roinput();
+                                showSolButton();
+                                track()
+                                return;
+                        }
+                        c = true;
+                        track()
+                        cab = disableCab();
+                        showSolButton()
+			roinput();
+                        cab.innerHTML = "Let's move on, young explorer!"
+                        $('#correctModal').modal()
+                }
+                else {
+                        incorrect++;
+                        mlives = document.querySelector("#lives")
+                        if(lives - incorrect <= 0) {
+                                $('#dincorrectModal').modal()
+                                c = true;
+                                track()
+                                showSolButton()
+				roinput()
+                                cab = document.querySelector("#check-answers")
+                                cab.innerHTML = "Out Of Lives :("
+                                cab.classList.remove("btn-success")
+                                cab.classList.add("btn-danger")
+                                return;
+                        }
+                        track()
+                        // TODO: Track incorrect with remaining lives
+                        mlives.innerHTML = "Remaining Lives: " + (lives - incorrect).toString();
+                        $('#incorrectModal').modal()
+                }
+
+	}
+
+        function track() {
+                post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/practice/{{qid}}/solve";
+                console.log(post_url);
+                post_data = {"csrf_token": "{{csrf_token()}}", "given_answer":  answer, "remaining_lives": lives - incorrect, "choices": null};
+                $.post(post_url, post_data, function(data, status, jqXHR) {console.log(data.error)});
+        }
+
+	function roinput() {
+                var butdis = document.createAttribute("readonly");
+                document.querySelector("#ans").setAttributeNode(butdis);
+	}
+
         window.addEventListener('load', function () {
-                disableCab();
-		setInterval(inputListener, 0);
+                cab = disableCab();
+		si = setInterval(inputListener, 0);
+                {% if solved%}
+                        // Set the current thing
+			document.querySelector("#ans").value = "{{solved}}";
+                        if(document.querySelector("#ans") == "{{correct_answer}}") { // They got it correct
+                                c = true;
+                                cab = disableCab();
+                                showSolButton()
+				roinput();
+                                cab.innerHTML = "Let's move on, young explorer!"
+                                return;
+                        }
+                        lives = parseInt("{{lives}}")
+                        if(lives == 0) {
+                                c = true;
+                                cab = document.querySelector("#check-answers")
+                                cab.classList.remove("btn-success")
+                                cab.classList.add("btn-danger")
+                                cab.removeAttribute("disabled");
+                                cab.removeAttribute("aria-disabled")
+				roinput();
+                                cab.innerHTML = "Out Of Lives :("
+                                showSolButton()
+                        }
+                {% endif %}
 	})
 {% endif %}
 </script>

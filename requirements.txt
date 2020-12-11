@@ -3,3 +3,7 @@ fastapi
 quart
 requests
 passlib
+uvicorn
+wtforms
+inflect
+pyotp

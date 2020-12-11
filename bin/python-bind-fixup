@@ -1,1 +1,7 @@
-sudo setcap cap_net_bind_service=ep /usr/bin/python3b
+# Old Legacy Method (Breaks PyPy)
+
+#sudo setcap cap_net_bind_service=ep /usr/bin/python3b
+
+# New method using authbind
+sudo touch /etc/authbind/byport/443
+sudo chmod 777 /etc/authbind/byport/443

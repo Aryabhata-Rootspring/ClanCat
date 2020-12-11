@@ -1,3 +1,6 @@
-export REQUESTS_CA_BUNDLE=/home/rootspring/ClanCat/cert.pem
-python3b -m uvicorn --port 443 --ssl-certfile cert.pem --host 0.0.0.0 --ssl-keyfile key.pem app:app
+export REQUESTS_CA_BUNDLE=/home/bristlerootshadow/ClanCat/cert.pem
+
+export PYPY=/usr/local/pypy3.7-v7.3.3-linux64/bin/pypy
+
+sudo $PYPY -m uvicorn --port 443 --ssl-certfile cert.pem --host 0.0.0.0 --ssl-keyfile key.pem app:app
 
