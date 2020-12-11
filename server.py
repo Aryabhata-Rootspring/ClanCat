@@ -602,7 +602,7 @@ async def reset_password_change(reset: AuthResetChange, background_tasks: Backgr
     # Make sure we cant use the same token again
     resetDict[token] = None
     
-    # Get a new token
+    # Get a new token on reset
     flag = True
     while flag:
         # Keep getting and checking token with DB

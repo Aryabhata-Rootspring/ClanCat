@@ -872,11 +872,11 @@ async def login_mfa(username, token):
     if "otp" not in r.keys():
         return await render_template("mfa.html", mode = "login", error = "Please enter the OTP from your authentication app", proposed_username = username)
     try:
-        otp = str(int(r['otp']))
+        otp = str(int(r['otp'].replace(' ', '')))
     except:
-        return await render_template("mfa.html", mode = "login", error = "OTP must be 6 characters long", proposed_username = username)
+        return await render_template("mfa.html", mode = "login", error = "OTP must be a 6 digit number", proposed_username = username)
     if len(otp) != 6:
-        return await render_template("mfa.html", mode = "login", error = "OTP must be 6 characters long", proposed_username = username)
+        return await render_template("mfa.html", mode = "login", error = "OTP must be 6 digit number", proposed_username = username)
     rc = requests.post(api + "/auth/mfa", json = {
         "token": token,
         "otp": otp

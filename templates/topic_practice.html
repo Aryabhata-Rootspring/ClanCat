@@ -106,18 +106,20 @@ iframe {
 
 <br/><br/><br/><br/><br/>
 {% if type == "MCQ" %}
-<div id="answer" class="d-flex">
+<div id="answer" class="d-flex" style="margin-bottom: 30px;">
 	<button id="A" class="btn btn-block btn-lg btn-outline-primary animate-header-true-left" style="margin: auto;" onclick="selectB(this)">A - {{answers[0]}}</button>
 	<button id="B" class="btn btn-block btn-lg btn-outline-primary animate-header-true-left" style="margin: auto;" onclick="selectB(this)">B - {{answers[1]}}</button>
 	<button id="C" class="btn btn-block btn-lg btn-outline-primary animate-header-true-right" style="margin: auto;" onclick="selectB(this)">C - {{answers[2]}}</button>
 	<button id="D" class="btn btn-block btn-lg btn-outline-primary animate-header-true-right" style="margin: auto;" onclick="selectB(this)">D - {{answers[3]}}</button>
 </div>
 {% elif type == "SAQ" %}
-	<input id="ans" style="margin-left: 3px; margin-right: 3px;" class="form-control" type="text" placeholder="Enter your answer here!"/>
+	<input id="ans" style="margin-left: 3px; margin-right: 3px; margin-bottom: 30px;" class="form-control animate-header-true-right" type="text" placeholder="Enter your answer here!"/>
 {%endif%}
-<br/><br/><br/><br/>
-<button style="text-align: center;" type="button" id="check-answers" class="btn btn-success btn-lg btn-block justify-content-center" disabled aria-disabled="true" onClick="checkAnswer(this);" >Check Answer!</button>
-<!--<footer class="footer mt-auto py-3">-->
+<button style="text-align: center;" type="button" id="check-answers" class="btn btn-success btn-lg btn-block justify-content-center animate-header-true-left" disabled aria-disabled="true" onClick="checkAnswer(this);" >Check Answer!</button>
+<br/><br/>
+<div style="display: block; text-align: center; margin-bottom: 276px;">
+<button id="view-solution" style="visibility: hidden; text-align: center;" class="btn btn-outline-dark btn-block animate-header-true-right" onclick="viewSolution(false, null)">View Solution</button>
+</div>
 <footer class="footer">
 <nav aria-label="CatPhi Concept Navigation">
     <ul class="pagination justify-content-center">
@@ -207,7 +209,6 @@ iframe {
       </div>
       <div class="modal-body">
 	      Unfortunately, you have ran out of all of your lives{% if qid + 1 <= practice_count %}, but lets move on and learn from our mistakes!{% else %}, but luckily your team members were more successful. So lets go back to home base, shall we?{% endif %}<br/><br/>
-              <strong>Solution: </strong>{{solution|safe}}
       </div>
       <div class="modal-footer">
 	      {% if qid + 1 <= practice_count %}
@@ -215,28 +216,63 @@ iframe {
 	      {% else %}
                 <button type="button" class="btn btn-primary"><a href="/topics/{{tid}}/return">Return To Main Base!</a></button>
 	      {% endif %}
+	      <button type="button" class="btn btn-primary" onclick="viewSolution(true, '#dincorrectModal');">View Solution</button>
       </div>
     </div>
   </div>
 </div>
 
-{% if type == "MCQ" %}
+
+<!-- Modal Solution -->
+<div class="modal fade" id="solutionModal" tabindex="-1"  aria-labelledby="solutionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="solutionModalLabel">Solution</h5>
+      </div>
+      <div class="modal-body">
+              <strong>Solution: </strong>{{solution|safe}}
+      </div>
+      <div class="modal-footer">
+              {% if qid + 1 <= practice_count %}
+                <button type="button" class="btn btn-primary"><a href="/topics/{{tid}}/practice/{{qid + 1}}">Move On</a></button>
+              {% else %}
+                <button type="button" class="btn btn-primary"><a href="/topics/{{tid}}/return">Return To Main Base!</a></button>
+              {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-	var globalBtnList = []
+	/* Common Script */
 	var incorrect = 0;
-	var lives = 2;
-	var c = false; // This is the counter that checks if we should stop accepting answers
-	var choices = []
-	function disableCab() {
+        var lives = 2;
+        var c = false; // This is the counter that checks if we should stop accepting answers
+        function disableCab() {
                 cab = document.querySelector("#check-answers")
                 var butdis = document.createAttribute("disabled");
                 var butdis_aria = document.createAttribute("aria-disabled");
                 butdis_aria.value = "true";
                 cab.setAttributeNode(butdis);
                 cab.setAttributeNode(butdis_aria);
-		return cab;
-	}
+                return cab;
+        }
 
+        function viewSolution(close_modal_bool, element) {
+                if(c == false) {
+                        return // Abort since c is not true
+                }
+                if(close_modal_bool == true) {
+                        $(element).modal('hide')
+                }
+                $('#solutionModal').modal()
+        }
+
+	{% if type == "MCQ" %}
+	/* MCQ */
+	var globalBtnList = []
+	var choices = []
 	function selectB(element) {
 		if(c == true) {
 			return
@@ -275,8 +311,11 @@ iframe {
 				globalBtnList = []
 				c = true;
                                 setCorrectAns()
-				cab = disableCab();
+                		cab = document.querySelector("#check-answers")
 				cab.innerHTML = "Out Of Lives :("
+				cab.classList.remove("btn-success")
+				cab.classList.add("btn-danger")
+				showSolButton();
 				track()
                                 return;
                         }
@@ -286,6 +325,7 @@ iframe {
 			c = true;
 			track()
 			cab = disableCab();
+			showSolButton()
 			cab.innerHTML = "Let's move on, young explorer!"
 			$('#correctModal').modal()
 		}
@@ -296,17 +336,20 @@ iframe {
 				// TODO: Track incorrect twice
                         	$('#dincorrectModal').modal()
                         	globalBtnList[0].classList.remove("btn-primary")
-                        	globalBtnList[0].classList.add("btn-danger")
+                        	globalBtnList[0].classList.add("btn-warning")
                                 globalBtnList = []
 				c = true;
 				track()
+				showSolButton()
                                 setCorrectAns()
-				cab = disableCab();
+                                cab = document.querySelector("#check-answers")
                                 cab.innerHTML = "Out Of Lives :("
+                                cab.classList.remove("btn-success")
+                                cab.classList.add("btn-danger")
 				return;
 			}
                         globalBtnList[0].classList.remove("btn-primary")
-                        globalBtnList[0].classList.add("btn-danger")
+                        globalBtnList[0].classList.add("btn-warning")
                         globalBtnList = []
 			track()
 			// TODO: Track incorrect with remaining lives
@@ -327,29 +370,35 @@ iframe {
 			var inc_button = document.querySelector("#{{inans}}")
 			console.log(inc_button)
 			inc_button.classList.remove("btn-outline-primary")
-			inc_button.classList.add("btn-danger")
+			inc_button.classList.add("btn-warning")
 			inc_button.setAttribute("onclick", "")
 			{%endif%}
 			if(button.id == "{{correct_answer}}") { // They got it correct
                                 button.classList.add("btn-secondary")
 				c = true;
                         	cab = disableCab();
+				showSolButton()
                         	cab.innerHTML = "Let's move on, young explorer!"
 				return;
 			}
                         lives = parseInt("{{lives}}")
 			if(lives == 0) {
 				c = true;
-                                cab = disableCab();
 				setCorrectAns()
-                                cab.innerHTML = "Out Of Lives :("
+				cab = document.querySelector("#check-answers")
+                                cab.classList.remove("btn-success")
+                                cab.classList.add("btn-danger")
+                		cab.removeAttribute("disabled");
+                		cab.removeAttribute("aria-disabled")
+				cab.innerHTML = "Out Of Lives :("
+				showSolButton()
 				{% for choice in choices %}
 					button = document.querySelector("#{{choice}}")
 					try {
 						button.classList.remove("btn-outline-primary")
 					}
 					catch {}
-					button.classList.add("btn-danger")
+					button.classList.add("btn-warning")
 					button.setAttribute("onclick", "")
 				{%endfor%}
 			}
@@ -373,9 +422,35 @@ iframe {
               cbutton.classList.remove("btn-outline-primary")
 	      cbutton.classList.add("btn-secondary")
 	}
-</script>
-{% endif %}
 
+	function showSolButton() {
+		document.querySelector("#view-solution").style.visibility = "visible";
+	}
+	{% endif %}
+	{% if type == "SAQ" or type == "SAQS" %}
+	/* SAQ/SAQS */
+	var typed = false; // Has the user even typed anything yet
+	function inputListener() {
+		cab = document.querySelector("#check-answers")
+		ans_field = document.querySelector("#ans")
+		if(ans_field.value != "") {
+			typed = true;
+			cab.removeAttribute("disabled")
+                        cab.removeAttribute("aria-disabled")
+		}
+		else if(typed == false){
+			return;
+		}
+		else {
+			disableCab();
+		}
+	}
+        window.addEventListener('load', function () {
+                disableCab();
+		setInterval(inputListener, 0);
+	})
+{% endif %}
+</script>
 
 </div>
 {% endblock %}
