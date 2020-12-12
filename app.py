@@ -23,17 +23,17 @@ import re
 import secrets
 import string
 import logging
+import config
 logging.captureWarnings(True)
-secure_mode = False
 
 # A wrapper around requests
 class requests():
     @staticmethod
     def get(url):
-        return __r__.get(url, verify = secure_mode)
+        return __r__.get(url, verify = config.SECURE)
     @staticmethod
     def post(url, json):
-        return __r__.post(url, json = json, verify = secure_mode)
+        return __r__.post(url, json = json, verify = config.SECURE)
 
 """ Configuration """
 
@@ -43,7 +43,13 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_SECURE"] = True
 csrf = CSRFProtect(app)  # CSRF Form Protection
 api = "https://127.0.0.1:3000"
-""" Favicon """
+
+
+# Bypass python scoping using a class
+class Storage():
+    pass
+
+stor = Storage()
 
 class BRS():
     def __init__(self, request_json):
@@ -57,15 +63,24 @@ class BRS():
                 brs_dict[obj["tid"]] = [[obj["topic_name"], obj["cid"], obj["concept_name"]]]
         self.brs_dict = brs_dict
 
+# Initial Cache On First Launch
+stor.brs = BRS(requests.get("https://127.0.0.1:3000/bristlefrost/rootspring/shadowsight").json()).brs_dict
+
+
+@app.route("/api/internal/brs/cache/update")
+async def brs_request_loop():
+    print("NOTE: Updating cache on server request")
+    stor.brs = BRS(requests.get("https://127.0.0.1:3000/bristlefrost/rootspring/shadowsight").json()).brs_dict
+    return "OK", 201
+
 # A wrapper arount Quart's render_template to make life easier
 async def render_template(f, **kwargs):
     # This is a BristleRootShadow (brs) object which basically contains 
-    brs = BRS(requests.get("https://127.0.0.1:3000/bristlefrost/rootspring/shadowsight").json()).brs_dict
     if f.__contains__("login.html") or f.__contains__("register.html") or f.__contains__("reset"):
         login_register = True
     else:
         login_register = False
-    return await __rt__(f, username = session.get("username"), brs_list = brs, login_register = login_register, **kwargs)
+    return await __rt__(f, username = session.get("username"), brs_list = stor.brs, login_register = login_register, **kwargs)
 
 @app.route("/favicon.ico")
 async def favicon():
@@ -902,11 +917,8 @@ async def login_mfa(username, token):
     r = await request.form
     if "otp" not in r.keys():
         return await render_template("mfa.html", mode = "login", error = "Please enter the OTP from your authentication app", proposed_username = username)
-    try:
-        otp = str(int(r['otp'].replace(' ', '')))
-    except:
-        return await render_template("mfa.html", mode = "login", error = "OTP must be a 6 digit number", proposed_username = username)
-    if len(otp) != 6:
+    otp = str((r['otp'].replace(' ', '')))
+    if len(otp) != 6: # Take 5 in to account as well
         return await render_template("mfa.html", mode = "login", error = "OTP must be 6 digit number", proposed_username = username)
     rc = requests.post(api + "/auth/mfa", json = {
         "token": token,

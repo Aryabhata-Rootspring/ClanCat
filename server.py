@@ -17,7 +17,11 @@ import hashlib
 import hmac
 import math
 import pyotp
+import requests
+import config
+import logging
 inflect_engine = inflect.engine()
+logging.captureWarnings(True)
 
 SERVER_URL = "https://127.0.0.1:443"  # Main Server URL
 HASH_SALT = "66801b86-06ff-49c7-a163-eeda39b8cba9_66bc6c6c-24e3-11eb-adc1-0242ac120002_66bc6c6c-24e3-11eb-adc1-0242ac120002"
@@ -40,7 +44,6 @@ def error(*, code: str = None, html: str = None, support: bool = False, **kwargs
     return eMsg
 
 async def setup_db():
-    print("Setting up DB")
     __db = await asyncpg.create_pool(
         host="127.0.0.1", user="catphi", password="Rootspring11,", database="catphi"
     )  # Login stuff
@@ -379,7 +382,7 @@ class TopicPracticeNew(UserModel):
 # Basic Classes
 class catphi():
     @staticmethod
-    async def new(*, type, username, token, name = None, description = None, cid = None, tid = None, concept_title = None, question = None, correct_answer = None, answers = None, question_type = None, metaid = None, solution = None):
+    async def new(*, bt, type, username, token, name = None, description = None, cid = None, tid = None, concept_title = None, question = None, correct_answer = None, answers = None, question_type = None, metaid = None, solution = None):
         auth_check = await authorize_user(username, token)
         if auth_check == False:
             return {"error": "Not Authorized"}
@@ -430,6 +433,7 @@ class catphi():
                     solution,
                     0,
                 )
+            bt.add_task(server_watchdog) # Update the client
             return {"error": "1000"}
 
 
@@ -449,6 +453,7 @@ class catphi():
                 f"Type your content for concept {concept_title} here!",
                 cid
             )
+            bt.add_task(server_watchdog) #Update the client
             return {"error": "1000", "page_count": concept_count[0]["count"] + 1}
 
         while True:
@@ -463,7 +468,7 @@ class catphi():
                 description,
                 "arrow();",
             )
-
+            # No need to update the client here for this
         elif type == "subject":
             await db.execute(
                 "INSERT INTO subject_table (metaid, name, description) VALUES ($1, $2, $3)",
@@ -471,9 +476,9 @@ class catphi():
                 name,
                 description,
             )
+            bt.add_task(server_watchdog) # Update the client
 
         elif type == "topic":
-            print(id)
             await db.execute(
                 "INSERT INTO topic_table (name, description, topic_experiment, tid, metaid) VALUES ($1, $2, $3, $4, $5)",
                 name,
@@ -482,8 +487,13 @@ class catphi():
                 id,
                 metaid,
             )
+            bt.add_task(server_watchdog)# Update the client
         return {"error": "1000", id_table: id}
 
+def server_watchdog():
+    print("Watchdog: New Event Dispatched To Client")
+    requests.get(SERVER_URL + "/api/internal/brs/cache/update", verify = config.SECURE)
+    return
 
 @app.on_event("startup")
 async def startup():
@@ -570,7 +580,6 @@ async def reset_password_send(reset: AuthResetRequest, background_tasks: Backgro
     return {"error": "1000"}  # Success
 
 def send_email(email: str, reset_message: str = ""):
-    print("got here")
     email_session = smtplib.SMTP("smtp.gmail.com", 587)
     email_session.starttls()  # TLS for security
     email_session.login(SENDER_EMAIL, SENDER_PASS)  # Email Auth
@@ -612,11 +621,16 @@ async def reset_password_change(reset: AuthResetChange, background_tasks: Backgr
         if login_creds is not None:
             continue
         flag = False
+    reset_message = "Subject: Your CCTP Password Was Just Reset\n\nYour CatPhi password was just reset\n\nIf you didn't authorize this action, please change your password immediately"
+    # Add the two background tasks and return
+    background_tasks.add_task(send_email, login_cred["email"], reset_message)
+    background_tasks.add_task(reset_backend, password, token, new_token)
+    return {"error": "1000"}  # Success
+
+# Background task to update db on reset
+async def reset_backend(password: str, token: str, new_token: str):
     await db.execute("UPDATE login SET password = $1, token = $3 WHERE token = $2", password, token, new_token)
     await db.execute("UPDATE login SET status = 0 WHERE token = $1", new_token)
-    reset_message = "Subject: Your CCTP Password Was Just Reset\n\nYour CatPhi password was just reset\n\nIf you didn't authorize this action, please change your password immediately"
-    background_tasks.add_task(send_email, login_cred["email"], reset_message)
-    return {"error": "1000"}  # Success
 
 
 # This checks if the reset request is in resetDict and
@@ -727,7 +741,6 @@ async def multi_factor_authentication_enable(mfa: AuthMFARequest, background_tas
     if mfa.token not in mfaNewDict.keys():
         return error(code = "FORBIDDEN", html = "Forbidden Request", support = True) # The other steps have not yet been done yet 
     otp = pyotp.TOTP(mfaNewDict[mfa.token]["key"])
-    print(mfa.otp)
     if otp.verify(mfa.otp) is False:
         return error(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
     await db.execute("UPDATE login SET mfa = $1, mfa_shared_key = $2 WHERE token = $3", True, mfaNewDict[mfa.token]["key"], mfa.token)
@@ -777,41 +790,38 @@ async def account_recovery(account: AuthRecoveryRequest):
 
 
 @app.post("/auth/register", tags = ["Authentication", "Registration"])
-async def register(register: AuthRegisterRequest):
+async def register(register: AuthRegisterRequest, background_tasks: BackgroundTasks):
     username = register.username
     password = pwd_context.hash("Shadowsight1" + HASH_SALT + username + register.password)
     email = register.email
     login_creds = await db.fetchrow(
         "SELECT token from login WHERE username = $1 OR email = $2", username, email
     )
-    print(login_creds)
     if login_creds is not None:
         # That username or email is in use
         return error(code = "USERNAME_OR_EMAIL_IN_USE", html = "That username or email is currently in use. Please try using another one")
     flag = True
     while flag:
-        # Keep getting and checking token with DB
+        # Keep getting and checking token and account backup key with DB
         token = get_token(1037)
-        login_creds = await db.fetchrow(
-            "SELECT username from login WHERE token = $1", token
-        )
-        if login_creds is not None:
-            continue
-        flag = False
-
-    # Create account recovery code/backup key
-    flag = True
-    while flag:
         backup_key = ""
         for i in range(0, 3):
             backup_key += pyotp.random_hex()
         login_creds = await db.fetchrow(
-            "SELECT username from login WHERE backup_key = $1", backup_key
+            "SELECT username from login WHERE token = $1 OR backup_key = $2", 
+            token,
+            backup_key
         )
         if login_creds is not None:
             continue
         flag = False
 
+    # Registration Validation Was Successful. Add the background task to add the user to the database and exit
+    background_tasks.add_task(register_backend, token, username, password, email, backup_key)
+    return error(code = None, token = token, backup_key = backup_key)
+
+
+async def register_backend(token: str, username: str, password: str, email: str, backup_key: str):
     await db.execute(
         "INSERT INTO login (token, username, password, email, status, scopes, mfa, backup_key) VALUES ($1, $2, $3, $4, 0, $5, $6, $7);",
         token,
@@ -832,8 +842,6 @@ async def register(register: AuthRegisterRequest):
         "apprentice",
         "experience:0",
     )
-    # Login Was Successful!
-    return error(code = None, token = token, backup_key = backup_key)
 
 
 # Profile
@@ -856,20 +864,17 @@ async def change_visibility(pvr: ProfileVisibleRequest):
     if pvr.state == "disable":
         if is_admin:
             return {"error": "1002"}
-        print("Disabling account")
         state = "private" # Make the profile private on disable
         if pvr.disable_state is not None and is_admin:
             status = int(pvr.disable_state) # Admin disable
         else:
             status = 1
-        print(status)
         await db.execute(
             "UPDATE login SET status = $1 WHERE username = $2", status, pvr.username
         )
 
     # For account re-enabling, first make sure the state is not 2 (admin disable) unless the user doing this is an admin
     elif pvr.state == "enable":
-        print("Verifying request")
         status = await db.fetchrow(
             "SELECT status, scopes FROM login WHERE username = $1", pvr.username
         )
@@ -1032,24 +1037,24 @@ async def profile_track_reader(tid: str, username: str):
 # New Stuff!!!
 
 @app.post("/experiment/new", tags = ["Experiments"])
-async def new_experiment(experiment: GenericExperimentNew):
-    return await catphi.new(type="experiment", username = experiment.username, token = experiment.token, description = experiment.description)
+async def new_experiment(experiment: GenericExperimentNew, bt: BackgroundTasks):
+    return await catphi.new(type="experiment", bt = bt, username = experiment.username, token = experiment.token, description = experiment.description)
 
 @app.post("/topics/new", tags = ["Topics"])
-async def new_topic(topic: TopicNew):
-    return await catphi.new(type="topic", username = topic.username, token = topic.token, name = topic.name, description = topic.description, metaid = topic.metaid)
+async def new_topic(topic: TopicNew, bt: BackgroundTasks):
+    return await catphi.new(type="topic", bt = bt, username = topic.username, token = topic.token, name = topic.name, description = topic.description, metaid = topic.metaid)
 
 @app.post("/subjects/new", tags = ["Subjects"])
-async def new_subject(subject: SubjectNew):
-    return await catphi.new(type="subject", username = subject.username, token = subject.token, name = subject.name, description = subject.description)
+async def new_subject(subject: SubjectNew, bt: BackgroundTasks):
+    return await catphi.new(type="subject", bt = bt, username = subject.username, token = subject.token, name = subject.name, description = subject.description)
 
 @app.post("/topics/concepts/new", tags = ["Concepts"])
-async def new_concept(concept: ConceptNew):
-    return await catphi.new(type="concept", username = concept.username, token = concept.token, tid = concept.tid, concept_title = concept.title)
+async def new_concept(concept: ConceptNew, bt: BackgroundTasks):
+    return await catphi.new(type="concept", bt = bt, username = concept.username, token = concept.token, tid = concept.tid, concept_title = concept.title)
 
 @app.post("/topics/practice/new", tags = ["Topics", "Topic Practice"])
-async def new_topic_practice(topic_practice: TopicPracticeNew): 
-    return await catphi.new(type="topic_practice", username = topic_practice.username, token = topic_practice.token, question_type = topic_practice.type, tid = topic_practice.tid, question = topic_practice.question, correct_answer = topic_practice.correct_answer, answers = topic_practice.answers, solution = topic_practice.solution)
+async def new_topic_practice(topic_practice: TopicPracticeNew, bt: BackgroundTasks): 
+    return await catphi.new(type="topic_practice", bt = bt, username = topic_practice.username, token = topic_practice.token, question_type = topic_practice.type, tid = topic_practice.tid, question = topic_practice.question, correct_answer = topic_practice.correct_answer, answers = topic_practice.answers, solution = topic_practice.solution)
 
 # List Functions
 
