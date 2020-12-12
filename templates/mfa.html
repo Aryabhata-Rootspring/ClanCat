@@ -8,8 +8,10 @@
   {% if error %}
   	<p style="text-align: center; color: red;"><strong>{{error|safe}}</strong></p>
   {%endif%}
+  {% if done and mode == "backup" %}
+  {%else%}
   <br/>
-  <p style="text-align: center;"><strong>{%if mode == "login"%}This account is protected by Multi Factor Authentication.<br/>Please enter the code on your authentication app.{%elif mode == "setup"%}In order to continue enabling MFA, we need you to do a few things.{%elif mode == "backup"%}Please enter your backup code to disable MFA and restore access to your account.{%else%} Please type in the OTP from your authentication app in order to perform this action{%endif%}</strong></p><br/>
+  <p style="text-align: center;"><strong>{%if mode == "login"%}This account is protected by Multi Factor Authentication.<br/>Please enter the code on your authentication app.{%elif mode == "setup"%}In order to continue enabling MFA, we need you to do a few things.{%elif mode == "backup"%}Please enter your backup code to restore access to your account.{%else%} Please type in the OTP from your authentication app in order to perform this action{%endif%}</strong></p><br/>
   
   {%if mode == "setup"%}
 	<p style="text-align: center;">
@@ -32,13 +34,13 @@
 			Please enter {%if mode == 'backup'%}the backup code{%else%}the OTP from your authentication app{%endif%}
                 </div>
 	</div><br/>
-	<button type="submit" class="btn btn-primary">{%if mode == "login"%}Login{%elif mode == "setup" %}Enable MFA{%elif mode == "backup"%}Disable MFA{%else%}Verify OTP{%endif%}</button>
+	<button type="submit" class="btn btn-primary">{%if mode == "login"%}Login{%elif mode == "setup" %}Enable MFA{%elif mode == "backup"%}Recover Account{%else%}Verify OTP{%endif%}</button>
 	</form>
 	</div>
 	{%if mode != "backup"%}
 	<br/><br/><br/><br/><br/>
 	<p><strong>Lost your device?<strong></p>
-	<a href="/recovery/mfa/{{proposed_username}}"><button class="btn btn-primary">Use A Backup Code</button></a>
+	<a href="/recovery"><button class="btn btn-primary">Recover Your Account</button></a>
 	{% endif %}
 	<br/><br/>
   </div>
@@ -61,5 +63,6 @@
   }, false);
 })();
 </script>
+{%endif%}
 {% endblock %}
 

@@ -31,12 +31,12 @@ def get_token(length: str) -> str:
     return secure_str
 
 def error(*, code: str = None, html: str = None, support: bool = False, **kwargs: str) -> dict:
-    eMsg = {"error_code": code, "context": kwargs}
+    eMsg = {"code": code, "context": kwargs}
     if html != None:
-        eMsg["error_html"] = f"<p style='text-align: center; color: red'>{html}"
+        eMsg["html"] = f"<p style='text-align: center; color: red'>{html}"
         if support is True:
-            eMsg["error_html"] += "<br/>Contact CatPhi Support for more information and support."
-        eMsg["error_html"] += "</p>"
+            eMsg["html"] += "<br/>Contact CatPhi Support for more information and support."
+        eMsg["html"] += "</p>"
     return eMsg
 
 async def setup_db():
@@ -72,11 +72,11 @@ async def setup_db():
     )
     # Represents a single login in the database
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT, status INTEGER, scopes TEXT, mfa BOOLEAN, mfa_shared_key TEXT, mfa_backup TEXT)"
+        "CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT, status INTEGER, scopes TEXT, mfa BOOLEAN, mfa_shared_key TEXT, backup_key TEXT)"
     )
     # Create an index for login
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS login_index ON login (token, username, password, email, status, scopes, mfa, mfa_shared_key, mfa_backup)"
+        "CREATE INDEX IF NOT EXISTS login_index ON login (token, username, password, email, status, scopes, mfa, mfa_shared_key, backup_key)"
     )
     # A profile of a user
     await __db.execute(
@@ -329,15 +329,14 @@ class AuthMFANewRequest(TokenModel):
 class AuthMFARequest(TokenModel):
     otp: str
 
-class AuthMFARecoveryRequest(BaseModel):
-    username: str
-    backup_code: str
-
 class AuthLogoutRequest(BaseModel):
     username: str
 
 class AuthRegisterRequest(AuthLoginRegister):
     email: str
+
+class AuthRecoveryRequest(BaseModel):
+    backup_key: str
 
 # Profile Models
 
@@ -710,25 +709,10 @@ async def multi_factor_authentication_disable(mfa: AuthMFARequest):
     return error(code = None)
 
 
-@app.post("/auth/mfa/recovery")
-async def multi_factor_authentication_recovery(mfa: AuthMFARecoveryRequest):
-    login_creds = await db.fetchrow(
-        "SELECT mfa, mfa_backup FROM login WHERE username = $1",
-        mfa.username,
-    )
-    if login_creds == None or login_creds["mfa"] in [None, False]:
-        return error(code = "MFA_DISABLED", html = "Either MFA is already disabled or your account does not exist. Try logging in normally")
-    if mfa.backup_code.upper() != login_creds["mfa_backup"].upper():
-        return error(code = "INVALID_BACKUP_CODE", html = "Invalid Backup Code. Please try again", support = False)
-    await db.execute("UPDATE login SET mfa = $1 WHERE username = $2", False, mfa.username)
-    return error(code = None)
-
-
-
 @app.post("/auth/mfa/setup/1", tags = ["Authentication", "MFA"])
 async def multi_factor_authentication_generate_shared_key(token: AuthMFANewRequest):
     login_creds = await db.fetchrow(
-        "SELECT mfa_shared_key, status, email FROM login WHERE token = $1",
+            "SELECT mfa_shared_key, status, email FROM login WHERE token = $1",
         token.token,
     )
     if login_creds == None or login_creds["status"] not in [None, 0]:
@@ -746,18 +730,54 @@ async def multi_factor_authentication_enable(mfa: AuthMFARequest, background_tas
     print(mfa.otp)
     if otp.verify(mfa.otp) is False:
         return error(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
-    backup_code = ""
-    for i in range(0, 3):
-        backup_code += pyotp.random_hex()
-    await db.execute("UPDATE login SET mfa = $1, mfa_shared_key = $2, mfa_backup = $3 WHERE token = $4", True, mfaNewDict[mfa.token]["key"], backup_code, mfa.token)
-    background_tasks.add_task(send_email, mfaNewDict[mfa.token]["email"], f"Hi there\n\nSomeone has just tried to enable MFA on your account. If it wasn't you, please take note of the following backup code: {backup_code} and disable and re-enable MFA immediately using your backup code.\n\nThank you and have a nice day!")
-    return error(code = None, backup_code = backup_code)
+    await db.execute("UPDATE login SET mfa = $1, mfa_shared_key = $2 WHERE token = $3", True, mfaNewDict[mfa.token]["key"], mfa.token)
+    background_tasks.add_task(send_email, mfaNewDict[mfa.token]["email"], f"Hi there\n\nSomeone has just tried to enable MFA on your account. If it wasn't you, please disable (and/or re-enable) MFA immediately using your backup code.\n\nThank you and have a nice day!")
+    return error(code = None)
+
+
+@app.post("/auth/recovery")
+async def account_recovery(account: AuthRecoveryRequest):
+    login_creds = await db.fetchrow(
+        "SELECT username, status FROM login WHERE backup_key = $1",
+        account.backup_key,
+    )
+    if login_creds is None:
+        return error(code = "INVALID_BACKUP_CODE", html = "Invalid Backup Code. Please try again", support = False)
+    elif login_creds["status"] == 2:
+        return error(code = "ACCOUNT_DISABLED", html = "Your account has been disabled by an administrator for violating our policies.", support = True)
+    
+    flag = True
+    while flag:
+        # Keep getting and checking token with DB (new token)
+        token = get_token(1037)
+        __login_creds = await db.fetchrow(
+            "SELECT username from login WHERE token = $1", token
+        )
+        if __login_creds is not None:
+            continue
+        flag = False
+
+    # Create new account recovery code/backup key
+    flag = True
+    while flag:
+        backup_key = ""
+        for i in range(0, 3):
+            backup_key += pyotp.random_hex()
+        __login_creds = await db.fetchrow(
+            "SELECT username from login WHERE backup_key = $1", backup_key
+        )
+        if __login_creds is not None:
+            continue
+        flag = False
+
+    def_password = pyotp.random_hex()
+    def_password_hashed = pwd_context.hash("Shadowsight1" + HASH_SALT + login_creds["username"] + def_password)
+    await db.execute("UPDATE login SET mfa = $1, password = $3, token = $4, backup_key = $5, status = 0 WHERE backup_key = $2", False, account.backup_key, def_password_hashed, token, backup_key)
+    return error(code = None, html = f"Your account has successfully been recovered.<br/>Username: {login_creds['username']}<br/>Temporary Password: {def_password}<br/>New Backup Key: {backup_key}<br/>Change your password as soon as you login")
 
 
 @app.post("/auth/register", tags = ["Authentication", "Registration"])
 async def register(register: AuthRegisterRequest):
-    # For every password and email, encode it to bytes and
-    # SHA512 to get hash
     username = register.username
     password = pwd_context.hash("Shadowsight1" + HASH_SALT + username + register.password)
     email = register.email
@@ -767,7 +787,7 @@ async def register(register: AuthRegisterRequest):
     print(login_creds)
     if login_creds is not None:
         # That username or email is in use
-        return {"error": "1001"}
+        return error(code = "USERNAME_OR_EMAIL_IN_USE", html = "That username or email is currently in use. Please try using another one")
     flag = True
     while flag:
         # Keep getting and checking token with DB
@@ -778,14 +798,29 @@ async def register(register: AuthRegisterRequest):
         if login_creds is not None:
             continue
         flag = False
+
+    # Create account recovery code/backup key
+    flag = True
+    while flag:
+        backup_key = ""
+        for i in range(0, 3):
+            backup_key += pyotp.random_hex()
+        login_creds = await db.fetchrow(
+            "SELECT username from login WHERE backup_key = $1", backup_key
+        )
+        if login_creds is not None:
+            continue
+        flag = False
+
     await db.execute(
-        "INSERT INTO login (token, username, password, email, status, scopes, mfa) VALUES ($1, $2, $3, $4, 0, $5, $6);",
+        "INSERT INTO login (token, username, password, email, status, scopes, mfa, backup_key) VALUES ($1, $2, $3, $4, 0, $5, $6, $7);",
         token,
         username,
         password,
         email,
         "user",
-        False
+        False,
+        backup_key
     )
     # Register their join date and add the first time registration badge
     await db.execute(
@@ -798,7 +833,7 @@ async def register(register: AuthRegisterRequest):
         "experience:0",
     )
     # Login Was Successful!
-    return {"error": "1000", "token": token}
+    return error(code = None, token = token, backup_key = backup_key)
 
 
 # Profile

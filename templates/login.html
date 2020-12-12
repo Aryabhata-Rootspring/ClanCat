@@ -10,7 +10,8 @@
   {%endif%}
   <br/>
   <div style="text-align: center;">
-	<form method='post' class="needs-validation" novalidate>
+	<div id = "meow" style="margin-bottom: 200px;">
+	<form method='post' style="margin-bottom: 3px;" class="needs-validation" novalidate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 	<div class="form-group">
 	   <div class="form-inline" style="justify-content: center; text-align: center;">
@@ -30,10 +31,11 @@
                         Please enter a password
                 </div>
 	   </div>
-		<small id="pwdHelp" class="form-text text-muted">Forgot your password? <a class="underline" href="/reset">Reset it now!</a></small>
+		<small id="pwdHelp" class="form-text text-muted">Need to recover your account? <a class="underline" href="/recovery/options">See recovery options!</a></small>
 	</div>
   	<button type="submit" class="btn btn-primary">Login</button>
-	</form><br/><br/>
+	</form><br/>
+	</div>
 	<h5>Or you can...</h5>
 	<a href="/topics"><button class="btn btn-primary">Continue As A Guest</button></a><br/><br/>
         <small id="pwdHelp" class="form-text" style="font-size: 16px; color: black;"><strong>Note:</strong> You won't be able to save any of your progress if you continue as a guest</small>

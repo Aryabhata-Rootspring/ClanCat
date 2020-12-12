@@ -9,6 +9,8 @@
 	</head>
 	<body>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r123/three.min.js" integrity="sha512-Q+IG0h7As6sfqE2t1Xf5IeamNyCXb4EXxGCA9Mlbpv7xtwurVHNdVDbyWeSQ3ulPf2FRlqeu77Ec3SJDdIR63w==" crossorigin="anonymous"></script>
+		<script src="https://hofk.de/main/threejs/sandboxthreef/THREEx.WindowResize.js"></script>
+		<script src="https://hofk.de/main/threejs/sandboxthreef/THREEf.js"></script>
 		<script>
 			// Our Javascript will go here.
 			const scene = new THREE.Scene();
@@ -17,17 +19,34 @@
 			const renderer = new THREE.WebGLRenderer();
 			renderer.setSize( window.innerWidth, window.innerHeight );
 			document.body.appendChild( renderer.domElement );
-			const geometry = new THREE.BoxGeometry();
-			const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-			const cube = new THREE.Mesh( geometry, material );
+			const geometry = new THREE.Geometry();
+			var materials = [
+				new THREE.MeshBasicMaterial( { transparent: true, opacity: 0.15, 	side: side	} ),	//  0 transparent
+				new THREE.MeshBasicMaterial( { map: uvTex, 							side: side	} ),	//  1 uv grid
+				new THREE.MeshPhongMaterial( { color: 0xff0000, emissive: 0xff0000, side: side	} ),	//  2 red
+				new THREE.MeshPhongMaterial( { color: 0x00ff00, emissive: 0x00ff00, side: side	} ),	//  3 green
+				new THREE.MeshPhongMaterial( { color: 0x0000ff, emissive: 0x0000ff, side: side	} ),	//  4 blue
+				new THREE.MeshPhongMaterial( { color: 0xffff00, emissive: 0xffff00, side: side	} ),	//  5 yellow
+				new THREE.MeshPhongMaterial( { color: 0xff00ff, emissive: 0xff00ff, side: side	} ),	//  6 mgenta
+				new THREE.MeshPhongMaterial( { color: 0x00ffff, emissive: 0x00ffff, side: side	} ),	//  7 cyan	
+				new THREE.MeshBasicMaterial( { map: waterlilyTex,					side: side	} ),	//  8 photo waterlily (free)
+				new THREE.MeshPhongMaterial( { color: 0x7755ff, emissive: 0x4433dd, side: side	} ),	//  9 color
+				new THREE.MeshPhongMaterial( { color: 0x444444, emissive: 0x333333, side: side	} )		// 10 grey
+			];
+			geometry.createMorphGeometry = THREEf.createMorphGeometry; // insert the method from THREEf	
+			geometry.createMorphGeometry({ 
+				 radius:		36,
+				 radiusSegments:	36,
+				 heightSegments:	36,
+				 rCircHeight:	function ( u, v, t ) { return 6 * v - Math.floor( 6 * v ) },
+				 moveX:		function ( v, t ) { return 4 * ( 0.5 - v ) * ( 0.5 - v ) }
+			});
+			var mesh01 = new THREE.Mesh( geometry, materials );
 			scene.add( cube );
 			
 			camera.position.z = 5;
 			function animate() {
 				requestAnimationFrame( animate );
-				cube.rotation.x += 0.01;
-				cube.rotation.y += 0.01;
-
 				renderer.render( scene, camera );
 			}
 			animate();

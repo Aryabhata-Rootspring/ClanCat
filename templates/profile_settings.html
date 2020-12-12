@@ -3,43 +3,47 @@
 <title role="banner">{{p_username}}'s profile - CatPhi</title>
 <meta name="description" content="Aryabhata Inc - CatPhi Dashboard">
 <style>
-	.dash-important {
-		text-align: center;
-		border-style: solid;
-		background-color: blue;
-		color: white;
-		border-radius: 15px;
-		padding: 4px;
-	}
-	.flex-container {
-  		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
+        hr {
+                background-color: black;
+        }
+        img {
+                border-radius: 50%;
+        }
 </style>
 {% endblock %} 
 {% block content %}
-  <h2 style="text-align: center;"><strong>Settings for {{p_username}}</strong></h2>
+  <h2 style="text-align: center;"><strong>{{p_username}}'s settings</strong></h2>
   	<div style="text-align: center;" class="profile_settings" role="profile_settings">
-                <h4><strong> Profile Status: </strong>{{private}}</h4>
+                <h4><strong>Profile Status: </strong>{{private}}</h4>
 			{% if private == "Private" %}
 			<a href="/profile/{{p_username}}/me/state/public"><button class="btn btn-primary">Make Public</button></a>
 			{% else %}
 			<a href="/profile/{{p_username}}/me/state/private"><button class="btn btn-primary">Make Private</button></a>
 			{% endif %}
-			<br/><br/>
+			<hr/>
+			<h5><strong>Listing</strong></h5>
 			{% if listing == "Disabled" %}
 			<a href="/profile/{{p_username}}/me/list/allow"><button class="btn btn-primary">Allow Listing</button></a>
 			{% else %}
 			<a href="/profile/{{p_username}}/me/list/block"><button class="btn btn-primary">Block Listing</button></a>
 			{% endif %}
+			<hr/>
+                        <h5><strong>Security</strong></h5>
+                        <a href="/profile/{{p_username}}/me/account/username/change"><button class="btn btn-primary">Change Username</button></a>
+			<br/><br/>
+                        <a href="/profile/{{p_username}}/me/account/password/change"><button class="btn btn-primary">Change Password</button></a>
 			<br/><br/>
 			{% if mfa %}
-                        <a href="/profile/{{p_username}}/me/mfa/disable"><button class="btn btn-primary">Disable Multi Factor Authentication</button></a>
+			<h6>MFA is currently enabled</h6>
+			<a href="/profile/{{p_username}}/me/mfa/disable"><button class="btn btn-primary">Disable MFA</button></a><br/>
+			<small class="form-text text-muted">It is not recommended to do this at all</small>
 			{% else %}
-                        <a href="/profile/{{p_username}}/me/mfa/enable"><button class="btn btn-primary">Enable Multi Factor Authentication</button></a>
+                        <h6>MFA is currently disabled</h6>
+                        <a href="/profile/{{p_username}}/me/mfa/enable"><button class="btn btn-primary">Enable MFA</button></a>
+                        <small class="form-text text-muted">It is highly recommended that you do this</small>
 			{%endif%}
-			<br/><br/><br/><br/><br/>
-			<a href="/profile/me/delete"><button class="btn btn-danger">Delete Account</button></a><br/>
+			<hr/><br/><br/>
+                        <h5 style="color: red"><strong>DANGER ZONE</strong></h5>
+			<a href="/profile/{{p_username}}/me/profile/delete"><button class="btn btn-danger">Delete Account</button></a><br/>
 	</div>
 {% endblock %}

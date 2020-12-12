@@ -431,7 +431,7 @@ async def profile_mfa_set(username, state):
             rc = requests.post(api + "/auth/mfa/setup/1", json = {
                 "token": session.get("token")
             }).json()
-            if rc["error_code"] != None:
+            if rc["code"] != None:
                 return redirect("/logout")
             session["mfa_key"] = rc["context"]["key"]
             return await render_template("mfa.html", mode = "setup", key = rc["context"]["key"])
@@ -444,10 +444,10 @@ async def profile_mfa_set(username, state):
                 "token": session.get("token"),
                 "otp": obj["otp"]
             }).json()
-            if rc["error_code"] != None:
-                return await render_template("mfa.html", mode = "setup", error = Markup(rc["error_html"]), key = session["mfa_key"])
+            if rc["code"] != None:
+                return await render_template("mfa.html", mode = "setup", error = Markup(rc["html"]), key = session["mfa_key"])
             del session["mfa_key"]
-            return await render_template("mfa_backup_keys.html", backup_code = rc["context"]["backup_code"])
+            return redirect("/settings/" + username)
 
     if state == "disable":
         if request.method == "GET":
@@ -460,9 +460,29 @@ async def profile_mfa_set(username, state):
                 "token": session.get("token"),
                 "otp": obj["otp"]
             }).json()
-            if rc["error_code"] != None:
-                return await render_template("mfa.html", mode = "disable", error = Markup(rc["error_html"]))
+            if rc["code"] != None:
+                return await render_template("mfa.html", mode = "disable", error = Markup(rc["html"]))
             return redirect("/settings/" + username)
+
+# TODO
+@app.route("/profile/<username>/me/account/username/change", methods = ["GET", "POST"])
+async def profile_change_username(username):
+    return f"<script>alert('Not yet ready yet. TODO'); window.location.replace('https://127.0.0.1/settings/{username}');</script>"
+
+# TODO
+@app.route("/profile/<username>/me/account/password/change", methods = ["GET", "POST"])
+async def profile_change_password(username):
+    return f"<script>alert('Not yet ready yet. TODO'); window.location.replace('https://127.0.0.1/settings/{username}');</script>"
+
+# TODO
+@app.route("/profile/<username>/me/list/block")
+async def profile_list_block(username):
+    return f"<script>alert('Not yet ready yet. TODO'); window.location.replace('https://127.0.0.1/settings/{username}');</script>"
+
+@app.route("/profile/<username>/me/list/allow")
+async def profile_list_allow(username):
+    return f"<script>alert('Not yet ready yet. TODO'); window.location.replace('https://127.0.0.1/settings/{username}');</script>"
+
 
 @app.route("/profile/<username>")
 async def profile(username):
@@ -473,13 +493,13 @@ async def profile(username):
         profile = requests.get(
             api + "/profile?username=" + username + "&token=" + session.get("token")
         ).json()
-    if profile.get("error_code") == "PRIVATE_PROFILE":
+    if profile.get("code") == "PRIVATE_PROFILE":
         return await render_template(
             "generic_error.html",
             header="Profile Error",
             error="Profile is private",
         )
-    elif profile.get("error_code") == "INVALID_PROFILE":
+    elif profile.get("code") == "INVALID_PROFILE":
         return await render_template(
             "generic_error.html",
             header="Profile Error",
@@ -792,14 +812,14 @@ async def register():
         },
     )
     rc = rc.json()
-    if rc["error"] == "1000":
+    if rc["code"] == None:
         session["username"] = r["username"]
-        session["token"] = rc["token"]
-        return redirect("/redir")
-    if rc["error"] == "1001":
+        session["token"] = rc["context"]["token"]
+        return await render_template("backup_key.html", backup_key = rc["context"]["backup_key"])
+    else:
         return await render_template(
             "register.html",
-            error="That username or email is in use right now.",
+            error=rc["html"],
         )
 
 
@@ -844,7 +864,7 @@ async def login():
     rc = rc.json()
     if rc["context"].get("mfaChallenge") != None:
         return redirect(f"/login/mfa/{r['username']}/{rc['context']['mfaToken']}")
-    elif rc["error_code"] == None:
+    elif rc["code"] == None:
         rc = rc["context"] # Get the status context
         session.clear() # remove old session
         # Check if the user is an admin
@@ -855,12 +875,12 @@ async def login():
         session["username"] = r["username"]
         session["token"] = rc["token"]
         return redirect("/topics")
-    if rc["error_code"] == "INVALID_USER_PASS":
+    if rc["code"] == "INVALID_USER_PASS":
         return await render_template(
             "login.html",
-            error=Markup(rc["error_html"]),
+            error=Markup(rc["html"]),
         )
-    if rc["error_code"] == "ACCOUNT_DISABLED":
+    if rc["code"] == "ACCOUNT_DISABLED":
         if rc["context"]["status"] == 1:
             msg = "We could not log you in as you have disabled your account. Please click <a href='/reset'>here</a> to reset your password and re-enable your account"
         elif rc["context"]["status"] == 2:
@@ -892,9 +912,9 @@ async def login_mfa(username, token):
         "token": token,
         "otp": otp
     }).json()
-    if rc["error_code"] != None:
-        return await render_template("mfa.html", mode = "login", error = rc["error_html"], proposed_username = username)
-    elif rc["error_code"] == None:
+    if rc["code"] != None:
+        return await render_template("mfa.html", mode = "login", error = rc["html"], proposed_username = username)
+    elif rc["code"] == None:
         rc = rc["context"] # Get the status context
         session.clear() # remove old session
         # Check if the user is an admin
@@ -905,7 +925,7 @@ async def login_mfa(username, token):
         session["username"] = username
         session["token"] = rc["token"]
         return redirect("/topics")
-    if rc["error_code"] == "ACCOUNT_DISABLED":
+    if rc["code"] == "ACCOUNT_DISABLED":
         if rc["context"]["status"] == 1:
             msg = "We could not log you in as you have disabled your account. Please click <a href='/reset'>here</a> to reset your password and re-enable your account"
         elif rc["context"]["status"] == 2:
@@ -919,25 +939,29 @@ async def login_mfa(username, token):
         )
     return rc
 
-@app.route("/recovery/mfa/<username>", methods = ["GET", "POST"])
-async def recovery_mfa(username):
+@app.route("/recovery", methods = ["GET", "POST"])
+async def recovery():
     if request.method == "GET":
-        return await render_template("mfa.html", mode = "backup")
+        return await render_template("mfa.html", mode = "backup", done = False)
     else:
         obj = await request.form
         if "otp" not in obj.keys() or len(obj["otp"]) == 0:
-            return await render_template("mfa.html", mode = "backup", error = "No backup code was entered")
-        rc = requests.post(api + "/auth/mfa/recovery", json = {
-            "username": username,
-            "backup_code": obj["otp"]
+            return await render_template("mfa.html", mode = "backup", error = "No backup key was entered", done = False)
+        rc = requests.post(api + "/auth/recovery", json = {
+            "backup_key": obj["otp"]
         }).json()
-        if rc["error_code"] != None:
-            return await render_template("mfa.html", mode = "backup", error = Markup(rc["error_html"]))
+        if rc["code"] != None:
+            return await render_template("mfa.html", mode = "backup", error = Markup(rc["html"]), done = False)
         return await render_template(
             "mfa.html",
             mode = "backup",
-            error="Account successfully recovered. Please login again",
+            error = Markup(rc["html"]),
+            done = True
         )
+
+@app.route("/recovery/options", methods = ["GET", "POST"])
+async def recovery_options():
+    return await render_template("recovery_options.html")
 
 @app.errorhandler(CSRFError)
 async def handle_csrf_error(e):

@@ -1,0 +1,22 @@
+{% extends 'template.html' %}
+{% block header %}
+<title role="banner">CatPhi - Backup Keys</title>
+<meta name="description" content="Aryabhata Inc - CatPhi Login">
+{% endblock %}
+{% block content %}
+<h3 style="text-align: center;"><strong>Backup Keys</strong></h3>
+  {% if error %}
+  	<p style="text-align: center; color: red;"><strong>{{error|safe}}</strong></p>
+  {%endif%}
+  <div style="text-align: center">
+  	<h4><strong>The below code is your backup key. Please keep this extremely safe as they are the only way to recover your account if you lose your email or lose your phone if you enable MFA/2FA. Note that resetting your account will reset your backup key. It will not be shown again after this unless you contact CatPhi Support and verify your identity</strong></h4><br/><br/><br/>
+  	<p style="margin-bottom: 30px;"><strong>Backup Key: {{backup_key}}</strong></p>
+	<br/>
+	<p><strong>How to use your backup key to recover your account:<br/>
+		Step 1: Logout (if you are currently logged in)<br/>
+		Step 2: Click the "Not logged in" button, then click "Login", finally click on the "See Recovery Options" link<br/>
+		Step 3: Click the "Recover Account" button and enter your backup code. Then click "Recover Account"<br/>
+		Step 4: Recovering your account will also disable MFA. You will receive a new backup key and a randomly generated password<br/></p>
+	<a href="/topics"><button class="btn btn-primary">Continue</button></a>
+  </div>
+{% endblock %}
