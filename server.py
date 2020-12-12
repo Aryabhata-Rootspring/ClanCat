@@ -433,7 +433,6 @@ class catphi():
                     solution,
                     0,
                 )
-            bt.add_task(server_watchdog) # Update the client
             return {"error": "1000"}
 
 

@@ -501,7 +501,7 @@ iframe {
         function track() {
                 post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/practice/{{qid}}/solve";
                 console.log(post_url);
-                post_data = {"csrf_token": "{{csrf_token()}}", "given_answer":  answer, "remaining_lives": lives - incorrect, "choices": null};
+                post_data = {"csrf_token": "{{csrf_token()}}", "given_answer":  answer, "remaining_lives": lives - incorrect, "choices": "1"};
                 $.post(post_url, post_data, function(data, status, jqXHR) {console.log(data.error)});
         }
 
@@ -512,17 +512,15 @@ iframe {
 
         window.addEventListener('load', function () {
                 cab = disableCab();
-		si = setInterval(inputListener, 0);
                 {% if solved%}
                         // Set the current thing
 			document.querySelector("#ans").value = "{{solved}}";
-                        if(document.querySelector("#ans") == "{{correct_answer}}") { // They got it correct
-                                c = true;
+                        if(document.querySelector("#ans").value == "{{correct_answer}}") { // They got it correct
+				c = true;
                                 cab = disableCab();
-                                showSolButton()
+                                showSolButton();
 				roinput();
                                 cab.innerHTML = "Let's move on, young explorer!"
-                                return;
                         }
                         lives = parseInt("{{lives}}")
                         if(lives == 0) {
@@ -537,6 +535,7 @@ iframe {
                                 showSolButton()
                         }
                 {% endif %}
+                si = setInterval(inputListener, 0);
 	})
 {% endif %}
 </script>

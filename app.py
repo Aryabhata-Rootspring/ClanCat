@@ -498,6 +498,10 @@ async def profile_list_block(username):
 async def profile_list_allow(username):
     return f"<script>alert('Not yet ready yet. TODO'); window.location.replace('https://127.0.0.1/settings/{username}');</script>"
 
+# TODO
+@app.route("/profile/<username>/me/profile/delete")
+async def profile_delete(username):
+    return f"<script>alert('Not yet ready yet. TODO'); window.location.replace('https://127.0.0.1/settings/{username}');</script>"
 
 @app.route("/profile/<username>")
 async def profile(username):
@@ -1129,7 +1133,7 @@ async def topic_practice_view(tid, qid):
         lives = None
         choices = None
         inans = None
-    print(solved, lives, choices)
+    print(solved, lives, choices, solved)
     return await render_template(
         "topic_practice.html",
         token = session.get("token"),
