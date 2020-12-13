@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>My first three.js app</title>
+		<style>
+			body { margin: 0; }
+		</style>
+	</head>
+	<body>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r123/three.min.js" integrity="sha512-Q+IG0h7As6sfqE2t1Xf5IeamNyCXb4EXxGCA9Mlbpv7xtwurVHNdVDbyWeSQ3ulPf2FRlqeu77Ec3SJDdIR63w==" crossorigin="anonymous"></script>
+		<script src="https://hofk.de/main/threejs/sandboxthreef/OrbitControls.js"></script>
+		<script src="https://hofk.de/main/threejs/sandboxthreef/THREEx.WindowResize.js"></script>
+		<script src="https://hofk.de/main/threejs/sandboxthreef/THREEf.js"></script>
+		<script>
+			// Our Javascript will go here.
+			var clock  = new THREE.Clock( true );	
+			var time;	// for animate .morphVertices( time ) and .morphFaces( time ) )
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 2000 );
+			camera.position.set( 800, 200, 0 );
+			var renderer = new THREE.WebGLRenderer( { antialias: true } );
+			renderer.setSize( window.innerWidth, window.innerHeight );
+                        renderer.setClearColor( 0xdddddd, 1 );  
+			document.body.appendChild( renderer.domElement );
+			var light1 = new THREE.PointLight( 0xffffff, 1, 0 );
+			light1.position.set( -100, 500, -700 ); 	
+			scene.add( light1 ); 
+			var light2 = new THREE.PointLight( 0xffffff, 1, 0 );
+			light2.position.set( 100, -100, 400 ); 	
+			scene.add( light2 ); 
+			THREEx.WindowResize( renderer, camera );
+			var controls = new THREE.OrbitControls( camera, renderer.domElement );
+			controls.enableZoom = true;
+			const geometry = new THREE.Geometry();
+			geometry.createMorphGeometry = THREEf.createMorphGeometry; // insert the method from THREEf	
+			geometry.createMorphGeometry({ 
+				 radius:		0.3333,
+				 height:		160,
+				 radiusSegments:	16,
+				 heightSegments:	500,
+				 centerX:	function ( v, t ) { return 0.5 * Math.sin( 10 * Math.PI * v ) },
+				 centerY:	function ( v, t ) { return v * ( v + 0.4 * ( 1 + Math.sin( t ) ) ) },
+				 centerZ:	function ( v, t ) { return 0.5 * Math.cos( 10 * Math.PI * v ) }
+			});
+			const material = new THREE.MeshBasicMaterial( { color: "#fc03f8" } );
+			var spring = new THREE.Mesh( geometry, material );
+			scene.add( spring );	
+			function animate() {
+				requestAnimationFrame( animate );
+				time = clock.getElapsedTime();
+				geometry.morphVertices(time * 1.5);
+				geometry.morphFaces( time * 1.5);		// for: materialBottom: 	function ( u, t ) { ... },
+				spring.rotation.y = 0.01 * time;		// standard THREE mesh methode
+				renderer.render( scene, camera );
+				controls.update();
+			}
+			animate();
+									
+		</script>
+	</body>
+</html>

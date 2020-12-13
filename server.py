@@ -34,7 +34,7 @@ def get_token(length: str) -> str:
     )
     return secure_str
 
-def error(*, code: str = None, html: str = None, support: bool = False, **kwargs: str) -> dict:
+def brsret(*, code: str = None, html: str = None, support: bool = False, **kwargs: str) -> dict:
     eMsg = {"code": code, "context": kwargs}
     if html != None:
         eMsg["html"] = f"<p style='text-align: center; color: red'>{html}"
@@ -59,11 +59,11 @@ async def setup_db():
     )
     # Represents a topic
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS topic_table (metaid TEXT, name TEXT, description TEXT, topic_experiment TEXT, tid TEXT)"
+        "CREATE TABLE IF NOT EXISTS topic_table (metaid TEXT, name TEXT, description TEXT, tid TEXT)"
     )
     # Create an index for the topics
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS topic_index ON topic_table (metaid, name, description, topic_experiment, tid)"
+        "CREATE INDEX IF NOT EXISTS topic_index ON topic_table (metaid, name, description, tid)"
     )
     # Represents a concept
     await __db.execute(
@@ -98,13 +98,13 @@ async def setup_db():
     await __db.execute(
         "CREATE INDEX IF NOT EXISTS profile_topic_index ON profile_topic (username, tid, done)"
     )
-    # All General Purpose Simulations for a concept (these are not linked to the concept itself)
+    # General Purpose Simulations
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS experiment_table (sid TEXT, description TEXT, code TEXT)"
+        "CREATE TABLE IF NOT EXISTS experiment_table (sid TEXT, description TEXT, code TEXT, type TEXT)"
     )
     # Generic Simulations (Experiments) Index
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS experiment_index ON experiment_table (sid, description, code)"
+        "CREATE INDEX IF NOT EXISTS experiment_index ON experiment_table (sid, description, code, type)"
     )
     # Topic Practice
     await __db.execute(
@@ -236,7 +236,7 @@ class UserPassModel(BaseModel):
 
 
 class Save(UserModel):
-    async def save_experiment(self, type):
+    async def save(self, type):
         if type not in ["topic", "generic", "concept", "topic_practice"]:
             return {"error": "Invalid Arguments"} # Invalid Arguments
 
@@ -251,8 +251,8 @@ class Save(UserModel):
             )
         elif type == "topic":
             await db.execute(
-                "UPDATE topic_table SET topic_experiment = $1 WHERE tid = $2",
-                self.code,
+                "UPDATE topic_table SET description = $1 WHERE tid = $2",
+                self.description,
                 self.tid,
             )
         elif type == "concept":
@@ -288,9 +288,9 @@ class Save(UserModel):
             )
         return {"error": "Successfully saved entity!"}
 
-class SaveTopicExperiment(Save):
+class SaveTopic(Save):
     tid: str
-    code: str
+    description: str
 
 class SaveTopicConcept(Save):
     tid: str
@@ -357,6 +357,7 @@ class ProfileTrackWriter(BaseModel):
 
 class GenericExperimentNew(UserModel):
     description: str
+    exp_type: Optional[str] = "glowscript"
 
 class TopicNew(UserModel):
     name: str
@@ -382,7 +383,7 @@ class TopicPracticeNew(UserModel):
 # Basic Classes
 class catphi():
     @staticmethod
-    async def new(*, bt, type, username, token, name = None, description = None, cid = None, tid = None, concept_title = None, question = None, correct_answer = None, answers = None, question_type = None, metaid = None, solution = None):
+    async def new(*, bt, type, username, token, name = None, description = None, cid = None, tid = None, concept_title = None, question = None, correct_answer = None, answers = None, question_type = None, metaid = None, solution = None, exp_type = "glowscript"):
         auth_check = await authorize_user(username, token)
         if auth_check == False:
             return {"error": "Not Authorized"}
@@ -462,10 +463,11 @@ class catphi():
                 break
         if type == "experiment":
             await db.execute(
-                "INSERT INTO experiment_table (sid, description, code) VALUES ($1, $2, $3)",
+                "INSERT INTO experiment_table (sid, description, code, type) VALUES ($1, $2, $3, $4)",
                 id,
                 description,
                 "arrow();",
+                exp_type
             )
             # No need to update the client here for this
         elif type == "subject":
@@ -479,10 +481,9 @@ class catphi():
 
         elif type == "topic":
             await db.execute(
-                "INSERT INTO topic_table (name, description, topic_experiment, tid, metaid) VALUES ($1, $2, $3, $4, $5)",
+                "INSERT INTO topic_table (name, description, tid, metaid) VALUES ($1, $2, $3, $4)",
                 name,
                 description,
-                "alert('This topic has not been setup yet');",
                 id,
                 metaid,
             )
@@ -511,32 +512,30 @@ async def root():
 # Experiments
 
 @app.get("/experiment/get", tags=["Experiments"])
-async def get_experiment(sid: str = None):
-    if sid == None:
-        return {"error": "0001"}  # Invalid Arguments
-    experiment = await db.fetchrow("SELECT description, code FROM experiment_table WHERE sid = $1", sid)
+async def get_experiment(sid: str):
+    experiment = await db.fetchrow("SELECT description, code, type FROM experiment_table WHERE sid = $1", sid)
     if experiment is None:
-        return {"error": "1001"}  # Not Authorized
-    return {"sid": sid, "description": experiment["description"], "code": experiment["code"]}
+        return brsret(code = "FORBIDDEN", html = "Forbidden Request")  # Not Authorized
+    return brsret(code = None, sid = sid, description = experiment["description"], exp_code = experiment["code"], type = experiment["type"])
 
 # Saving
 
 @app.post("/experiment/save", tags=["Experiments"])
 async def save_experiment(save: SaveExperiment):
-    return await save.save_experiment("generic")
+    return await save.save("generic")
 
 
-@app.post("/topics/experiment/save", tags=["Experiments", "Topic Experiments"])
-async def topic_experiment_save(save: SaveTopicExperiment):
-    return await save.save_experiment("topic")
+@app.post("/topics/save", tags=["Topics"])
+async def topic_save(save: SaveTopic):
+    return await save.save("topic")
 
 @app.post("/topics/concepts/save", tags=["Topics", "Concepts"])
 async def topic_concept_save(save: SaveTopicConcept):
-    return await save.save_experiment("concept")
+    return await save.save("concept")
 
 @app.post("/topics/practice/save", tags = ["Topics", "Topic Practice"])
 async def topic_practice_save(save: SaveTopicPractice):
-    return await save.save_experiment("topic_practice")
+    return await save.save("topic_practice")
 
 # Authentication Code
 
@@ -647,17 +646,17 @@ async def check_reset_token(token: str = None):
 @app.post("/auth/login", tags = ["Authentication", "Login/Logout"])
 async def login(login: AuthLoginRequest):
     if login.username is None or login.password is None:
-        return error(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
+        return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
     pwd = await db.fetchrow(
         "SELECT password, mfa from login WHERE username = $1",
         login.username
     )
     if pwd is None:
         # Invalid Username Or Password
-        return error(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
+        return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
 
     elif pwd_context.verify("Shadowsight1" + HASH_SALT + login.username + login.password, pwd["password"]) == False:
-        return error(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
+        return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
 
     # Check for MFA
     elif pwd["mfa"] is True:
@@ -667,7 +666,7 @@ async def login(login: AuthLoginRequest):
             if token not in mfaDict.values() and token not in mfaDict.keys():
                 flag = False
         mfaDict[token] = login.username
-        return error(mfaChallenge = "mfa", mfaToken = token)
+        return brsret(mfaChallenge = "mfa", mfaToken = token)
 
     login_creds = await db.fetchrow(
         "SELECT token, status, scopes from login WHERE username = $1",
@@ -679,31 +678,31 @@ async def login(login: AuthLoginRequest):
         pass
     else:
         # This account is flagged as disabled (1) or disabled-by-admin (2)
-        return error(code = "ACCOUNT_DISABLED", status = login_creds["status"]) # Flagged Account
-    return error(token = login_creds["token"], scopes = login_creds["scopes"])
+        return brsret(code = "ACCOUNT_DISABLED", status = login_creds["status"]) # Flagged Account
+    return brsret(token = login_creds["token"], scopes = login_creds["scopes"])
 
 
 @app.post("/auth/mfa", tags = ["Authentication", "MFA"])
 async def multi_factor_authentication(mfa: AuthMFARequest):
     if mfa.token not in mfaDict.keys():
-        return error(code = "FORBIDDEN", html = "Forbidden Request<br/>Try logging out and back in again", support = True) # Forbidden as mfa token is wrong
+        return brsret(code = "FORBIDDEN", html = "Forbidden Request<br/>Try logging out and back in again", support = True) # Forbidden as mfa token is wrong
     login_creds = await db.fetchrow(
         "SELECT mfa_shared_key, token, status, scopes FROM login WHERE username = $1",
         mfaDict[mfa.token],
     )
     if login_creds is None or login_creds["mfa_shared_key"] is None:
-        return error(code = "MFA_NOT_FOUND", html = "No MFA Shared Key was found.", support = True)
+        return brsret(code = "MFA_NOT_FOUND", html = "No MFA Shared Key was found.", support = True)
     mfa_shared_key = login_creds["mfa_shared_key"]
     otp = pyotp.TOTP(mfa_shared_key)
     if otp.verify(mfa.otp) is False:
-        return error(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
+        return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
     del mfaDict[mfa.token]
     if login_creds["status"] in [None, 0]:
         pass
     else:
         # This account is flagged as disabled (1) or disabled-by-admin (2)
-        return error(code =  "ACCOUNT_DISABLED", status = login_creds["status"]) # Flagged or disabled account
-    return error(token = login_creds["token"], scopes = login_creds["scopes"])
+        return brsret(code =  "ACCOUNT_DISABLED", status = login_creds["status"]) # Flagged or disabled account
+    return brsret(token = login_creds["token"], scopes = login_creds["scopes"])
 
 
 @app.post("/auth/mfa/disable", tags = ["Authentication", "MFA"])
@@ -713,13 +712,13 @@ async def multi_factor_authentication_disable(mfa: AuthMFARequest):
         mfa.token,
     )
     if login_creds is None or login_creds["mfa_shared_key"] is None:
-        return error(code = "MFA_NOT_FOUND", html = "No MFA Shared Key was found.", support = True)
+        return brsret(code = "MFA_NOT_FOUND", html = "No MFA Shared Key was found.", support = True)
     mfa_shared_key = login_creds["mfa_shared_key"]
     otp = pyotp.TOTP(mfa_shared_key)
     if otp.verify(mfa.otp) is False:
-        return error(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
+        return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
     await db.execute("UPDATE login SET mfa = $1 WHERE token = $2", False, mfa.token)
-    return error(code = None)
+    return brsret(code = None)
 
 
 @app.post("/auth/mfa/setup/1", tags = ["Authentication", "MFA"])
@@ -729,22 +728,22 @@ async def multi_factor_authentication_generate_shared_key(token: AuthMFANewReque
         token.token,
     )
     if login_creds == None or login_creds["status"] not in [None, 0]:
-        return error(code = "ACCOUNT_DISABLED_OR_DOES_NOT_EXIST") # Flagged or disabled account and/or account does not exist
+        return brsret(code = "ACCOUNT_DISABLED_OR_DOES_NOT_EXIST") # Flagged or disabled account and/or account does not exist
     key = pyotp.random_base32() # MFA Shared Key
     mfaNewDict[token.token] = {"key": key, "email": login_creds["email"]}
-    return error(code = None, key = key)
+    return brsret(code = None, key = key)
 
 
 @app.post("/auth/mfa/setup/2", tags = ["Authentication", "MFA"])
 async def multi_factor_authentication_enable(mfa: AuthMFARequest, background_tasks: BackgroundTasks):
     if mfa.token not in mfaNewDict.keys():
-        return error(code = "FORBIDDEN", html = "Forbidden Request", support = True) # The other steps have not yet been done yet 
+        return brsret(code = "FORBIDDEN", html = "Forbidden Request", support = True) # The other steps have not yet been done yet 
     otp = pyotp.TOTP(mfaNewDict[mfa.token]["key"])
     if otp.verify(mfa.otp) is False:
-        return error(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
+        return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
     await db.execute("UPDATE login SET mfa = $1, mfa_shared_key = $2 WHERE token = $3", True, mfaNewDict[mfa.token]["key"], mfa.token)
     background_tasks.add_task(send_email, mfaNewDict[mfa.token]["email"], f"Hi there\n\nSomeone has just tried to enable MFA on your account. If it wasn't you, please disable (and/or re-enable) MFA immediately using your backup code.\n\nThank you and have a nice day!")
-    return error(code = None)
+    return brsret(code = None)
 
 
 @app.post("/auth/recovery")
@@ -754,9 +753,9 @@ async def account_recovery(account: AuthRecoveryRequest):
         account.backup_key,
     )
     if login_creds is None:
-        return error(code = "INVALID_BACKUP_CODE", html = "Invalid Backup Code. Please try again", support = False)
+        return brsret(code = "INVALID_BACKUP_CODE", html = "Invalid Backup Code. Please try again", support = False)
     elif login_creds["status"] == 2:
-        return error(code = "ACCOUNT_DISABLED", html = "Your account has been disabled by an administrator for violating our policies.", support = True)
+        return brsret(code = "ACCOUNT_DISABLED", html = "Your account has been disabled by an administrator for violating our policies.", support = True)
     
     flag = True
     while flag:
@@ -785,7 +784,7 @@ async def account_recovery(account: AuthRecoveryRequest):
     def_password = pyotp.random_hex()
     def_password_hashed = pwd_context.hash("Shadowsight1" + HASH_SALT + login_creds["username"] + def_password)
     await db.execute("UPDATE login SET mfa = $1, password = $3, token = $4, backup_key = $5, status = 0 WHERE backup_key = $2", False, account.backup_key, def_password_hashed, token, backup_key)
-    return error(code = None, html = f"Your account has successfully been recovered.<br/>Username: {login_creds['username']}<br/>Temporary Password: {def_password}<br/>New Backup Key: {backup_key}<br/>Change your password as soon as you login")
+    return brsret(code = None, html = f"Your account has successfully been recovered.<br/>Username: {login_creds['username']}<br/>Temporary Password: {def_password}<br/>New Backup Key: {backup_key}<br/>Change your password as soon as you login")
 
 
 @app.post("/auth/register", tags = ["Authentication", "Registration"])
@@ -798,7 +797,7 @@ async def register(register: AuthRegisterRequest, background_tasks: BackgroundTa
     )
     if login_creds is not None:
         # That username or email is in use
-        return error(code = "USERNAME_OR_EMAIL_IN_USE", html = "That username or email is currently in use. Please try using another one")
+        return brsret(code = "USERNAME_OR_EMAIL_IN_USE", html = "That username or email is currently in use. Please try using another one")
     flag = True
     while flag:
         # Keep getting and checking token and account backup key with DB
@@ -817,7 +816,7 @@ async def register(register: AuthRegisterRequest, background_tasks: BackgroundTa
 
     # Registration Validation Was Successful. Add the background task to add the user to the database and exit
     background_tasks.add_task(register_backend, token, username, password, email, backup_key)
-    return error(code = None, token = token, backup_key = backup_key)
+    return brsret(code = None, token = token, backup_key = backup_key)
 
 
 async def register_backend(token: str, username: str, password: str, email: str, backup_key: str):
@@ -908,16 +907,16 @@ async def get_profile(username: str, token: str = None):
         username,
     )
     if profile_db is None:
-        return error(code = "INVALID_PROFILE")
+        return brsret(code = "INVALID_PROFILE")
     elif not profile_db["public"]:
         private = True
         if token is None:
-            return error(code = "PRIVATE_PROFILE")
+            return brsret(code = "PRIVATE_PROFILE")
         usertok = await db.fetchrow("SELECT username, scopes FROM login WHERE token = $1", token) # Get User Scopes
         if "admin" in usertok["scopes"].split(":") or usertok["username"] == username:
             pass
         else:
-            return error(code = "PRIVATE_PROFILE")
+            return brsret(code = "PRIVATE_PROFILE")
     else:
         private = False
     join_obj = profile_db['joindate']
@@ -1037,7 +1036,7 @@ async def profile_track_reader(tid: str, username: str):
 
 @app.post("/experiment/new", tags = ["Experiments"])
 async def new_experiment(experiment: GenericExperimentNew, bt: BackgroundTasks):
-    return await catphi.new(type="experiment", bt = bt, username = experiment.username, token = experiment.token, description = experiment.description)
+    return await catphi.new(type="experiment", bt = bt, username = experiment.username, token = experiment.token, description = experiment.description, exp_type = experiment.exp_type)
 
 @app.post("/topics/new", tags = ["Topics"])
 async def new_topic(topic: TopicNew, bt: BackgroundTasks):
@@ -1095,16 +1094,23 @@ async def bristlefrost_x_rootspring_x_shadowsight():
 
 # Get Functions
 
-@app.get("/topics/experiment/get", tags = ["Topics", "Topic Experiments"])
-async def get_topic_experiment(tid: str):
-    topic = await db.fetchrow("SELECT name, topic_experiment FROM topic_table WHERE tid = $1", tid)
-    if topic is None:
-        return {"error": "0002"}
-    elif topic["topic_experiment"] in ["", None]:
-        code = "alert('This topic has not yet been configured yet!');"
+@app.get("/topics/get", tags = ["Topics", "Topic Experiments"])
+async def get_topic(tid: str, simple: Optional[int] = 0):
+    """NOTE: Simple determines whether to just fetch the name or to fetch both the name and the description"""
+    if simple == 0:
+        topic = await db.fetchrow("SELECT name, description FROM topic_table WHERE tid = $1", tid)
     else:
-        code = topic["topic_experiment"]
-    return {"name": topic["name"], "code": code}
+        topic = await db.fetchrow("SELECT name FROM topic_table WHERE tid = $1", tid)
+    if topic is None:
+        return brsret(code = "TOPIC_DOES_NOT_EXIST", html = "This topic does not exist yet")
+    if simple == 0:
+        if topic["description"] in ["", None]:
+            topic_desc = "<script>alert('This topic has not yet been configured yet!');</script>"
+        else:
+            topic_desc = topic["description"]
+        return brsret(code = None, name = topic["name"], description = topic_desc)
+    else:
+        return brsret(code = None, name = topic["name"])
 
 @app.get("/topics/concepts/get/count", tags = ["Topics", "Concepts"])
 async def get_concept_count(tid: str):

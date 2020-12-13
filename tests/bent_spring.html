@@ -35,13 +35,13 @@
 			const geometry = new THREE.Geometry();
 			geometry.createMorphGeometry = THREEf.createMorphGeometry; // insert the method from THREEf	
 			geometry.createMorphGeometry({ 
-				 radius:		2,
-				 height:		160,
-				 radiusSegments:	16,
-				 heightSegments:	500,
-				 centerX:	function ( v, t ) { return 0.5 * Math.sin( 10 * Math.PI * v ) },
-				 centerY:	function ( v, t ) { return v * ( v + 0.4 * ( 1 + Math.sin( t ) ) ) },
-				 centerZ:	function ( v, t ) { return 0.5 * Math.cos( 10 * Math.PI * v ) }
+				 radius:		0.3333,
+				 height:		180,
+				 radiusSegments:	15,
+				 heightSegments:	400,
+				 centerX:	function ( v, t ) { return 0.5 * Math.sin( 11 * Math.PI * v ) },
+				 centerY:	function ( v, t ) { return v * ( v + 0.3 * ( Math.sin( t ) ) ) },
+				 centerZ:	function ( v, t ) { return 0.5 * Math.cos( 12 * Math.PI * v ) }
 			});
 			const material = new THREE.MeshBasicMaterial( { color: "#fc03f8" } );
 			var spring = new THREE.Mesh( geometry, material );
@@ -51,7 +51,7 @@
 				time = clock.getElapsedTime();
 				geometry.morphVertices(time * 1.5);
 				geometry.morphFaces( time * 1.5);		// for: materialBottom: 	function ( u, t ) { ... },
-				spring.rotation.y = 0.01 * time;		// standard THREE mesh methode
+				spring.rotation.y = 0.01 * time;		// standard THREE mesh method
 				renderer.render( scene, camera );
 				controls.update();
 			}

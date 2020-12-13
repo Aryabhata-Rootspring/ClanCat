@@ -90,15 +90,16 @@ async def favicon():
 async def test():
     return await render_template("test.html", a = {"a": "1"})
 
-@app.route("/topics/<tid>/edit")
+@app.route("/topics/<tid>/editmenu")
+@app.route("/topics/<tid>/editmenu/")
 async def topics_edit_menu(tid):
     if session.get("token") == None:
         session["redirect"] = "/topics/" + tid + "/edit"
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
-    topic_exp_json = requests.get(api + f"/topics/experiment/get?tid={tid}").json()  # Get the experiment pertaining to the concept
-    if topic_exp_json.get("error"):
+    topic_exp_json = requests.get(api + f"/topics/get?tid={tid}&simple=1").json()
+    if topic_exp_json.get("code") != None:
         return abort(404)
     return await render_template(
             "topic_edit_menu.html",
@@ -112,8 +113,8 @@ async def topic_edit_concepts(tid):
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
-    exp_json = requests.get(api + f"/topics/experiment/get?tid={tid}").json()  # Get the experiment pertaining to the topic
-    if exp_json.get("error"):
+    exp_json = requests.get(api + f"/topics/get?tid={tid}&simple=1").json()
+    if exp_json.get("code") != None:
         return abort(404)
     concepts_json = requests.get(api + f"/topics/concepts/list?tid={tid}").json()
     print(concepts_json)
@@ -143,7 +144,8 @@ async def topic_edit_concept(tid, cid):
     if concept_json.get("error") or int(cid) < 0:
         return abort(404)
     return await render_template(
-            "topic_concept_editor.html",
+            "editor.html",
+            type = "concept",
             tid=tid,
             cid=cid,
             content = Markup(concept_json.get("content").replace("<script", "").replace("</script", "")),
@@ -157,10 +159,8 @@ async def topic_new_concept(tid):
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
-    ejson = requests.get(
-        api + f"/topics/experiment/get?tid={tid}"
-    ).json()  # Get the experiment pertaining to the concept
-    if ejson.get("error"):
+    ejson = requests.get(api + f"/topics/get?tid={tid}&simple=1").json()
+    if ejson.get("code") != None:
         return abort(404)
     if request.method == "GET":
         return await render_template(
@@ -188,23 +188,24 @@ async def topic_new_concept(tid):
         return a
 
 
-@app.route("/topics/<tid>/edit/simulation")
-async def topics_edit_simulation(tid):
+@app.route("/topics/<tid>/edit")
+async def topics_edit_description(tid):
     if session.get("token") == None:
         session["redirect"] = "/topics/" + tid
         return redirect("/login")
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
     ejson = requests.get(
-        api + f"/topics/experiment/get?tid={tid}"
-    ).json()  # Get the experiment pertaining to the concept
-    if ejson.get("error"):
+        api + f"/topics/get?tid={tid}&simple=0" # We need the description here. No simple mode
+    ).json()
+    if ejson.get("code") != None:
         return abort(404)
     return await render_template(
-        "topic_simulation_editor.html",
+        "editor.html",
+        type = "topic",
         tid=tid,
         token=session.get("token"),
-        code=ejson["code"],
+        description=ejson["context"]["description"],
     )
 
 
@@ -216,15 +217,15 @@ async def experiment_edit_simulation(sid):
     elif session.get("admin") in [0, None, "0"]:
         return abort(401)
     ejson = requests.get(
-        api + f"/experiment/get?sid={sid}&username={session['username']}"
+        api + f"/experiment/get?sid={sid}"
     ).json()  # Get the experiment pertaining to the concept
-    if ejson.get("error"):
+    if ejson.get("code") != None:
         return abort(404)
     return await render_template(
         "generic_simulation_editor.html",
         sid=sid,
         token=session.get("token"),
-        code=ejson["code"],
+        code=ejson["context"]["exp_code"],
     )
 
 
@@ -232,10 +233,15 @@ async def experiment_edit_simulation(sid):
 async def new_simulation():
     if request.method == "POST":
         form = await request.form
+        if "exp_type" not in form.keys():
+            exp_type = "glowscript"
+        else:
+            exp_type = form["exp_type"]
         poster = requests.post(api + "/experiment/new", json = {
             "username": session.get("username"),
             "token": session.get("token"),
-            "description": form['description']
+            "description": form['description'],
+            "exp_type": exp_type
         }).json()
         return poster
     if session.get("token") == None:
@@ -282,12 +288,12 @@ async def new_practice_question(tid):
 @app.route("/iframe/<sid>")
 async def iframe_simulation(sid):
     simulation = requests.get(api + "/experiment/get?sid=" + sid).json()
-    if simulation.get("error"):
+    if simulation.get("code") != None:
         return abort(404)
     return await render_template(
         "iframe_simulation.html",
-        desc = simulation.get("description"),
-        code = simulation.get("code")
+        desc = simulation["context"]["description"],
+        code = simulation["context"]["exp_code"]
     )
 
 
@@ -722,21 +728,21 @@ async def reset_pwd():
         "/reset_confirm.html",  msg=msg
     )
 
-@app.route("/topics/<tid>/experiment/save", methods=["POST"])
+@app.route("/topics/<tid>/save", methods=["POST"])
 async def save_topics(tid):
     data = await request.form
     if (
         "username" not in data.keys()
         or "token" not in data.keys()
-        or "code" not in data.keys()
+        or "description" not in data.keys()
     ):
         return {"errpr": "Could not save data as required keys are not present"}
     a = requests.post(
-        api + "/topics/experiment/save",
+        api + "/topics/save",
         json={
             "username": data["username"],
             "token": data["token"],
-            "code": data["code"],
+            "description": data["description"],
             "tid": tid,
         },
     )
@@ -1017,18 +1023,15 @@ async def topics():
 @app.route("/topics/<tid>")
 @app.route("/topics/<tid>/")
 async def get_topic_index(tid):
-    topic_exp_json = requests.get(
-        api + f"/topics/experiment/get?tid={tid}"
-    ).json()  # Get the experiment pertaining to the topic
-    try:
-        if topic_exp_json.get("error") is not None:
-            return abort(404)
-    except TypeError:
+    topic_json = requests.get(
+        api + f"/topics/get?tid={tid}&simple=0"
+    ).json()  # Get the full topic info
+    if topic_json.get("code") != None:
         return abort(404)
     return await render_template(
-        "topic_simulation.html",
-        name=topic_exp_json["name"],
-        code=topic_exp_json["code"],
+        "topic_page.html",
+        name=topic_json["context"]["name"],
+        description=topic_json["context"]["description"],
         tid=tid,
         admin=session.get("admin"),
     )

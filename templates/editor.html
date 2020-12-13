@@ -23,7 +23,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"></script>
 </body>
 
-<button onclick="saveCode()" class="btn btn-primary">Save Concept</button>
+<button onclick="saveCode()" class="btn btn-primary">Save {%if type == "concept"%}Concept{% elif type == "topic" %}Topic{%endif%}</button>
 <button onclick="addSimu()" class="btn btn-primary">Embed Simulation</button>
 <div class="form-group">
   <label for="editor">Page Edit View</label>
@@ -31,7 +31,12 @@
 </div>
 <script>
 var editorTextArea = document.querySelector("#editor")
-var currentCode = _.unescape(`{{content}}`);
+{% if type == "code" %}
+	var currentCode = _.unescape(`{{content}}`);
+{% elif type == "topic" %}
+        var currentCode = _.unescape(`{{description}}`);
+{%endif%}
+
 console.log(CodeMirror.modes)
 var editor = CodeMirror.fromTextArea(editorTextArea, {
     lineNumbers: true,
@@ -40,9 +45,15 @@ var editor = CodeMirror.fromTextArea(editorTextArea, {
 editor.setValue(currentCode.replace("<br/>", ""));
 
 function saveCode() {
-	post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/concepts/{{cid}}/save";
-	console.log(post_url);
-	post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "code":  editor.getValue().replace("\n", "<br/>\n")};
+	{% if type == "concept" %}
+		post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/concepts/{{cid}}/save";
+		console.log(post_url);
+		post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "code":  editor.getValue().replace("\n", "<br/>\n")};
+	{% elif type == "topic" %}
+                post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/save";
+                console.log(post_url);
+                post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "description":  editor.getValue().replace("\n", "<br/>\n")};
+	{%endif%}
 	$.post(post_url, post_data, function(data, status, jqXHR) {alert(data.error)});
 	return
 }

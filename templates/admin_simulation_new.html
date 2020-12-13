@@ -14,8 +14,15 @@
 	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 	<div class="form-group">
     		<label for="topic">Simulation Description</label>
-    		<input style="margin: 2px" type="text" name='description' class="form-control" id='simu' aria-describedby="userHelp" placeholder='Simulation Description'>
+    		<input style="margin: 2px" type="text" name='description' class="form-control" id='simu' placeholder='Simulation Description'>
   	</div>
+	<div class="form-group">
+		<select name="exp_type" id="cars" class="form-control">
+			<option value="glowscript">Glowscript (Python)</option>
+			<option value="threejs">ThreeJS (JavaScript)</option>
+                        <option value="babylonjs">BabylonJS (JavaScript)</option>
+		</select> 
+	</div>
   	<button type="submit" class="btn btn-primary">Create Simulation</button>
 	</form>	
   </div>
