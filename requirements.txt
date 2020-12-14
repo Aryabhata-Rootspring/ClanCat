@@ -3,7 +3,7 @@ fastapi
 quart
 requests
 passlib
-uvicorn
+uvicorn[standard]
 wtforms
 inflect
 pyotp

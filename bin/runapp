@@ -1,6 +1,2 @@
-export REQUESTS_CA_BUNDLE=/home/bristlerootshadow/ClanCat/cert.pem
-
-export PYPY=/usr/local/pypy3.7-v7.3.3-linux64/bin/pypy
-
-sudo $PYPY -m uvicorn --port 443 --ssl-certfile cert.pem --host 0.0.0.0 --ssl-keyfile key.pem app:app
-
+uvicorn app:app --host 0.0.0.0 --port 10001 --proxy-headers # DEBUG
+#gunicorn app:app -w 4 -k uvicorn.workers.UvicornH11Worker --bind 0.0.0.0:10001

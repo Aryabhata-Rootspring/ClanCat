@@ -201,14 +201,15 @@ def get_new_badges(curr_badges, exp_points):
     return "||".join(new_badges), "||".join(curr_badges.split("||") + new_badges)
 
 
-
-
 class Settings(BaseSettings):
     openapi_url: str = "/rootspring/openapi.json"
 
 settings = Settings()
 
-app = FastAPI(openapi_url=settings.openapi_url)
+app = FastAPI(openapi_url=settings.openapi_url, root_path="/api", servers=[
+    {"url": "/", "description": "Frontend"},
+    {"url": "/api", "description": "Backend API"},
+    ])
 
 async def authorize_user(username, token):
     # Check if the username is even registered with us and if the username

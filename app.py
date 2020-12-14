@@ -42,7 +42,7 @@ app.config["SECRET_KEY"] = "qEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Ddrejrj3
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_SECURE"] = True
 csrf = CSRFProtect(app)  # CSRF Form Protection
-api = "https://127.0.0.1:3000"
+api = "https://127.0.0.1:443/api"
 
 
 # Bypass python scoping using a class
@@ -64,13 +64,13 @@ class BRS():
         self.brs_dict = brs_dict
 
 # Initial Cache On First Launch
-stor.brs = BRS(requests.get("https://127.0.0.1:3000/bristlefrost/rootspring/shadowsight").json()).brs_dict
+stor.brs = BRS(requests.get(api + "/bristlefrost/rootspring/shadowsight").json()).brs_dict
 
 
 @app.route("/api/internal/brs/cache/update")
 async def brs_request_loop():
     print("NOTE: Updating cache on server request")
-    stor.brs = BRS(requests.get("https://127.0.0.1:3000/bristlefrost/rootspring/shadowsight").json()).brs_dict
+    stor.brs = BRS(requests.get(api + "/bristlefrost/rootspring/shadowsight").json()).brs_dict
     return "OK", 201
 
 # A wrapper arount Quart's render_template to make life easier
@@ -592,33 +592,6 @@ async def dashref():
     if "username" not in session:
         return redirect("/login")
     return redirect("/profile/" + session.get("username"))
-
-
-# Actual Code
-@app.route("/index/<path:fn>")
-@app.route("/js/<path:fn>")
-@app.route("/<folder1>/js/<path:fn>")
-@app.route("/<folder1>/<folder2>/js/<path:fn>")
-@app.route("/<folder1>/<folder2>/<folder3>/js/<path:fn>")
-@app.route("/<folder1>/<folder2>/<folder3>/<folder4>/js/<path:fn>")
-async def js_server(fn, folder1=None, folder2=None, folder3=None, folder4=None):
-    if fn == "glow.js":
-        return redirect(
-            "/js/glow.3.0.min.js"
-        )  # Go to minified for this particular file
-    if re.match(r"^\w+$", fn) == False:
-        return abort(403)  # Using .. or <> in this route
-    elif fn == "jquery.min.js":
-        return redirect(
-            "https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"
-        )
-    try:
-        return await send_from_directory("static", fn, cache_timeout=300)
-    except FileNotFoundError:
-        return abort(
-            304
-        )  # Try to fail gracefully in case they already have the file in cache
-
 
 @app.route("/redir")
 async def redir():
