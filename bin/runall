@@ -1,1 +1,1 @@
-bin/runserver & bin/runapp
+bin/runserver & bin/runapp && kill $!
