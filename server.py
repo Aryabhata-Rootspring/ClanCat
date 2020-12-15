@@ -320,6 +320,10 @@ class SaveExperiment(Save):
     code: str
 
 # Auth Models
+class AuthUsernameEdit(MFAModel):
+    old_username: str
+    new_username: str
+    password: str
 
 class AuthResetRequest(BaseModel):
     username: Optional[str] = None
@@ -546,6 +550,68 @@ async def topic_practice_save(save: SaveTopicPractice):
     return await save.save("topic_practice")
 
 # Authentication Code
+
+@app.post("/auth/account/delete", tags = ["Authentication", "Profile"])
+async def delete_profile_and_account(request: ProfileDeleteRequest, bt: BackgroundTasks):
+    profile_db = await db.fetchrow(
+        "SELECT mfa, mfa_shared_key FROM login WHERE token = $1 AND username = $2",
+        request.token,
+        request.username
+    )
+    if profile_db == None:
+        return brsret(code = "INVALID_PROFILE")
+    elif profile_db["mfa"] is True:
+        if request.otp == None:
+            return brsret(code = "MFA_NEEDED", mfaChallenge = "mfa")
+        else:
+            otp = pyotp.TOTP(profile_db["mfa_shared_key"])
+            if otp.verify(request.otp) is False:
+                return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
+    bt.add_task(delete_disable_account_backend, request.token, request.username)
+    return brsret()
+
+async def delete_disable_account_backend(token: str, username: str):
+    # Delete the user from login and profile
+    await db.execute("DELETE FROM login WHERE token = $1", token)
+    await db.execute("DELETE FROM profile WHERE username = $1", username)
+
+
+@app.post("/auth/account/edit/username", tags = ["Authentication", "Profile"])
+async def edit_account_username(request: AuthUsernameEdit, bt: BackgroundTasks):
+    profile_db = await db.fetchrow(
+        "SELECT mfa, mfa_shared_key, password FROM login WHERE token = $1 AND username = $2",
+        request.token,
+        request.old_username
+    )
+    new_account_db = await db.fetchrow(
+        "SELECT mfa FROM login WHERE username = $1", 
+        request.new_username
+    )
+    if profile_db == None:
+        return brsret(code = "INVALID_PROFILE", html = "Invalid Profile.", support = True)
+    elif new_account_db != None:
+        return brsret(code = "USERNAME_TAKEN", html = "That username has been taken. Please choose another one")
+    elif profile_db["password"] == None:
+        # Invalid Username Or Password
+        return brsret(code = "INVALID_USER_PASS", html = "Account Recovery is needed.", support = False)
+    elif pwd_context.verify("Shadowsight1" + HASH_SALT + request.old_username + request.password, profile_db["password"]) == False:
+        return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
+    elif profile_db["mfa"] is True:
+        if request.otp == None:
+            return brsret(code = "MFA_NEEDED", mfaChallenge = "mfa")
+        else:
+            otp = pyotp.TOTP(profile_db["mfa_shared_key"])
+            if otp.verify(request.otp) is False:
+                return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
+    # Rehash the password
+    password = pwd_context.hash("Shadowsight1" + HASH_SALT + request.new_username + request.password)
+    bt.add_task(edit_account_backend, "username", request.token, request.new_username, password, request.old_username)
+    return brsret()
+
+async def edit_account_backend(mode: str, token: str, new_data: str, password: str, old_username: Optional[str] = None):
+    await db.execute(f"UPDATE login SET {mode} = $1, password = $2 WHERE token = $3", new_data, password, token)
+    if mode == "username":
+        await db.execute(f"UPDATE profile SET username = $1 WHERE username = $2", new_data, old_username)
 
 # Send a reset email (stage2 auth)
 @app.post("/auth/reset/send", tags = ["Authentication", "Password Reset"])
@@ -905,31 +971,6 @@ async def change_visibility(pvr: ProfileVisibleRequest):
             "UPDATE profile SET public = $1 WHERE username = $2", visible, pvr.username
         )
         return {"error": "1000"}
-
-
-@app.post("/profile/delete", tags = ["Authentication", "Profile"])
-async def delete_profile_and_account(request: ProfileDeleteRequest, bt: BackgroundTasks):
-    profile_db = await db.fetchrow(
-        "SELECT mfa, mfa_shared_key FROM login WHERE token = $1 AND username = $2",
-        request.token,
-        request.username
-    )
-    if profile_db == None:
-        return brsret(code = "INVALID_PROFILE")
-    elif profile_db["mfa"] is True:
-        if request.otp == None:
-            return brsret(code = "MFA_NEEDED", mfaChallenge = "mfa")
-        else:
-            otp = pyotp.TOTP(profile_db["mfa_shared_key"])
-            if otp.verify(request.otp) is False:
-                return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
-    bt.add_task(delete_disable_account_backend, request.token, request.username)
-    return brsret()
-
-async def delete_disable_account_backend(token: str, username: str):
-    # Delete the user from login and profile
-    await db.execute("DELETE FROM login WHERE token = $1", token)
-    await db.execute("DELETE FROM profile WHERE username = $1", username)
 
 
 @app.get("/profile", tags = ["Profile"])

@@ -485,11 +485,53 @@ async def profile_mfa_set(username, state):
                 return await render_template("mfa.html", mode = "disable", error = Markup(rc["html"]))
             return redirect("/settings/" + username)
 
-# TODO
 @app.route("/profile/<username>/me/account/username/change", methods = ["GET", "POST"])
 async def profile_change_username(username):
-    return f"<script>alert('Not yet ready yet. TODO'); window.location.replace('https://127.0.0.1/settings/{username}');</script>"
+    if request.method == "GET":
+        return await render_template("edit_account.html", mode = "username")
+    elif session.get("mfa_editaccount") == None:
+        form = await request.form
+        if "username" not in form.keys() or "password" not in form.keys() or form["username"].replace(" ", "") == "":
+            return await render_template("edit_account.html", mode = "username", error = "A username and password must be provided in order to change it")
+        new_username = form["username"]
+        rc = requests.post(api + "/auth/account/edit/username", json = {
+            "old_username": username,
+            "new_username": new_username,
+            "token": session.get("token"),
+            "password": form["password"]
+        }).json()
+        if rc["code"] == "MFA_NEEDED":
+            session["mfa_editaccount"] = [new_username, password]
+            return await render_template("mfa.html", mode = "username")
+        elif rc["code"] != None:
+                return await render_template("edit_account.html", mode = "username", error = Markup(rc.get("html")))
+    else:
+        new_username = session["mfa_editaccount"][0]
+        form = await request.form
+        if "otp" not in form.keys():
+            return await render_template("edit_account.html", mode = "username", error = "A username must be provided in order to change it")
+        rc = requests.post(api + "/auth/account/delete", json = {
+            "old_username": username,
+            "new_username": session["mfa_editaccount"][0],
+            "token": session.get("token"),
+            "password": session["mfa_editaccount"][1],
+            "otp": form["otp"]
+        }).json()
+        if rc["code"] != None:
+            return await render_template("mfa.html", mode = "delete", error = Markup(rc.get("html")))
+        del session["mfa_delaccount"]
 
+    session["username"] = new_username
+
+    # Wait for db to update
+    flag = True
+    while flag:
+        try:
+            await asyncio.sleep(2)
+            return redirect("/settings/" + new_username)
+            flag = False
+        except:
+            await asyncio.sleep(3)
 # TODO
 @app.route("/profile/<username>/me/account/password/change", methods = ["GET", "POST"])
 async def profile_change_password(username):
@@ -504,30 +546,32 @@ async def profile_list_block(username):
 async def profile_list_allow(username):
     return f"<script>alert('Not yet ready yet. TODO'); window.location.replace('https://127.0.0.1/settings/{username}');</script>"
 
-# TODO
 @app.route("/profile/<username>/me/profile/delete", methods = ["GET", "POST"])
 async def profile_delete(username):
     if request.method == "GET":
         return await render_template("danger_zone.html")
-    if session.get("mfa_delaccount") == None:
-        rc = requests.post(api + "/profile/delete", json = {
+    elif session.get("mfa_delaccount") == None:
+        rc = requests.post(api + "/auth/account/delete", json = {
             "username": username,
             "token": session.get("token")
         }).json()
         if rc["code"] == "MFA_NEEDED":
             session["mfa_delaccount"] = True
             return await render_template("mfa.html", mode = "delete")
+        elif rc["code"] != None:
+            return await render_template("mfa.html", mode = "delete", error = Markup(rc.get("html")))
     else:
         form = await request.form
         if "otp" not in form.keys():
             return await render_template("mfa.html", mode = "delete", error = "Invalid OTP")
-        rc = requests.post(api + "/profile/delete", json = {
+        rc = requests.post(api + "/auth/account/delete", json = {
             "username": username,
             "token": session.get("token"),
             "otp": form["otp"]
         }).json()
         if rc["code"] != None:
             return await render_template("mfa.html", mode = "delete", error = Markup(rc.get("html")))
+        del session["mfa_delaccount"]
     return redirect("/logout")
 
 @app.route("/profile/<username>")
@@ -549,7 +593,7 @@ async def profile(username):
         return await render_template(
             "generic_error.html",
             header="Profile Error",
-            error="Profile does not exist",
+            error="Profile either does not exist or is still being updated on our databases. Please check back in a few minutes once our databases are fully up to date.",
         )
     
     profile_owner = (session.get("username") == username or session.get("admin") == 1)
@@ -587,11 +631,11 @@ async def settings(username):
     profile = requests.get(
         api + "/profile?username=" + username + "&token=" + session.get("token")
     ).json()
-    if profile.get("error") == "1002":
+    if profile.get("code") == "INVALID_PROFILE":
         return await render_template(
             "generic_error.html",
             header="Profile Error",
-            error="Profile is private",
+            error="This profile is private or does not exist yet/is being updated. Please wait for our databases to be updated",
         )
     priv = profile['private']
     mfa = profile["mfa"]
