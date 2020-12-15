@@ -42,7 +42,7 @@ app.config["SECRET_KEY"] = "qEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Ddrejrj3
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_SECURE"] = True
 csrf = CSRFProtect(app)  # CSRF Form Protection
-api = "https://127.0.0.1:443/api"
+api = "https://127.0.0.1:443/api/v1"
 
 
 # Bypass python scoping using a class
@@ -505,9 +505,30 @@ async def profile_list_allow(username):
     return f"<script>alert('Not yet ready yet. TODO'); window.location.replace('https://127.0.0.1/settings/{username}');</script>"
 
 # TODO
-@app.route("/profile/<username>/me/profile/delete")
+@app.route("/profile/<username>/me/profile/delete", methods = ["GET", "POST"])
 async def profile_delete(username):
-    return f"<script>alert('Not yet ready yet. TODO'); window.location.replace('https://127.0.0.1/settings/{username}');</script>"
+    if request.method == "GET":
+        return await render_template("danger_zone.html")
+    if session.get("mfa_delaccount") == None:
+        rc = requests.post(api + "/profile/delete", json = {
+            "username": username,
+            "token": session.get("token")
+        }).json()
+        if rc["code"] == "MFA_NEEDED":
+            session["mfa_delaccount"] = True
+            return await render_template("mfa.html", mode = "delete")
+    else:
+        form = await request.form
+        if "otp" not in form.keys():
+            return await render_template("mfa.html", mode = "delete", error = "Invalid OTP")
+        rc = requests.post(api + "/profile/delete", json = {
+            "username": username,
+            "token": session.get("token"),
+            "otp": form["otp"]
+        }).json()
+        if rc["code"] != None:
+            return await render_template("mfa.html", mode = "delete", error = Markup(rc.get("html")))
+    return redirect("/logout")
 
 @app.route("/profile/<username>")
 async def profile(username):

@@ -1,6 +1,8 @@
 {%extends 'template.html'%}
-{%block reg%}
+{%block header%}
 <title role="banner">Error - CatPhi</title>
-<h2 style="text-align: center;">{{header}}</h2>
-<p style="text-align: center;">{{error}}</p>
+<h2 style="text-align: center; color: red"><strong>{{header|safe}}</strong></h2>
+{% endblock %}
+{% block content %}
+<p style="text-align: center; color: red">{{error|safe}}</p>
 {%endblock%}

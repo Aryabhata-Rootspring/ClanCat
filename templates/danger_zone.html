@@ -1,0 +1,10 @@
+{%extends 'template.html'%}
+{%block header%}
+<title role="banner">Danger Zone - CatPhi</title>
+<h2 style="text-align: center; color: red"><strong>Are you sure you want to do this?</strong></h2>
+<p style="text-align: center; color: red">Deleted accounts cannot be restored by CatPhi whatsoever.</p><br/>
+<form method='post' style="text-align: center; color: red">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <button class='btn btn-danger' style='text-align: center;'>Delete Account</button>
+</form>
+{% endblock %}

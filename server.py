@@ -206,9 +206,9 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-app = FastAPI(openapi_url=settings.openapi_url, root_path="/api", servers=[
+app = FastAPI(openapi_url=settings.openapi_url, root_path="/api/v1", servers=[
     {"url": "/", "description": "Frontend"},
-    {"url": "/api", "description": "Backend API"},
+    {"url": "/api/v1", "description": "Backend API"},
     ])
 
 async def authorize_user(username, token):
@@ -225,12 +225,19 @@ async def authorize_user(username, token):
         return False
     return True
 
+# Basic model for all authentication
 class TokenModel(BaseModel):
     token: str
 
+# Model for things that need MFA
+class MFAModel(TokenModel):
+    otp: Optional[str] = None
+
+# Basic model for things that need a username
 class UserModel(TokenModel):
     username: str
 
+# Basic model for things that need a username and password
 class UserPassModel(BaseModel):
     username: str
     password: str
@@ -321,22 +328,19 @@ class AuthResetRequest(BaseModel):
 class AuthResetChange(TokenModel):
     new_password: str
 
-class AuthLoginRegister(UserPassModel):
-    pass
-
-class AuthLoginRequest(AuthLoginRegister):
+class AuthLoginRequest(UserPassModel):
     pass
 
 class AuthMFANewRequest(TokenModel):
     pass
 
-class AuthMFARequest(TokenModel):
-    otp: str
+class AuthMFARequest(MFAModel):
+    pass
 
 class AuthLogoutRequest(BaseModel):
     username: str
 
-class AuthRegisterRequest(AuthLoginRegister):
+class AuthRegisterRequest(UserPassModel):
     email: str
 
 class AuthRecoveryRequest(BaseModel):
@@ -353,6 +357,9 @@ class ProfileTrackWriter(BaseModel):
     username: str
     status: str    
     cid: str
+
+class ProfileDeleteRequest(MFAModel):
+    username: str
 
 # **New Methods
 
@@ -747,7 +754,7 @@ async def multi_factor_authentication_enable(mfa: AuthMFARequest, background_tas
     return brsret(code = None)
 
 
-@app.post("/auth/recovery")
+@app.post("/auth/recovery", tags = ["Authentication", "Account Recovery"])
 async def account_recovery(account: AuthRecoveryRequest):
     login_creds = await db.fetchrow(
         "SELECT username, status FROM login WHERE backup_key = $1",
@@ -900,6 +907,31 @@ async def change_visibility(pvr: ProfileVisibleRequest):
         return {"error": "1000"}
 
 
+@app.post("/profile/delete", tags = ["Authentication", "Profile"])
+async def delete_profile_and_account(request: ProfileDeleteRequest, bt: BackgroundTasks):
+    profile_db = await db.fetchrow(
+        "SELECT mfa, mfa_shared_key FROM login WHERE token = $1 AND username = $2",
+        request.token,
+        request.username
+    )
+    if profile_db == None:
+        return brsret(code = "INVALID_PROFILE")
+    elif profile_db["mfa"] is True:
+        if request.otp == None:
+            return brsret(code = "MFA_NEEDED", mfaChallenge = "mfa")
+        else:
+            otp = pyotp.TOTP(profile_db["mfa_shared_key"])
+            if otp.verify(request.otp) is False:
+                return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
+    bt.add_task(delete_disable_account_backend, request.token, request.username)
+    return brsret()
+
+async def delete_disable_account_backend(token: str, username: str):
+    # Delete the user from login and profile
+    await db.execute("DELETE FROM login WHERE token = $1", token)
+    await db.execute("DELETE FROM profile WHERE username = $1", username)
+
+
 @app.get("/profile", tags = ["Profile"])
 async def get_profile(username: str, token: str = None):
     # Get the profile
@@ -907,7 +939,7 @@ async def get_profile(username: str, token: str = None):
         "SELECT profile.public, profile.joindate, profile.badges, profile.level, profile.items, login.scopes, login.mfa FROM profile INNER JOIN login ON profile.username = login.username WHERE profile.username = $1",
         username,
     )
-    if profile_db is None:
+    if profile_db == None:
         return brsret(code = "INVALID_PROFILE")
     elif not profile_db["public"]:
         private = True
