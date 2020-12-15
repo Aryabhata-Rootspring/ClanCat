@@ -611,7 +611,8 @@ async def edit_account_username(request: AuthUsernameEdit, bt: BackgroundTasks):
 async def edit_account_backend(mode: str, token: str, new_data: str, password: str, old_username: Optional[str] = None):
     await db.execute(f"UPDATE login SET {mode} = $1, password = $2 WHERE token = $3", new_data, password, token)
     if mode == "username":
-        await db.execute(f"UPDATE profile SET username = $1 WHERE username = $2", new_data, old_username)
+        await db.execute("UPDATE profile SET username = $1 WHERE username = $2", new_data, old_username)
+        await db.execute("UPDATE profile_topic SET username = $1 WHERE username = $2", new_data, old_username)
 
 # Send a reset email (stage2 auth)
 @app.post("/auth/reset/send", tags = ["Authentication", "Password Reset"])
