@@ -100,19 +100,25 @@ async def setup_db():
     )
     # General Purpose Simulations
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS experiment_table (sid TEXT, description TEXT, code TEXT, type TEXT)"
+        "CREATE TABLE IF NOT EXISTS experiments (sid TEXT, description TEXT, code TEXT, type TEXT)"
     )
     # Generic Simulations (Experiments) Index
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS experiment_index ON experiment_table (sid, description, code, type)"
+        "CREATE INDEX IF NOT EXISTS experiments_index ON experiments (sid, description, code, type)"
     )
     # Topic Practice
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS topic_practice_table (tid TEXT, qid INTEGER, type TEXT, question TEXT, answers TEXT, correct_answer TEXT, solution TEXT DEFAULT 'There is no solution for this problem yet!', recommended_time INTEGER)"
+        "CREATE TABLE IF NOT EXISTS topic_practice (tid TEXT, qid INTEGER, type TEXT, question TEXT, answers TEXT, correct_answer TEXT, solution TEXT DEFAULT 'There is no solution for this problem yet!', recommended_time INTEGER)"
     )
     # Topic Practice Index
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS topic_practice_index ON topic_practice_table (tid, qid, type, question, answers, correct_answer, solution, recommended_time)"
+        "CREATE INDEX IF NOT EXISTS topic_practice_index ON topic_practice (tid, qid, type, question, answers, correct_answer, solution, recommended_time)"
+        )
+    await __db.execute(
+        "CREATE TABLE IF NOT EXISTS topic_practice_tracker (username TEXT, tid TEXT, qid INTEGER, answer TEXT, lives TEXT, path TEXT)"
+    )
+    await __db.execute(
+        "CREATE INDEX IF NOT EXISTS topic_practice_index ON topic_practice_tracker (username, tid, qid, answer, lives, path)"
     )
     return __db
 
@@ -253,7 +259,7 @@ class Save(UserModel):
             return {"error": "Not Authorized"}
         if type == "generic":
             await db.execute(
-                "UPDATE experiment_table SET code = $1 WHERE sid = $2",
+                "UPDATE experiments SET code = $1 WHERE sid = $2",
                 self.code,
                 self.sid,
             )
@@ -284,7 +290,7 @@ class Save(UserModel):
         # tid TEXT, qid INTEGER, type TEXT, question TEXT, answers TEXT, correct_answer TEXT, solution TEXT DEFAULT 'There is no solution for this problem yet!', recommended_time INTEGER
         elif type == "topic_practice":
             await db.execute(
-                "UPDATE topic_practice_table SET type = $1, question = $2, answers = $3, correct_answer = $4, solution = $5, recommended_time = $6 WHERE tid = $7 AND qid = $8",
+                "UPDATE topic_practice SET type = $1, question = $2, answers = $3, correct_answer = $4, solution = $5, recommended_time = $6 WHERE tid = $7 AND qid = $8",
                 self.type,
                 self.question,
                 self.answers,
@@ -356,11 +362,17 @@ class ProfileVisibleRequest(UserModel):
     state: str
     disable_state: Optional[int] = None
 
-class ProfileTrackWriter(BaseModel):
+class ProfileTrackWriter(UserModel):
     tid: str
-    username: str
-    status: str    
-    cid: str
+    status: str 
+    cid: int
+
+class ProfileTrackPracticeWriter(UserModel):
+    tid: str
+    qid: int
+    answer: str
+    lives: str
+    path: str
 
 class ProfileDeleteRequest(MFAModel):
     username: str
@@ -403,7 +415,7 @@ class catphi():
             table = "subject_table"
             id_table = "metaid"
         elif type == "experiment":
-            table = "experiment_table"
+            table = "experiments"
             id_table = "sid"
         elif type == "topic":
             table = "topic_table"
@@ -420,12 +432,12 @@ class catphi():
             if len(solution) < 3:
                 solution = "There is no solution for this problem yet!"
             
-            practice_count = await db.fetch("SELECT COUNT(qid) FROM topic_practice_table WHERE tid = $1", tid)
+            practice_count = await db.fetch("SELECT COUNT(qid) FROM topic_practice WHERE tid = $1", tid)
             qid=practice_count[0]["count"] + 1 # Get the count + 1 for next concept
 
             if question_type == "MCQ":
                 await db.execute(
-                    "INSERT INTO topic_practice_table (qid, tid, type, question, correct_answer, answers, solution, recommended_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                    "INSERT INTO topic_practice (qid, tid, type, question, correct_answer, answers, solution, recommended_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
                     qid,
                     tid,
                     question_type,
@@ -437,7 +449,7 @@ class catphi():
                 )
             else:
                 await db.execute(
-                    "INSERT INTO topic_practice_table (qid, tid, type, question, correct_answer, solution, recommended_time) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                    "INSERT INTO topic_practice (qid, tid, type, question, correct_answer, solution, recommended_time) VALUES ($1, $2, $3, $4, $5, $6, $7)",
                     qid,
                     tid,
                     question_type,
@@ -475,7 +487,7 @@ class catphi():
                 break
         if type == "experiment":
             await db.execute(
-                "INSERT INTO experiment_table (sid, description, code, type) VALUES ($1, $2, $3, $4)",
+                "INSERT INTO experiments (sid, description, code, type) VALUES ($1, $2, $3, $4)",
                 id,
                 description,
                 "arrow();",
@@ -525,7 +537,7 @@ async def root():
 
 @app.get("/experiment/get", tags=["Experiments"])
 async def get_experiment(sid: str):
-    experiment = await db.fetchrow("SELECT description, code, type FROM experiment_table WHERE sid = $1", sid)
+    experiment = await db.fetchrow("SELECT description, code, type FROM experiments WHERE sid = $1", sid)
     if experiment is None:
         return brsret(code = "FORBIDDEN", html = "Forbidden Request")  # Not Authorized
     return brsret(code = None, sid = sid, description = experiment["description"], exp_code = experiment["code"], type = experiment["type"])
@@ -574,7 +586,8 @@ async def delete_disable_account_backend(token: str, username: str):
     # Delete the user from login and profile
     await db.execute("DELETE FROM login WHERE token = $1", token)
     await db.execute("DELETE FROM profile WHERE username = $1", username)
-
+    await db.execute("DELETE FROM profile_topic WHERE username = $1", username)
+    await db.execute("DELETE FROM topic_practice_tracker WHERE username = $1", username)
 
 @app.post("/auth/account/edit/username", tags = ["Authentication", "Profile"])
 async def edit_account_username(request: AuthUsernameEdit, bt: BackgroundTasks):
@@ -613,6 +626,7 @@ async def edit_account_backend(mode: str, token: str, new_data: str, password: s
     if mode == "username":
         await db.execute("UPDATE profile SET username = $1 WHERE username = $2", new_data, old_username)
         await db.execute("UPDATE profile_topic SET username = $1 WHERE username = $2", new_data, old_username)
+        await db.execute("UPDATE topic_practice_tracker SET username = $1 WHERE username = $2", new_data, old_username)
 
 # Send a reset email (stage2 auth)
 @app.post("/auth/reset/send", tags = ["Authentication", "Password Reset"])
@@ -713,12 +727,11 @@ async def reset_backend(password: str, token: str, new_token: str):
 @app.get("/auth/reset/check/token", tags = ["Authentication", "Password Reset"])
 async def check_reset_token(token: str = None):
     if token is None or token not in resetDict.values():
-        return {"status": "0"}
-    else:
-        return {"status": "1"}
+        return brsret(code = True)
+    return brsret(code = False)
 
 
-@app.post("/auth/login", tags = ["Authentication", "Login/Logout"])
+@app.post("/auth/login", tags = ["Authentication"])
 async def login(login: AuthLoginRequest):
     if login.username is None or login.password is None:
         return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
@@ -821,7 +834,7 @@ async def multi_factor_authentication_enable(mfa: AuthMFARequest, background_tas
     return brsret(code = None)
 
 
-@app.post("/auth/recovery", tags = ["Authentication", "Account Recovery"])
+@app.post("/auth/recovery", tags = ["Authentication"])
 async def account_recovery(account: AuthRecoveryRequest):
     login_creds = await db.fetchrow(
         "SELECT username, status FROM login WHERE backup_key = $1",
@@ -862,7 +875,7 @@ async def account_recovery(account: AuthRecoveryRequest):
     return brsret(code = None, html = f"Your account has successfully been recovered.<br/>Username: {login_creds['username']}<br/>Temporary Password: {def_password}<br/>New Backup Key: {backup_key}<br/>Change your password as soon as you login")
 
 
-@app.post("/auth/register", tags = ["Authentication", "Registration"])
+@app.post("/auth/register", tags = ["Authentication"])
 async def register(register: AuthRegisterRequest, background_tasks: BackgroundTasks):
     username = register.username
     password = pwd_context.hash("Shadowsight1" + HASH_SALT + username + register.password)
@@ -1050,6 +1063,10 @@ async def get_profile(username: str, token: str = None):
 # TODO: Add quizzes and other things
 @app.post("/profile/track", tags = ["Profile"])
 async def profile_track_writer(tracker: ProfileTrackWriter):
+    # First check if the user and token even exist
+    profile_db = await db.fetchrow("SELECT mfa FROM login WHERE username = $1 AND token = $2", tracker.username, tracker.token)
+    if profile_db is None:
+        return brsret(code = "USER_DOES_NOT_EXIST")
     mode = 0 # Do nothing mode
     entry = await db.fetchrow("SELECT profile_topic.done, profile.badges, profile.items FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username WHERE profile_topic.tid = $1 AND profile.username = $2", tracker.tid, tracker.username)
     if entry is None:
@@ -1057,12 +1074,12 @@ async def profile_track_writer(tracker: ProfileTrackWriter):
     elif entry["done"] is not True:
         mode = 2 # Update mode
     if mode == 1:
-        await db.execute("INSERT INTO profile_topic (username, tid, progress, done) VALUES ($1, $2, $3, $4)", tracker.username, tracker.tid, tracker.status + tracker.cid, False)
+        await db.execute("INSERT INTO profile_topic (username, tid, progress, done) VALUES ($1, $2, $3, $4)", tracker.username, tracker.tid, tracker.status + str(tracker.cid), False)
         entry = await db.fetchrow("SELECT profile_topic.done, profile.badges, profile.items FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username WHERE profile_topic.tid = $1 AND profile.username = $2", tracker.tid, tracker.username)
     elif mode == 2:
-        await db.execute("UPDATE profile_topic SET progress = $3 WHERE username = $1 AND tid = $2", tracker.username, tracker.tid, tracker.status + tracker.cid)
+        await db.execute("UPDATE profile_topic SET progress = $3 WHERE username = $1 AND tid = $2", tracker.username, tracker.tid, tracker.status + str(tracker.cid))
     elif mode == 0:
-        return {"error": "1000", "debug": mode}
+        return brsret(code = None, debug = mode)
 
     item_list = []
     for item in entry["items"].split("||"):
@@ -1078,34 +1095,71 @@ async def profile_track_writer(tracker: ProfileTrackWriter):
     new_badges = get_new_badges(entry["badges"], exp_points)
     if new_badges[0] == '':
         await db.execute("UPDATE profile SET items = $2 WHERE username = $1", tracker.username, items)
-        return {"error": "1000", "debug": mode}
+        return brsret(code = None, debug = mode)
     await db.execute("UPDATE profile SET badges = $2, items = $3 WHERE username = $1", tracker.username, new_badges[1], items)
-    return {"error": "1000", "debug": mode, "items": items, "new_badges": new_badges[0]}
-
+    return brsret(code = None, debug = mode, items = items, new_badges = new_badges[0])
 
 
 @app.get("/profile/track", tags = ["Profile"])
 async def profile_track_reader(tid: str, username: str):
     info = await db.fetchrow("SELECT progress, done FROM profile_topic WHERE username = $1 AND tid = $2", username, tid) # Get the page info
     if info is None or info["progress"] is None:
-        return {
-            "status": "LP", # Default State is LP
-            "cid": '1',
-            "done": '0',
-        }
+        return brsret(
+            status = "LP", # Default State is LP
+            cid = 1,
+            done = False,
+        )
     status = info["progress"][0] + info["progress"][1]
     cid = info["progress"][2:]
     done = info["done"]
     if done is not True:
-        done = '0'
+        done = False
     else:
-        done = '1'
-    return {
-        "status": status,
-        "cid": cid,
-        "done": done,
-    }
-    return {"error": "0001"}  # Invalid arguments (Default)
+        done = True
+    return brsret(
+        status = status,
+        cid = cid,
+        done = done,
+    )
+    return brsret(code = "INVALID_ARGUMENTS")  # Invalid arguments (Default)
+
+@app.post("/profile/track/practice", tags = ["Profile"])
+async def profile_track_writer(tracker: ProfileTrackPracticeWriter):
+    profile_db = await db.fetchrow("SELECT mfa FROM login WHERE username = $1 AND token = $2", tracker.username, tracker.token)
+    if profile_db is None:
+        return brsret(code = "USER_DOES_NOT_EXIST")
+    mode = 0 # Do nothing mode
+    entry = await db.fetchrow("SELECT profile_topic.done, profile.badges, profile.items FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username INNER JOIN topic_practice_tracker ON profile.username=topic_practice_tracker.username WHERE topic_practice_tracker.tid = $1 AND topic_practice_tracker.username = $2 AND topic_practice_tracker.qid = $3", tracker.tid, tracker.username, tracker.qid)
+    if entry is None:
+        mode = 1 # Don't update, use insert statement mode
+    elif entry["done"] is not True:
+        mode = 2 # Update mode
+    if mode == 1:
+        await db.execute("INSERT INTO topic_practice_tracker (username, tid, qid, answer, lives, path) VALUES ($1, $2, $3, $4, $5, $6)", tracker.username, tracker.tid, tracker.qid, tracker.answer, tracker.lives, tracker.path)
+        entry = await db.fetchrow("SELECT profile_topic.done, profile.badges, profile.items FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username INNER JOIN topic_practice_tracker ON profile.username=topic_practice_tracker.username WHERE topic_practice_tracker.tid = $1 AND topic_practice_tracker.username = $2 AND topic_practice_tracker.qid = $3", tracker.tid, tracker.username, tracker.qid)
+    elif mode == 2:
+        await db.execute("UPDATE topic_practice_tracker SET answer = $4, lives = $5, path = $6 WHERE username = $1 AND tid = $2 AND qid = $3", tracker.username, tracker.tid, tracker.qid, tracker.answer, tracker.lives, tracker.path)
+    elif mode == 0:
+        return brsret(code = None, debug = mode)
+
+    item_list = []
+    for item in entry["items"].split("||"):
+        if item.split(":")[0] != "experience":
+            item_list.append(item)
+            continue
+        exp_points = str(int(item.split(":")[1]) + 10) # 10 new experience points per page
+        item_list.append("experience:" + exp_points)
+        break
+    items = "||".join(item_list)
+    exp_points = int(exp_points)
+    # Get all the new badges a user has unlocked
+    new_badges = get_new_badges(entry["badges"], exp_points)
+    if new_badges[0] == '':
+        await db.execute("UPDATE profile SET items = $2 WHERE username = $1", tracker.username, items)
+        return brsret(code = None, debug = mode)
+    await db.execute("UPDATE profile SET badges = $2, items = $3 WHERE username = $1", tracker.username, new_badges[1], items)
+    return brsret(code = None, debug = mode, items = items, new_badges = new_badges[0])
+
 
 # New Stuff!!!
 
@@ -1201,12 +1255,20 @@ async def get_concept(tid: str, cid: int):
 
 @app.get("/topics/practice/get/count", tags = ["Topics", "Topic Practice"])
 async def get_topic_practice_count(tid: str):
-    topic_practice = await db.fetch("SELECT COUNT(1) FROM topic_practice_table WHERE tid = $1", tid)
+    topic_practice = await db.fetch("SELECT COUNT(1) FROM topic_practice WHERE tid = $1", tid)
     return {"practice_count": topic_practice[0]["count"]}
 
 @app.get("/topics/practice/get", tags = ["Topics", "Topic Practice"])
 async def get_concept_practice(tid: str, qid: int):
-    question = await db.fetch("SELECT type, question, correct_answer, answers, solution, recommended_time FROM topic_practice_table WHERE tid = $1 AND qid = $2 ORDER BY qid ASC", tid, qid)
+    question = await db.fetch("""
+        SELECT type, question, correct_answer, 
+        answers, solution, recommended_time 
+        FROM topic_practice 
+        WHERE tid = $1 AND qid = $2 
+        ORDER BY qid ASC""", 
+        tid, 
+        qid
+    )
     if len(question) == 0 or int(qid) <= 0:
         return {"error": "0002"}
     question = question[0] # Get the absolute practice question ID

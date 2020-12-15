@@ -718,7 +718,7 @@ async def reset_pwd():
                 403,
             )
         a = requests.get(api + f"/auth/reset/check/token?token={token}").json()
-        if a["status"] == "0":
+        if a["code"] == False:
             return (
                 await render_template(
                     "/reset_fail.html", 
@@ -1079,12 +1079,12 @@ async def redir_topic(tid):
     if "username" not in session:
         return redirect("/topics/" + tid + "/learn/1")
     tracker_r = requests.get(api + "/profile/track?username=" + session.get("username") + "&tid=" + tid).json()
-    cid = tracker_r['cid']
-    if tracker_r["status"] == "LP":
-        return redirect("/topics/" + tid + "/learn/" + cid)
-    elif tracker_r["status"] == "PP":
-        return redirect("/topics/" + tid + "/practice/" + cid)
-
+    cid = tracker_r["context"]['cid']
+    if tracker_r["context"]["status"] == "LP":
+        return redirect("/topics/" + tid + "/learn/" + str(cid))
+    elif tracker_r["context"]["status"] == "PP":
+        return redirect("/topics/" + tid + "/practice/" + str(cid))
+    return abort(400)
 @app.route("/topics/<tid>/learn/<int:cid>")
 async def topic_concept_learn(tid, cid):
     concept_json = requests.get(api + f"/topics/concepts/get?tid={tid}&cid={cid}").json()
@@ -1096,10 +1096,16 @@ async def topic_concept_learn(tid, cid):
     if "username" in session:
         # User is logged in, track their progress
         tracker_r = requests.get(api + "/profile/track?username=" + session.get("username") + "&tid=" + tid).json()
-        done = (tracker_r['done'] == '1')
-        tracked_cid = tracker_r['cid']
-        if int(tracked_cid) < int(cid) and not done and tracker_r["status"] == "LP":
-            tracker_w = requests.post(api + "/profile/track", json = {"username": session.get("username"), "status": "LP", "tid": tid, "cid": cid}).json() # Track the fact that he went here in this case
+        done = tracker_r["context"]['done']
+        tracked_cid = tracker_r["context"]['cid']
+        if int(tracked_cid) < int(cid) and not done and tracker_r["context"]["status"] == "LP":
+            tracker_w = requests.post(api + "/profile/track", json = {
+                "username": session.get("username"), 
+                "token": session.get("token"), 
+                "status": "LP", 
+                "tid": tid, 
+                "cid": cid
+            }).json() # Track the fact that he went here in this case
     pages = [i for i in range(1, count_json['concept_count'] + 1)]
     return await render_template(
         "concept.html",
@@ -1117,13 +1123,13 @@ async def redir_topic_practice(tid):
     if "username" not in session:
         return redirect("/topics/" + tid + "/practice/1")
     tracker = requests.get(api + "/profile/track?username=" + session.get("username") + "&tid=" + tid).json()
-    cid = tracker['cid']
-    if tracker["status"] == "PP":
-        return redirect("/topics/" + tid + "/practice/" + cid)
+    cid = tracker["context"]['cid']
+    if tracker["context"]["status"] == "PP":
+        return redirect("/topics/" + tid + "/practice/" + str(cid))
     else:
         return redirect("/topics/" + tid + "/practice/1")
 
-
+# For practice questions, only track when they get a question correct
 @app.route("/topics/<tid>/practice/<int:qid>")
 async def topic_practice_view(tid, qid):
     practice_json = requests.get(api + f"/topics/practice/get?tid={tid}&qid={qid}").json()
@@ -1139,16 +1145,6 @@ async def topic_practice_view(tid, qid):
     count_json = requests.get(
         api + f"/topics/practice/get/count?tid={tid}"
     ).json()  # Get the page count of a concept
-    if "username" in session:
-        # User is logged in, track
-        track = False
-        tracker = requests.get(api + "/profile/track?username=" + session.get("username") + "&tid=" + tid).json()
-        done = (tracker['done'] == '1')
-        tracked_cid = tracker['cid']
-        if (int(tracked_cid) < int(qid) and not done) or tracker["status"] in ["LP", ""]:
-            track = True
-        if track:
-            tracker = requests.post(api + "/profile/track", json = {"username": session.get("username"), "status": "PP", "tid": tid, "cid": qid}).json() # Track the fact that he went here in this case
     if practice_json["type"] == "MCQ":
         answers = practice_json["answers"].split("||")
     else:
@@ -1158,11 +1154,11 @@ async def topic_practice_view(tid, qid):
 
     # Check if they already answered said question
     try:
-        key = "|".join(["practice", "qa", tid, str(qid)])
+        key = "|".join(["practice", "answer", tid, str(qid)])
         solved = session[key]
         key = "|".join(["practice", "lives", tid, str(qid)])
         lives = str(session[key])
-        key = "|".join(["practice", "choices", tid, str(qid)])
+        key = "|".join(["practice", "path", tid, str(qid)])
         choices = session[key].split("|")
         if len(choices) == 2 or (len(choices) == 1 and choices[0] != correct_answer):
             # They had two chances, get the incorrect one and store in a variable
@@ -1200,15 +1196,32 @@ async def topic_practice_view(tid, qid):
 @app.route("/topics/<tid>/practice/<int:qid>/solve", methods = ["POST"])
 async def topic_practice_solve(tid, qid):
     data = await request.form
-    if "given_answer" not in data.keys() or "remaining_lives" not in data.keys() or "choices" not in data.keys():
+    if "answer" not in data.keys() or "lives" not in data.keys() or "path" not in data.keys():
         return jsonify({"error": "1001"})
-    key = "|".join(["practice", "qa", tid, str(qid)])
-    session[key] = data["given_answer"]
+    key = "|".join(["practice", "answer", tid, str(qid)])
+    session[key] = data["answer"]
     key = "|".join(["practice", "lives", tid, str(qid)])
-    session[key] = data["remaining_lives"]
-    key = "|".join(["practice", "choices", tid, str(qid)])
-    session[key] = data["choices"]
-    print(session, data["given_answer"])
+    session[key] = data["lives"]
+    key = "|".join(["practice", "path", tid, str(qid)])
+    session[key] = data["path"]
+    if "username" in session.keys():
+        tracker_w = requests.post(api + "/profile/track", json = {
+            "username": session.get("username"),
+            "token": session.get("token"),
+            "status": "PP",
+            "tid": tid,
+            "cid": qid
+        }).json() # Track the fact that he went here
+        tracker_w = requests.post(api + "/profile/track/practice", json = {
+            "username": session.get("username"),
+            "token": session.get("token"),
+            "tid": tid,
+            "qid": int(qid),
+            "answer": str(data["answer"]),
+            "lives": data["lives"],
+            "path": data["path"]
+        }).json() # And track the answer he/she gave
+        print(tracker_w)
     return jsonify({"error": "1000"})
 
 @app.route("/topics/<tid>/practice/<int:qid>/edit", methods = ["GET", "POST"])
