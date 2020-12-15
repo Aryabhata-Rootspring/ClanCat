@@ -558,10 +558,10 @@ async def delete_profile_and_account(request: ProfileDeleteRequest, bt: Backgrou
         request.token,
         request.username
     )
-    if profile_db == None:
+    if profile_db is None:
         return brsret(code = "INVALID_PROFILE")
     elif profile_db["mfa"] is True:
-        if request.otp == None:
+        if request.otp is None:
             return brsret(code = "MFA_NEEDED", mfaChallenge = "mfa")
         else:
             otp = pyotp.TOTP(profile_db["mfa_shared_key"])
@@ -587,17 +587,17 @@ async def edit_account_username(request: AuthUsernameEdit, bt: BackgroundTasks):
         "SELECT mfa FROM login WHERE username = $1", 
         request.new_username
     )
-    if profile_db == None:
+    if profile_db is None:
         return brsret(code = "INVALID_PROFILE", html = "Invalid Profile.", support = True)
-    elif new_account_db != None:
+    elif new_account_db is not None:
         return brsret(code = "USERNAME_TAKEN", html = "That username has been taken. Please choose another one")
-    elif profile_db["password"] == None:
+    elif profile_db["password"] is None:
         # Invalid Username Or Password
         return brsret(code = "INVALID_USER_PASS", html = "Account Recovery is needed.", support = False)
-    elif pwd_context.verify("Shadowsight1" + HASH_SALT + request.old_username + request.password, profile_db["password"]) == False:
+    elif pwd_context.verify("Shadowsight1" + HASH_SALT + request.old_username + request.password, profile_db["password"]) is not False:
         return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
     elif profile_db["mfa"] is True:
-        if request.otp == None:
+        if request.otp is None:
             return brsret(code = "MFA_NEEDED", mfaChallenge = "mfa")
         else:
             otp = pyotp.TOTP(profile_db["mfa_shared_key"])
@@ -802,7 +802,7 @@ async def multi_factor_authentication_generate_shared_key(token: AuthMFANewReque
             "SELECT mfa_shared_key, status, email FROM login WHERE token = $1",
         token.token,
     )
-    if login_creds == None or login_creds["status"] not in [None, 0]:
+    if login_creds is None or login_creds["status"] not in [None, 0]:
         return brsret(code = "ACCOUNT_DISABLED_OR_DOES_NOT_EXIST") # Flagged or disabled account and/or account does not exist
     key = pyotp.random_base32() # MFA Shared Key
     mfaNewDict[token.token] = {"key": key, "email": login_creds["email"]}
@@ -981,7 +981,7 @@ async def get_profile(username: str, token: str = None):
         "SELECT profile.public, profile.joindate, profile.badges, profile.level, profile.items, login.scopes, login.mfa FROM profile INNER JOIN login ON profile.username = login.username WHERE profile.username = $1",
         username,
     )
-    if profile_db == None:
+    if profile_db is None:
         return brsret(code = "INVALID_PROFILE")
     elif not profile_db["public"]:
         private = True

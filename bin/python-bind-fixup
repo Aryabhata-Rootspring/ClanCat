@@ -1,3 +1,0 @@
-# Simple python perms fixup
-sudo cp -rfL /usr/bin/python3 /usr/bin/python3b} # Backup Old Python
-sudo setcap cap_net_bind_service=ep /usr/bin/python3b # Set the caps for the new one
