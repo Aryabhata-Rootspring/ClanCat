@@ -542,6 +542,7 @@ async def profile_change_password(username):
 async def profile_list_block(username):
     return f"<script>alert('Not yet ready yet. TODO'); window.location.replace('https://127.0.0.1/settings/{username}');</script>"
 
+# TODO
 @app.route("/profile/<username>/me/list/allow")
 async def profile_list_allow(username):
     return f"<script>alert('Not yet ready yet. TODO'); window.location.replace('https://127.0.0.1/settings/{username}');</script>"

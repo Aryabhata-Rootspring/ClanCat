@@ -331,6 +331,11 @@ class AuthUsernameEdit(MFAModel):
     new_username: str
     password: str
 
+class AuthPasswordEdit(MFAModel):
+    username: str
+    password: str
+    old_password: str
+
 class AuthResetRequest(BaseModel):
     username: Optional[str] = None
     email: Optional[str] = None
@@ -607,7 +612,7 @@ async def edit_account_username(request: AuthUsernameEdit, bt: BackgroundTasks):
     elif profile_db["password"] is None:
         # Invalid Username Or Password
         return brsret(code = "INVALID_USER_PASS", html = "Account Recovery is needed.", support = False)
-    elif pwd_context.verify("Shadowsight1" + HASH_SALT + request.old_username + request.password, profile_db["password"]) is not False:
+    elif pwd_context.verify("Shadowsight1" + HASH_SALT + request.old_username + request.password, profile_db["password"]) is False:
         return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
     elif profile_db["mfa"] is True:
         if request.otp is None:
@@ -621,12 +626,41 @@ async def edit_account_username(request: AuthUsernameEdit, bt: BackgroundTasks):
     bt.add_task(edit_account_backend, "username", request.token, request.new_username, password, request.old_username)
     return brsret()
 
-async def edit_account_backend(mode: str, token: str, new_data: str, password: str, old_username: Optional[str] = None):
-    await db.execute(f"UPDATE login SET {mode} = $1, password = $2 WHERE token = $3", new_data, password, token)
+@app.post("/auth/account/edit/password", tags = ["Authentication", "Profile"])
+async def edit_account_password(request: AuthPasswordEdit, bt: BackgroundTasks):
+    profile_db = await db.fetchrow(
+        "SELECT mfa, mfa_shared_key, password FROM login WHERE token = $1 AND username = $2",
+        request.token,
+        request.username
+    )
+    if profile_db is None:
+        return brsret(code = "INVALID_PROFILE", html = "Invalid Profile.", support = True)
+    elif profile_db["password"] is None:
+        # Invalid Username Or Password
+        return brsret(code = "INVALID_USER_PASS", html = "Account Recovery is needed.", support = False)
+    elif pwd_context.verify("Shadowsight1" + HASH_SALT + request.username + request.old_password, profile_db["password"]) is False:
+        return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
+    elif profile_db["mfa"] is True:
+        if request.otp is None:
+            return brsret(code = "MFA_NEEDED", mfaChallenge = "mfa")
+        else:
+            otp = pyotp.TOTP(profile_db["mfa_shared_key"])
+            if otp.verify(request.otp) is False:
+                return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
+    # Rehash the password
+    password = pwd_context.hash("Shadowsight1" + HASH_SALT + request.username + request.password)
+    bt.add_task(edit_account_backend, "password", request.token, password)
+    return brsret()
+
+
+async def edit_account_backend(mode: str, token: str, new_data: str, password: Optional[str] = None, old_username: Optional[str] = None):
     if mode == "username":
+        await db.execute(f"UPDATE login SET username = $1, password = $2 WHERE token = $3", new_data, password, token)
         await db.execute("UPDATE profile SET username = $1 WHERE username = $2", new_data, old_username)
         await db.execute("UPDATE profile_topic SET username = $1 WHERE username = $2", new_data, old_username)
         await db.execute("UPDATE topic_practice_tracker SET username = $1 WHERE username = $2", new_data, old_username)
+    elif mode == "password":
+        await db.execute(f"UPDATE login SET password = $2 WHERE token = $3", new_data, token)
 
 # Send a reset email (stage2 auth)
 @app.post("/auth/reset/send", tags = ["Authentication", "Password Reset"])
@@ -743,7 +777,7 @@ async def login(login: AuthLoginRequest):
         # Invalid Username Or Password
         return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
 
-    elif pwd_context.verify("Shadowsight1" + HASH_SALT + login.username + login.password, pwd["password"]) == False:
+    elif pwd_context.verify("Shadowsight1" + HASH_SALT + login.username + login.password, pwd["password"]) is False:
         return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
 
     # Check for MFA
