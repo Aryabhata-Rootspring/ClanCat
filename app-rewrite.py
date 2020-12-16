@@ -209,36 +209,79 @@ async def profile_me(request: Request):
         return redirect("/login")
     return redirect("/profile/" + request.session.get("username"))
 
-@app.post("/topics/{tid}/concepts/{cid}/save")
-async def save_page(tid: str, cid: str, data: SaveExperimentPage):
-    a = requests.post(
-        api + "/topics/concepts/save",
-        json={
-            "username": data.username,
-            "token": data.token,
-            "code": data.code,
-            "cid": cid,
-            "tid": tid,
-        },
-    )
-    a = a.json()
-    return a
+@app.get("/profile/{username}")
+async def profile(request: Request, username: str):
+    if request.session.get("token") == None:
+        profile = requests.get(api + "/profile?username=" + username).json()
+    else:
+        profile = requests.get(
+            api + "/profile?username=" + username + "&token=" + request.session.get("token")
+        ).json()
+    if profile.get("code") in ["PRIVATE_PROFILE", "INVALID_PROFILE"]:
+        return await render_template(
+            request,
+            "generic_error.html",
+            header="Profile Error",
+            error="Profile either does not exist or is still being updated on our databases. Please check back in a few minutes once our databases are fully up to date.",
+        )
 
-@app.post("/topics/<tid>/save")
-async def save_topics(request: Request, tid: str, data: SaveTopic):
-    a = requests.post(
-        api + "/topics/save",
-        json={
-            "username": data.username,
-            "token": data.token,
-            "description": data.description,
-            "tid": tid,
-        },
-    )
-    a = a.json()
-    return a
+    profile_owner = (request.session.get("username") == username or request.session.get("admin") == 1)
+    private = profile['private']
+    if not private:
+        private = "Public"
+    else:
+        private = "Private"
 
-@app.route("/iframe/{sid}")
+    return await render_template(
+        request,
+        "profile.html",
+        p_username = profile["username"],
+        p_capusername = profile["username"].capitalize(),
+        token = request.session.get("token"),
+        p_admin = request.session.get("admin"),
+        admin = "admin" in profile["scopes"].split(":"),
+        join_date=profile["join"],
+        profile_owner = profile_owner,
+        private = private,
+        badges = profile["badges"],
+        rank_name = profile["level"]["name"],
+        rank_desc = profile["level"]["desc"],
+        rank_levelup = profile["level"].get("levelup"),
+        rank_levelup_name = profile["levelup_name"],
+        items = profile["items"]
+    )
+
+@app.get("/profile/{username}/me/state/{state}")
+async def profile_state_set(request: Request, username: str, state: str):
+    if request.session.get("token") == None or request.session.get("username") == None:
+        return abort(401)
+    elif state not in ["public", "private", "disable", "enable", "disable_admin"]:
+        return abort(404)
+    if username == request.session.get("username") or request.session.get("admin") == 1:
+        pass
+    else:
+        return abort(401)
+
+    post_data = {
+        "state": state,
+        "username": username,
+        "token": request.session.get("token"),
+    }
+
+    if state == "disable_admin":
+        post_data["state"] = "disable"
+        post_data["disable_state"] = 2
+
+    x = requests.post(
+        api + "/profile/visible",
+        json=post_data
+        ).json()
+    print(x)
+    if state in ["disable", "disable_admin"] and request.session.get("admin") is not True:
+        return redirect("/logout")
+    return redirect("/settings/" + username)
+
+@app.get("/iframe/{sid}")
 async def iframe_simulation(request: Request, sid: str):
     simulation = requests.get(api + "/experiment/get?sid=" + sid).json()
     if simulation.get("code") != None:
@@ -507,6 +550,36 @@ async def reset_pwd_post(request: Request, token: str, password: str = FastForm(
         request,
         "/reset_confirm.html",  
         msg=msg
+    )
+
+@app.get("/settings/{username}")
+async def settings(request: Request, username: str):
+    if request.session.get("username") != username and session.get("admin") != 1:
+        return abort(401)
+
+    profile = requests.get(
+        api + "/profile?username=" + username + "&token=" + request.session.get("token")
+    ).json()
+    if profile.get("code") in ["PRIVATE_PROFILE", "INVALID_PROFILE"]:
+        return await render_template(
+            request,
+            "generic_error.html",
+            header="Profile Error",
+            error="This profile is private or does not exist yet/is being updated. Please wait for our databases to be updated",
+        )
+    priv = profile['private']
+    mfa = profile["mfa"]
+    if int(priv) == 0:
+        priv = "Public"
+    else:
+        priv = "Private"
+    return await render_template(
+        request,
+        "profile_settings.html",
+        p_username=profile["username"],
+        token=request.session.get("token"),
+        private = priv,
+        mfa = profile["mfa"]
     )
 
 @app.get("/subject/new")
@@ -934,4 +1007,33 @@ async def topic_practice_solve(request: Request, tid: str, qid: int, data: Topic
             "path": data.path
         }).json() # And track the answer he/she gave
     return {"error": "1000"}
+
+@app.post("/topics/{tid}/concepts/{cid}/save")
+async def save_page(tid: str, cid: str, data: SaveExperimentPage):
+    a = requests.post(
+        api + "/topics/concepts/save",
+        json={
+            "username": data.username,
+            "token": data.token,
+            "code": data.code,
+            "cid": cid,
+            "tid": tid,
+        },
+    )
+    a = a.json()
+    return a
+
+@app.post("/topics/<tid>/save")
+async def save_topics(request: Request, tid: str, data: SaveTopic):
+    a = requests.post(
+        api + "/topics/save",
+        json={
+            "username": data.username,
+            "token": data.token,
+            "description": data.description,
+            "tid": tid,
+        },
+    )
+    a = a.json()
+    return a
 
