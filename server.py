@@ -761,8 +761,8 @@ async def reset_backend(password: str, token: str, new_token: str):
 @app.get("/auth/reset/check/token", tags = ["Authentication", "Password Reset"])
 async def check_reset_token(token: str = None):
     if token is None or token not in resetDict.values():
-        return brsret(code = True)
-    return brsret(code = False)
+        return brsret(code = False)
+    return brsret(code = True)
 
 
 @app.post("/auth/login", tags = ["Authentication"])

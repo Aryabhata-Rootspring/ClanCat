@@ -11,7 +11,7 @@
   <br/>
   <div style="text-align: center;">
 	<form method='post'>
-	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+	{{form.csrf_token}}
 	<div class="form-group">
     		<label for="password">New Password</label>
     		<input style="margin: 2px;" type="password" name='password' class="form-control" id="password" placeholder="Password" minlength=9 required>

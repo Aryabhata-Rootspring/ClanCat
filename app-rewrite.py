@@ -118,6 +118,11 @@ class TopicPracticeSolve(BaseModel):
     lives: int
     path: str
 
+class SaveExperimentPage(BaseModel):
+    username: str
+    token: str
+    code: str
+
 # Exceptions
 @app.exception_handler(StarletteHTTPException)
 async def not_found(request, exc):
@@ -174,6 +179,35 @@ async def new_simulation_get(request: Request):
         request,
         "admin_simulation_new.html",
     )
+
+@app.post("/experiment/{sid}/save")
+async def experiment_save(sid: str, data: SaveExperimentPage):
+    a = requests.post(
+        api + "/experiment/save",
+        json={
+            "username": data.username,
+            "token": data.token,
+            "code": data.code,
+            "sid": sid,
+        },
+    )
+    a = a.json()
+    return a
+
+@app.post("/topics/{tid}/concepts/{cid}/save")
+async def save_page(tid: str, cid: str, data: SaveExperimentPage):
+    a = requests.post(
+        api + "/topics/concepts/save",
+        json={
+            "username": data.username,
+            "token": data.token,
+            "code": data.code,
+            "cid": cid,
+            "tid": tid,
+        },
+    )
+    a = a.json()
+    return a
 
 @app.route("/iframe/{sid}")
 async def iframe_simulation(request: Request, sid: str):
@@ -376,6 +410,75 @@ async def register_post(request: Request, email: str = FastForm(None), password 
             "register.html",
             error=rc["html"],
         )
+
+# Stage 1 (sending the email)
+@app.get("/reset")
+async def reset_pwd_s1_get(request: Request):
+    if request.method == "GET":
+        return await render_template(
+            request,
+            "/reset_gen.html",
+        )
+
+@app.post("/reset")
+@csrf_protect
+async def reset_pwd_s1_post(request: Request, username: str = FastForm(None), email: str = FastForm(None)):
+    if username is None or username == "":
+        json={"email": email}
+    else:
+        json={"username": username}
+    x = requests.post(
+            api + "/auth/reset/send", json=json
+    ).json()
+    if x["error"] == "1000":
+        msg = "We have sent a confirmation email to the email you provided. Please check your spam folder if you did not recieve one"
+    else:
+        msg = "Something has went wrong. Please recheck your email and make sure it is correct"
+    return await render_template(
+        request,
+        "/reset_confirm.html",  
+        msg=msg
+    )
+
+@app.get("/reset/stage2")
+async def reset_pwd_get(request: Request, token: str):
+    a = requests.get(api + f"/auth/reset/check/token?token={token}").json()
+    print(a)
+    if a["code"] == False:
+        request.session["status_code"] = 403
+        return await render_template(request, "reset_fail.html")
+    return await render_template(request, "reset.html")
+
+@app.post("/reset/stage2")
+async def reset_pwd_post(request: Request, token: str, password: str = FastForm("None"), cpassword: str = FastForm("Nothing")):
+    if password != cpassword:
+        return await render_template(
+            request,
+            "/reset.html",
+            error="The passwords do not match",
+        )
+    if len(password) < 9:
+        return await render_template(
+            request,
+            "reset.html",
+            error="Your password must be at least 9 characters long",
+        )
+    x = requests.post(
+        api + "/auth/reset/change",
+        json={"token": token, "new_password": password},
+    ).json()
+    if x["error"] == "1000":
+        msg = "Your password has been reset successfully."
+    else:
+        if x["error"] == "1101":
+            msg = "Your account has been disabled by an administrator. It may not have its password reset."
+        else:
+            msg = "Something has went wrong while we were trying to reset your password. Please try again later."
+    return await render_template(
+        request,
+        "/reset_confirm.html",  
+        msg=msg
+    )
 
 @app.get("/subject/new")
 async def new_subjects_get(request: Request):

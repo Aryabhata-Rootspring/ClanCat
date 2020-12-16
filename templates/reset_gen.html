@@ -12,7 +12,7 @@
   <p style = "text-align: center;">It's OK. Mistakes happen. In order to reset your password, we need to know EITHER your username OR its registered email address. A email will be sent to its registered email address.<br/></p>
   <div style="text-align: center;">
 	<form method='post'>
-	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+	{{form.csrf_token}}
 	<div class="form-group">
     		<label for="username">Username</label>
     		<input style="margin: 2px;" type="username" name='username' class="form-control" id="email" placeholder="Enter your username">

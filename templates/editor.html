@@ -34,17 +34,17 @@
 
 <script>
 var editorTextArea = document.querySelector("#editor")
-{% if type == "code" %}
-	var currentCode = _.unescape(`{{content}}`);
+{% if type == "concept" %}
+	var currentCode = '{{content}}';
 {% elif type == "topic" %}
-        var currentCode = _.unescape(`{{description}}`);
+        var currentCode = '{{description}}';
 {%endif%}
 console.log(CodeMirror.modes)
 var editor = CodeMirror.fromTextArea(editorTextArea, {
     lineNumbers: true,
     mode: "htmlmixed",
   })
-editor.setValue(currentCode.replace("<br/>", ""));
+editor.setValue(currentCode);
 var csrf = document.querySelector("#csrf_token").value;
 function postjson(post_url, post_data) {
 	var xhr = new XMLHttpRequest();
