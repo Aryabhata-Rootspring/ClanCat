@@ -123,6 +123,12 @@ class SaveExperimentPage(BaseModel):
     token: str
     code: str
 
+class SaveTopic(BaseModel):
+    username: str
+    token: str
+    description: str
+
+
 # Exceptions
 @app.exception_handler(StarletteHTTPException)
 async def not_found(request, exc):
@@ -194,6 +200,15 @@ async def experiment_save(sid: str, data: SaveExperimentPage):
     a = a.json()
     return a
 
+# Profile Operations
+@app.get("/profile/me/")
+@app.get("/profile/me")
+async def profile_me(request: Request):
+    if request.session.get("token") == None or request.session.get("username") == None:
+        request.session["redirect"] = "/profile/me"
+        return redirect("/login")
+    return redirect("/profile/" + request.session.get("username"))
+
 @app.post("/topics/{tid}/concepts/{cid}/save")
 async def save_page(tid: str, cid: str, data: SaveExperimentPage):
     a = requests.post(
@@ -203,6 +218,20 @@ async def save_page(tid: str, cid: str, data: SaveExperimentPage):
             "token": data.token,
             "code": data.code,
             "cid": cid,
+            "tid": tid,
+        },
+    )
+    a = a.json()
+    return a
+
+@app.post("/topics/<tid>/save")
+async def save_topics(request: Request, tid: str, data: SaveTopic):
+    a = requests.post(
+        api + "/topics/save",
+        json={
+            "username": data.username,
+            "token": data.token,
+            "description": data.description,
             "tid": tid,
         },
     )
