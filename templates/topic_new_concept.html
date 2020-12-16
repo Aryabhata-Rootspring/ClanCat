@@ -11,7 +11,7 @@
   <br/>
   <div style="text-align: center;">
 	<form method='post'>
-	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+	{{form.csrf_token}}
 	<div class="form-group">
     		<label for="concept">Concept Title</label>
     		<input type="text" name='title' class="form-control" id='concept' aria-describedby="userHelp" placeholder='Concept Name'>

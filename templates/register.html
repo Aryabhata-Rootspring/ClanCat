@@ -11,7 +11,7 @@
   <br/>
   <div style="text-align: center;">
 	<form method='post'>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        {{ form.csrf_token }}
 	<div class="form-group">
            <div class="form-inline" style="justify-content: center; text-align: center;">
 		   <label class="mx-sm-3" for="email" style="margin-right: 7px; text-align: left; justify-content: left;"><div style="white-space:pre">Email   </div></label>

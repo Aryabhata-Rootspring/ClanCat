@@ -29,6 +29,7 @@
   <label for="editor">Write your simulation in python here!</label>
   <textarea class="form-control rounded-0" id="editor" rows="15"></textarea>
 </div>
+{{ form.csrf_token }}
 <script>
 var gsversion = '3.0'
 var printpane = false
@@ -92,11 +93,26 @@ function localCompile(header, compReady, errordiv) {
     })
 }
 
+var csrf = document.querySelector("#csrf_token").value;
+function postjson(post_url, post_data) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", post_url, true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+                var json = JSON.parse(xhr.responseText);
+                console.log(json);
+                }
+        };
+        var data = JSON.stringify(post_data);
+        xhr.send(data);
+};
+
 function saveCode() {
 	post_url = "https://" + window.location.hostname + ":443/experiment/{{sid}}/save";
 	console.log(post_url);
-	post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "code":  editor.getValue()};
-	$.post(post_url, post_data, function(data, status, jqXHR) {alert(data.error)});
+	post_data = {"csrf_token": csrf, "username": "{{username}}", "token": "{{token}}", "code":  editor.getValue()};
+	postjson(post_url, post_data)
 	return
 }
 

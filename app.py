@@ -749,7 +749,7 @@ async def reset_pwd():
         )
     if len(pwd) < 9:
         return await render_template(
-            "register.html",
+            "reset.html",
             error="Your password must be at least 9 characters long",
         )
     x = requests.post(

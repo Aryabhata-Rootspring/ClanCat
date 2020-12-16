@@ -12,7 +12,7 @@
   <div style="text-align: center;">
 	<div id = "meow" style="margin-bottom: 200px;">
 	<form method='post' style="margin-bottom: 3px;" class="needs-validation" novalidate>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+	{{ form.csrf_token }}
 	<div class="form-group">
 	   <div class="form-inline" style="justify-content: center; text-align: center;">
     		<label for="username" style="margin-right: 7px; text-align: left; justify-content: left;">Username </label>

@@ -243,12 +243,30 @@ iframe {
   </div>
 </div>
 
+<div id="csrf-things">
+	{{ form.csrf_token }}
+</div>
+
 <script>
 	/* Common Script */
 	var incorrect = 0;
         var lives = 2;
         var c = false; // This is the counter that checks if we should stop accepting answers
-        function disableCab() {
+        var csrf = document.querySelector("#csrf_token").value;
+	function postjson(post_url, post_data) {
+		var xhr = new XMLHttpRequest();
+		xhr.open("POST", post_url, true);
+		xhr.setRequestHeader("Content-Type", "application/json");
+		xhr.onreadystatechange = function () {
+   			if (xhr.readyState === 4) {
+				var json = JSON.parse(xhr.responseText);
+				console.log(json);
+    			}
+		};
+		var data = JSON.stringify(post_data);
+		xhr.send(data);
+	};
+	function disableCab() {
                 cab = document.querySelector("#check-answers")
                 var butdis = document.createAttribute("disabled");
                 var butdis_aria = document.createAttribute("aria-disabled");
@@ -413,12 +431,12 @@ iframe {
 	})
 
 	function track() {
-                post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/practice/{{qid}}/solve";
+		post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/practice/{{qid}}/solve";
                 console.log(post_url);
 		console.log(choices.join("|"))
-                post_data = {"csrf_token": "{{csrf_token()}}", "answer":  answer, "lives": lives - incorrect, "path": choices.join("|")};
-                $.post(post_url, post_data, function(data, status, jqXHR) {console.log(data.error)});
-        }
+		post_data = {"csrf_token": csrf, "answer": answer, "lives": lives - incorrect, "path": choices.join("|")};
+        	postjson(post_url, post_data);
+	}
 
 	function setCorrectAns() {
               cbutton = document.querySelector("#{{correct_answer}}")
@@ -501,9 +519,9 @@ iframe {
         function track() {
                 post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/practice/{{qid}}/solve";
                 console.log(post_url);
-                post_data = {"csrf_token": "{{csrf_token()}}", "answer":  answer, "lives": lives - incorrect, "path": "1"};
-                $.post(post_url, post_data, function(data, status, jqXHR) {console.log(data.error)});
-        }
+                post_data = {"csrf_token": csrf, "answer": answer, "lives": lives - incorrect, "path": "SAQ"};
+                postjson(post_url, post_data);
+	}
 
 	function roinput() {
                 var butdis = document.createAttribute("readonly");

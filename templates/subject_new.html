@@ -11,7 +11,7 @@
   <br/>
   <div style="text-align: center;">
 	<form method='post'>
-	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+	{{ form.csrf_token }}
 	<div class="form-group">
     		<label for="name">Subject Name</label>
     		<input type="text" name='name' class="form-control" id='subject' aria-describedby="userHelp" placeholder='Subject Name' required aria-required="true">

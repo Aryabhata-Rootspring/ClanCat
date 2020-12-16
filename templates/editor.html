@@ -29,6 +29,9 @@
   <label for="editor">Page Edit View</label>
   <textarea class="form-control rounded-0" id="editor" rows="15"></textarea>
 </div>
+<!-- Csrf Token -->
+{{form.csrf_token}}
+
 <script>
 var editorTextArea = document.querySelector("#editor")
 {% if type == "code" %}
@@ -36,25 +39,39 @@ var editorTextArea = document.querySelector("#editor")
 {% elif type == "topic" %}
         var currentCode = _.unescape(`{{description}}`);
 {%endif%}
-
 console.log(CodeMirror.modes)
 var editor = CodeMirror.fromTextArea(editorTextArea, {
     lineNumbers: true,
     mode: "htmlmixed",
   })
 editor.setValue(currentCode.replace("<br/>", ""));
+var csrf = document.querySelector("#csrf_token").value;
+function postjson(post_url, post_data) {
+	var xhr = new XMLHttpRequest();
+	xhr.open("POST", post_url, true);
+	xhr.setRequestHeader("Content-Type", "application/json");
+	xhr.onreadystatechange = function () {
+	if (xhr.readyState === 4) {
+		var json = JSON.parse(xhr.responseText);
+		console.log(json);
+		}
+	};
+	var data = JSON.stringify(post_data);
+	xhr.send(data);
+};
+
 
 function saveCode() {
 	{% if type == "concept" %}
 		post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/concepts/{{cid}}/save";
 		console.log(post_url);
-		post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "code":  editor.getValue().replace("\n", "<br/>\n")};
+		post_data = {"csrf_token": csrf, "username": "{{username}}", "token": "{{token}}", "code":  editor.getValue().replace("\n", "<br/>\n")};
 	{% elif type == "topic" %}
                 post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/save";
                 console.log(post_url);
-                post_data = {"csrf_token": "{{csrf_token()}}", "username": "{{username}}", "token": "{{token}}", "description":  editor.getValue().replace("\n", "<br/>\n")};
+                post_data = {"csrf_token": csrf, "username": "{{username}}", "token": "{{token}}", "description":  editor.getValue().replace("\n", "<br/>\n")};
 	{%endif%}
-	$.post(post_url, post_data, function(data, status, jqXHR) {alert(data.error)});
+	postjson(post_url, post_data);
 	return
 }
 
