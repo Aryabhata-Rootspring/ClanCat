@@ -449,7 +449,7 @@ async def login_post(request: Request, username: str = FastForm(None), password:
     )
     rc = rc.json()
     if rc["context"].get("mfaChallenge") != None:
-        return redirect(f"/login/mfa/{r['username']}/{rc['context']['mfaToken']}")
+        return redirect(f"/login/mfa/{username}/{rc['context']['mfaToken']}")
     elif rc["code"] == None:
         rc = rc["context"] # Get the status context
         request.session.clear() # remove old session
