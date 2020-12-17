@@ -1,1 +1,1 @@
-bin/runserver & bin/runapp && kill $!
+bin/runserver & bin/runapp && killall -9 uvicorn

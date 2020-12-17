@@ -1,0 +1,14 @@
+{%extends 'template.html'%}
+{%block header%}
+<title role="banner">Token Info - CatPhi</title>
+{% endblock %}
+{% block content %}
+<div style="margin-left: 10px; margin-right: 10px; word-wrap: break-word;">
+{% if mode == 1 %}
+<h6 style="color: red">The below token is your User/API Token.<br/>Please do not share this with anyone as this token will allow anyone to login to your account and may lead to serious consequences.<br/><br/>If you wish to actually use the API, please see {{api}}/docs (Swagger) or {{api}}/redoc (Redoc) for the CatPhi API Documentation.<br/><br/><br/>{{token}}</h6> 
+{% else %}
+<h6 style="color: red">Hmmmm... That didnt quite work out. Please try refreshing your browser cache and try again</h6>
+{% endif %}
+<a href="/settings/{{username}}"><button class="btn btn-success">Back</button></a>
+<div>
+{%endblock%}

@@ -1,5 +1,5 @@
 {%extends 'template.html'%}
-{%block reg %}
+{%block header %}
 <head>
 <title role="banner">CatPhi Page Editor</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -9,10 +9,9 @@
     }
 </style>
 </head>
-
-<body class="GlowScriptBody">
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+{% endblock %}
+{% block content %}
+<body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" integrity="sha512-UxcTlYsLkcuGZL9JNnMsfo3p7VFSmcgBjH1VUSM82Okk5ni52bk7vz9f2p+D1VnMcNUmMzbzgWqWcdJ2j8Svow==" crossorigin="anonymous"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" integrity="sha512-xIf9AdJauwKIVtrVRZ0i4nHP61Ogx9fSRAkCLecmE2dL/U8ioWpDvFCAy4dcfecN72HHB9+7FfQj3aiO68aaaw==" crossorigin="anonymous" />
 <!-- CodeMirror Modes -->
@@ -35,9 +34,9 @@
 <script>
 var editorTextArea = document.querySelector("#editor")
 {% if type == "concept" %}
-	var currentCode = '{{content}}';
+	var currentCode = _.unescape(`{{content}}`);
 {% elif type == "topic" %}
-        var currentCode = '{{description}}';
+        var currentCode = _.unescape(`{{description}}`);
 {%endif%}
 console.log(CodeMirror.modes)
 var editor = CodeMirror.fromTextArea(editorTextArea, {
@@ -85,6 +84,4 @@ function addSimu() {
 	}
 }
 </script>
-<!-- Bootstrap comes with Popper, but not jquery which is anyways OK-->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
 {%endblock%}

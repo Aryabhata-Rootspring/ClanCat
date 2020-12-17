@@ -11,7 +11,7 @@
   <br/>
   <div style="text-align: center;">
 	<form method='post'>
-	<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+	{{ form.csrf_token }}
 	<div class="form-group">
     		<label for="topic">Simulation Description</label>
     		<input style="margin: 2px" type="text" name='description' class="form-control" id='simu' placeholder='Simulation Description'>

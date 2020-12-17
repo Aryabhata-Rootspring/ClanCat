@@ -17,7 +17,6 @@ import requests
 import config
 import logging
 
-
 # Requests
 logging.captureWarnings(True)
 import requests as __r__
@@ -38,7 +37,6 @@ app.add_middleware(SessionMiddleware, secret_key="qEEZ0z1wXWeJ3lRJnPsamlvbmEq4te
 app.add_middleware(CSRFProtectMiddleware, csrf_secret='1f03eea1ffb7446294f71342bf110f21b91a849377144b789219a6a314ffb7815a0b69b2d6274bae84dd66b734393241')
 templates = Jinja2Templates(directory="templates")
 api = "https://127.0.0.1:443/api/v1"
-
 
 # Wrappers
 # A wrapper around requests
@@ -164,16 +162,6 @@ async def experiment_edit_simulation(request: Request, sid: str):
         code=ejson["context"]["exp_code"],
     )
 
-@app.post("/experiment/new")
-async def new_simulation_post(request: Request, exp_type: str = FastForm("glowscript"), description: str = FastForm("No description yet")):
-    poster = requests.post(api + "/experiment/new", json = {
-        "username": request.session.get("username"),
-        "token": request.session.get("token"),
-        "description": description,
-        "exp_type": exp_type
-    }).json()
-    return poster
-
 @app.get("/experiment/new")
 async def new_simulation_get(request: Request):
     if request.session.get("token") == None:
@@ -185,6 +173,22 @@ async def new_simulation_get(request: Request):
         request,
         "admin_simulation_new.html",
     )
+
+@app.post("/experiment/new")
+async def new_simulation_post(request: Request, exp_type: str = FastForm("glowscript"), description: str = FastForm("No description yet")):
+    poster = requests.post(api + "/experiment/new", json = {
+        "username": request.session.get("username"),
+        "token": request.session.get("token"),
+        "description": description,
+        "exp_type": exp_type
+    }).json()
+    if poster["code"] is not None:
+        return await render_template(
+            request,
+            "admin_simulation_new.html",
+            error = Markup(poster["error"])
+        )
+    return redirect(f"/experiment/{poster['context']['id']}/edit")
 
 @app.post("/experiment/{sid}/save")
 async def experiment_save(sid: str, data: SaveExperimentPage):
@@ -237,7 +241,6 @@ async def profile(request: Request, username: str):
         "profile.html",
         p_username = profile["username"],
         p_capusername = profile["username"].capitalize(),
-        token = request.session.get("token"),
         p_admin = request.session.get("admin"),
         admin = "admin" in profile["scopes"].split(":"),
         join_date=profile["join"],
@@ -306,6 +309,15 @@ async def profile_state_set(request: Request, username: str, state: str = FastFo
         return redirect("/logout")
     return redirect("/settings/" + username)
 
+@app.post("/profile/{username}/me/token")
+@csrf_protect
+async def profile_token_view(request: Request, username: str, confirm: str = FastForm("IDontKnowWhatIAmDoingTho:(")):
+    expected_value = f"YesIKnowWhatIAmDoing2020AndIAmSureIWishToDoThisInRealLifePleaseDontDoThisUnlessYouAreDoingThisToFillOutTheCustomerSupportFormThanksBro{username}:)"
+    print(expected_value, confirm)
+    if expected_value.replace(" ", "") == confirm.replace(" ", ""):
+        return await render_template(request, "token.html", mode = 1, api = api, token = request.session.get("token"))
+    else:
+        return await render_template(request, "token.html", mode = 0)
 @app.get("/profile/{username}/me/account/{type}/change")
 async def profile_change_username_get(request: Request, username: str, type: str):
     try:
@@ -746,12 +758,13 @@ async def new_subjects_post(request: Request, name: str = FastForm(None), descri
 async def topics(request: Request):
     topic_list_json = requests.get(api + "/topics/list").json()  # Get the list of topics in JSON
     topic_list = []  # ejson as list
-    if topic_list_json.get("error") is not None:
+    if topic_list_json.get("code") is not None:
         return await render_template(
             request,
             "topic_list.html",
             topic_list=[]
         )
+    topic_list_json = topic_list_json["context"]["topics"]
     for topic in topic_list_json.keys():
         topic_list.append([topic, topic_list_json[topic]])
     return await render_template(
@@ -855,10 +868,10 @@ async def topic_edit_concepts(request: Request, tid: str):
     if exp_json.get("code") != None:
         return abort(404)
     concepts_json = requests.get(api + f"/topics/concepts/list?tid={tid}").json()
-    print(concepts_json)
-    if concepts_json.get("error") is not None:
+    if concepts_json.get("code") is not None:
         concepts = []
     else:
+        concepts_json = concepts_json["context"]["concepts"]
         concepts = []
         for concept in concepts_json.keys():
             concepts.append([concept, concepts_json[concept]])
@@ -877,10 +890,10 @@ async def topic_edit_concept(request: Request, tid: str, cid: int):
     elif request.session.get("admin") in [0, None, "0"]:
         return abort(401)
     concept_json = requests.get(api + f"/topics/concepts/get?tid={tid}&cid={str(cid)}").json()
-    print(concept_json)
 
-    if concept_json.get("error") or int(cid) < 0:
+    if concept_json.get("code") is not None or int(cid) < 0:
         return abort(404)
+    concept_json = concept_json["context"]
     return await render_template(
         request,
         "editor.html",
@@ -921,10 +934,16 @@ async def __topic_edit_new_concept_post__(request: Request, tid, title: str = Fa
         ).json()
         return a
 
+@app.get("/topics/{tid}/practice/{qid}/edit")
 @app.get("/topics/{tid}/edit/practice/new")
 @csrf_protect
-async def new_practice_question_get(request: Request, tid: str):
+async def new_or_edit_practice_question_get(request: Request, tid: str, qid: Optional[int] = None):
     default_values = {"type": "MCQ", "question": "", "answers": "", "correct_answer": "", "solution": ""}
+    if qid is not None:
+        practice_json = requests.get(api + f"/topics/practice/get?tid={tid}&qid={str(qid)}").json()
+        if practice_json["code"] is not None:
+            return abort(404)
+        default_values = practice_json["context"]
     if request.session.get("token") == None:
         request.session["redirect"] = "/topics/" + tid + "/edit/practice/new"
         return redirect("/login")
@@ -932,9 +951,10 @@ async def new_practice_question_get(request: Request, tid: str):
         return abort(401)
     return await render_template(request, "topic_practice_new.html", default_values = default_values, mode = "new")
 
+@app.post("/topics/{tid}/practice/{qid}/edit")
 @app.post("/topics/{tid}/edit/practice/new")
 @csrf_protect
-async def new_practice_question_post(request: Request, tid: str, type: str = FastForm("MCQ"), question: str = FastForm("Question Not Yet Setup"), correct_answer: str = FastForm(None), solution: str = FastForm("There is no solution yet"), answers: str = FastForm(None)):
+async def new_practice_question_post(request: Request, tid: str, qid: Optional[int] = None, type: str = FastForm("MCQ"), question: str = FastForm("Question Not Yet Setup"), correct_answer: str = FastForm(None), solution: str = FastForm("There is no solution yet"), answers: str = FastForm(None), recommended_time: int = FastForm(0)):
         default_values = {"type": "MCQ", "question": "", "answers": "", "correct_answer": "", "solution": ""}
         if type == "MCQ" and (answers is None or correct_answer not in ["A", "B", "C", "D"]):
             return await render_template(request, "topic_practice_new.html",  error = "Not all required fields have been filled in and/or the correct answer is invalid (must be one letter in an MCQ)", default_values = default_values, mode = "new")
@@ -952,15 +972,23 @@ async def new_practice_question_post(request: Request, tid: str, type: str = Fas
         }
         if type == "MCQ":
             json["answers"] = answers
-        return requests.post(api + "/topics/practice/new", json = json).json()
+        if recommended_time != 0:
+            json["recommended_time"] = int(recommended_time)
+        if qid is not None:
+            json["qid"] = int(qid)
+            url = "/topics/practice/save"
+        else:
+            url = "/topics/practice/new"
+        return requests.post(api + url, json = json).json()
 
 @app.get("/topic/new")
 async def new_topic_get(request: Request):
     print("Got here")
     subject_json = requests.get(api + "/subjects/list").json()
-    if subject_json == {}:
+    if subject_json == {} or subject_json.get("code") is not None:
         subjects = []
     else:
+        subject_json = subject_json["context"]["subjects"]
         subjects = []
         for subject in subject_json.keys():
             subjects.append([subject, subject_json[subject]])
@@ -1006,11 +1034,13 @@ async def redir_topic(request: Request, tid: str):
 @app.get("/topics/{tid}/learn/{cid}")
 async def topic_concept_learn(request: Request, tid: str, cid: int):
     concept_json = requests.get(api + f"/topics/concepts/get?tid={tid}&cid={cid}").json()
-    if concept_json.get("error") is not None:
+    if concept_json.get("code") is not None:
         return abort(404)
+    concept_json = concept_json["context"]
     count_json = requests.get(
         api + f"/topics/concepts/get/count?tid={tid}"
     ).json()  # Get the page count of a concept
+    count_json = count_json["context"]
     if "username" in request.session:
         # User is logged in, track their progress
         tracker_r = requests.get(api + "/profile/track?username=" + request.session.get("username") + "&tid=" + tid).json()
@@ -1052,7 +1082,7 @@ async def redir_topic_practice(request: Request, tid: str):
 @app.get("/topics/{tid}/practice/{qid}")
 async def topic_practice_view(request: Request, tid: str, qid: int):
     practice_json = requests.get(api + f"/topics/practice/get?tid={tid}&qid={qid}").json()
-    if practice_json.get("error") is not None:
+    if practice_json.get("code") is not None:
         return await render_template(
             request,
             "generic_error.html",
@@ -1061,10 +1091,10 @@ async def topic_practice_view(request: Request, tid: str, qid: int):
             error="Check back later, brave explorer!",
             tid = tid
         )
-    print(practice_json)
+    practice_json = practice_json["context"]
     count_json = requests.get(
         api + f"/topics/practice/get/count?tid={tid}"
-    ).json()  # Get the page count of a concept
+    ).json()["context"]  # Get the page count of a concept
     if practice_json["type"] == "MCQ":
         answers = practice_json["answers"].split("||")
     else:
@@ -1094,7 +1124,6 @@ async def topic_practice_view(request: Request, tid: str, qid: int):
     return await render_template(
         request,
         "topic_practice.html",
-        token = request.session.get("token"),
         practice_mode = True,
         tid=tid,
         qid=int(qid),
@@ -1139,7 +1168,7 @@ async def topic_practice_solve(request: Request, tid: str, qid: int, data: Topic
             "lives": data.lives,
             "path": data.path
         }).json() # And track the answer he/she gave
-    return {"error": "1000"}
+    return tracker_w
 
 @app.post("/topics/{tid}/concepts/{cid}/save")
 async def save_page(tid: str, cid: str, data: SaveExperimentPage):
@@ -1156,7 +1185,7 @@ async def save_page(tid: str, cid: str, data: SaveExperimentPage):
     a = a.json()
     return a
 
-@app.post("/topics/<tid>/save")
+@app.post("/topics/{tid}/save")
 async def save_topics(request: Request, tid: str, data: SaveTopic):
     a = requests.post(
         api + "/topics/save",

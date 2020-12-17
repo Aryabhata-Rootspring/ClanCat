@@ -34,8 +34,11 @@ def get_token(length: str) -> str:
     )
     return secure_str
 
-def brsret(*, code: str = None, html: str = None, support: bool = False, **kwargs: str) -> dict:
-    eMsg = {"code": code, "context": kwargs}
+def brsret(*, code: str = None, html: str = None, outer_scope: dict = None, support: bool = False, **kwargs: str) -> dict:
+    if outer_scope is None:
+        eMsg = {"code": code, "context": kwargs}
+    else:
+        eMsg = {"code": code, **outer_scope, "context": kwargs}
     if html != None:
         eMsg["html"] = f"<p style='text-align: center; color: red'>{html}"
         if support is True:
@@ -252,11 +255,11 @@ class UserPassModel(BaseModel):
 class Save(UserModel):
     async def save(self, type):
         if type not in ["topic", "generic", "concept", "topic_practice"]:
-            return {"error": "Invalid Arguments"} # Invalid Arguments
+            return brsret(code = "INVALID_ARGUMENTS")
 
         auth_check = await authorize_user(self.username, self.token)
         if auth_check == False:
-            return {"error": "Not Authorized"}
+            return brsret(code = "NOT_AUTHORIZED")
         if type == "generic":
             await db.execute(
                 "UPDATE experiments SET code = $1 WHERE sid = $2",
@@ -275,10 +278,10 @@ class Save(UserModel):
             tcheck = await db.fetchrow("SELECT tid FROM topic_table WHERE tid = $1", self.tid)
             if tcheck is None:
                 # Topic Does Not Exist
-                return {"error": "Topic Does Not Exist"}
+                return brsret(code = "TOPIC_DOES_NOT_EXIST")
             concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", self.tid)
             if int(concept_count[0]["count"]) < int(self.cid):
-                return {"error": "0002"}  # Invalid Arguments
+                return brsret(code = "INVALID_ARGUMENTS")
             concepts = await db.fetch("SELECT cid FROM concept_table WHERE tid = $1 ORDER BY cid ASC", self.tid)  # Get all the concepts in ascending order
             absolute_cid = concepts[int(self.cid) - 1]["cid"] # Calculate the absolute concept id
             await db.execute(
@@ -300,7 +303,7 @@ class Save(UserModel):
                 self.tid,
                 self.qid,
             )
-        return {"error": "Successfully saved entity!"}
+        return brsret(code = None, outer_scope = {"message": "Successfully saved entity!"})
 
 class SaveTopic(Save):
     tid: str
@@ -415,7 +418,7 @@ class catphi():
     async def new(*, bt, type, username, token, name = None, description = None, cid = None, tid = None, concept_title = None, question = None, correct_answer = None, answers = None, question_type = None, metaid = None, solution = None, exp_type = "glowscript"):
         auth_check = await authorize_user(username, token)
         if auth_check == False:
-            return {"error": "Not Authorized"}
+            return brsret(code = "NOT_AUTHORIZED")
         if type == "subject":
             table = "subject_table"
             id_table = "metaid"
@@ -427,12 +430,12 @@ class catphi():
             id_table = "tid"
             tcheck = await db.fetchrow("SELECT name FROM subject_table WHERE metaid = $1", metaid)
             if tcheck is None:
-                return {"error": "Subject Does Not Exist"}
+                return brsret(code = "SUBJECT_DOES_NOT_EXIST", html = "That subject does not exist yet")
         elif type == "topic_practice":
             tcheck = await db.fetchrow("SELECT tid FROM topic_table WHERE tid = $1", tid)
             if tcheck is None:
                 # Topic Does Not Exist
-                return {"error": "Topic Does Not Exist"}
+                return brsret(code = "TOPIC_DOES_NOT_EXIST", html = "That topic does not exist yet")
             
             if len(solution) < 3:
                 solution = "There is no solution for this problem yet!"
@@ -463,15 +466,15 @@ class catphi():
                     solution,
                     0,
                 )
-            return {"error": "1000"}
+            return brsret(code = None)
 
 
         elif type == "concept":
             tcheck = await db.fetchrow("SELECT tid FROM topic_table WHERE tid = $1", tid)
             if tcheck is None:
                 # Topic Does Not Exist
-                return {"error": "Topic Does Not Exist"}
-            
+                return brsret(code = "TOPIC_DOES_NOT_EXIST", html = "That topic does not exist yet")
+ 
             concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", tid)
             cid=concept_count[0]["count"] + 1 # Get the count + 1 for next concept
 
@@ -483,7 +486,7 @@ class catphi():
                 cid
             )
             bt.add_task(server_watchdog) #Update the client
-            return {"error": "1000", "page_count": concept_count[0]["count"] + 1}
+            return brsret(code = None, page_count = concept_count[0]["count"] + 1)
 
         while True:
             id = get_token(101)
@@ -517,7 +520,7 @@ class catphi():
                 metaid,
             )
             bt.add_task(server_watchdog)# Update the client
-        return {"error": "1000", id_table: id}
+        return brsret(code = None, id = id)
 
 def server_watchdog():
     print("Watchdog: New Event Dispatched To Client")
@@ -1223,14 +1226,13 @@ async def new_topic_practice(topic_practice: TopicPracticeNew, bt: BackgroundTas
 async def list_concepts(tid: str):
     concepts = await db.fetch("SELECT title FROM concept_table WHERE tid = $1 ORDER BY title ASC", tid)
     if len(concepts) == 0:
-        # 0002 = No Experiments Found
-        return {"error": "0002"}
+        return brsret(code = "NO_CONCEPTS_FOUND")
     cjson = {}
     i = 1
     for concept in concepts:
         cjson[concept['title']] = i
         i+=1
-    return cjson
+    return brsret(code = None, concepts = cjson)
 
 @app.get("/topics/list", tags = ["Topics"])
 async def list_topics():
@@ -1238,7 +1240,7 @@ async def list_topics():
     tjson = {}
     for topic in topics:
         tjson[topic["name"]] = topic["tid"]
-    return tjson
+    return brsret(code = None, topics = tjson)
 
 @app.get("/subjects/list", tags = ["Subjects"])
 async def list_subjects():
@@ -1246,7 +1248,7 @@ async def list_subjects():
     sjson = {}
     for subject in subjects:
         sjson[subject["name"]] = subject["metaid"]
-    return sjson
+    return brsret(code = None, subjects = sjson)
 
 # List All Route (Called /bristlefrost/rootspring/shadowsight
 @app.get("/bristlefrost/rootspring/shadowsight", tags = ["Clan Cat"])
@@ -1278,19 +1280,19 @@ async def get_topic(tid: str, simple: Optional[int] = 0):
 @app.get("/topics/concepts/get/count", tags = ["Topics", "Concepts"])
 async def get_concept_count(tid: str):
     concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", tid)
-    return {"concept_count": concept_count[0]["count"]}
+    return brsret(code = None, concept_count = concept_count[0]["count"])
 
 @app.get("/topics/concepts/get", tags = ["Topics", "Concepts"])
 async def get_concept(tid: str, cid: int):
     concept = await db.fetch("SELECT title, content FROM concept_table WHERE tid = $1 ORDER BY cid ASC", tid)
     if len(concept) == 0 or len(concept) < int(cid) or int(cid) <= 0:
-        return {"error": "0002"} # Invalid Parameters
-    return {"title": concept[int(cid) - 1]["title"], "content": concept[int(cid) - 1]["content"]}
+        return brsret(code = "INVALID_PARAMETERS")
+    return brsret(code = None, title = concept[int(cid) - 1]["title"], content = concept[int(cid) - 1]["content"])
 
 @app.get("/topics/practice/get/count", tags = ["Topics", "Topic Practice"])
 async def get_topic_practice_count(tid: str):
     topic_practice = await db.fetch("SELECT COUNT(1) FROM topic_practice WHERE tid = $1", tid)
-    return {"practice_count": topic_practice[0]["count"]}
+    return brsret(code = None, practice_count = topic_practice[0]["count"])
 
 @app.get("/topics/practice/get", tags = ["Topics", "Topic Practice"])
 async def get_concept_practice(tid: str, qid: int):
@@ -1304,20 +1306,21 @@ async def get_concept_practice(tid: str, qid: int):
         qid
     )
     if len(question) == 0 or int(qid) <= 0:
-        return {"error": "0002"}
+        return brsret(code = "NO_PRACTICE_QUESTIONS")
     question = question[0] # Get the absolute practice question ID
     if question["solution"] is None or len(question["solution"]) < 3:
         solution = "There is no solution for this problem yet!"
     else:
         solution = question["solution"]
-    return {
-        "type": question["type"],
-        "question": question["question"],
-        "correct_answer": question["correct_answer"],
-        "answers": question["answers"],
-        "solution": solution,
-        "recommended_time": question["recommended_time"],
-    }
+    return brsret(
+        code = None,
+        type = question["type"],
+        question = question["question"],
+        correct_answer = question["correct_answer"],
+        answers = question["answers"],
+        solution = solution,
+        recommended_time = question["recommended_time"],
+    )
 
 # WebSockets
 # TODO
