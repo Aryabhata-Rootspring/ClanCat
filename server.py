@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, BackgroundTasks
+from fastapi import FastAPI, Depends, BackgroundTasks, WebSocket
 import asyncio
 import secrets
 import string
@@ -333,7 +333,7 @@ class AuthUsernameEdit(MFAModel):
 
 class AuthPasswordEdit(MFAModel):
     username: str
-    password: str
+    new_password: str
     old_password: str
 
 class AuthResetRequest(BaseModel):
@@ -602,7 +602,7 @@ async def edit_account_username(request: AuthUsernameEdit, bt: BackgroundTasks):
         request.old_username
     )
     new_account_db = await db.fetchrow(
-        "SELECT mfa FROM login WHERE username = $1", 
+        "SELECT username FROM login WHERE username = $1", 
         request.new_username
     )
     if profile_db is None:
@@ -648,7 +648,7 @@ async def edit_account_password(request: AuthPasswordEdit, bt: BackgroundTasks):
             if otp.verify(request.otp) is False:
                 return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
     # Rehash the password
-    password = pwd_context.hash("Shadowsight1" + HASH_SALT + request.username + request.password)
+    password = pwd_context.hash("Shadowsight1" + HASH_SALT + request.username + request.new_password)
     bt.add_task(edit_account_backend, "password", request.token, password)
     return brsret()
 
@@ -660,7 +660,7 @@ async def edit_account_backend(mode: str, token: str, new_data: str, password: O
         await db.execute("UPDATE profile_topic SET username = $1 WHERE username = $2", new_data, old_username)
         await db.execute("UPDATE topic_practice_tracker SET username = $1 WHERE username = $2", new_data, old_username)
     elif mode == "password":
-        await db.execute(f"UPDATE login SET password = $2 WHERE token = $3", new_data, token)
+        await db.execute(f"UPDATE login SET password = $1 WHERE token = $2", new_data, token)
 
 # Send a reset email (stage2 auth)
 @app.post("/auth/reset/send", tags = ["Authentication", "Password Reset"])
@@ -1318,3 +1318,12 @@ async def get_concept_practice(tid: str, qid: int):
         "solution": solution,
         "recommended_time": question["recommended_time"],
     }
+
+# WebSockets
+# TODO
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    while True:
+        data = await websocket.receive_text()
+        await websocket.send_text(f"Message text was: {data}")

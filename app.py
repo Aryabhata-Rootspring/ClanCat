@@ -510,7 +510,7 @@ async def profile_change_username(username):
         form = await request.form
         if "otp" not in form.keys():
             return await render_template("edit_account.html", mode = "username", error = "A username must be provided in order to change it")
-        rc = requests.post(api + "/auth/account/delete", json = {
+        rc = requests.post(api + "/auth/account/edit/username", json = {
             "old_username": username,
             "new_username": session["mfa_editaccount"][0],
             "token": session.get("token"),

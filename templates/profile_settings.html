@@ -14,18 +14,28 @@
 {% block content %}
   <h2 style="text-align: center;"><strong>{{p_username}}'s settings</strong></h2>
   	<div style="text-align: center;" class="profile_settings" role="profile_settings">
-                <h4><strong>Profile Status: </strong>{{private}}</h4>
+                	<h4><strong>Profile Status: </strong>{{private}}</h4>
 			{% if private == "Private" %}
-			<a href="/profile/{{p_username}}/me/state/public"><button class="btn btn-primary">Make Public</button></a>
+			<form action="/profile/{{p_username}}/me/state" method="post">
+				{{ form.csrf_token }}
+				<button type="submit" name="state" value="public" class="btn btn-primary">Make Public</button>
+			</form>
 			{% else %}
-			<a href="/profile/{{p_username}}/me/state/private"><button class="btn btn-primary">Make Private</button></a>
+                        <form action="/profile/{{p_username}}/me/state" method="post">
+                                {{ form.csrf_token }}
+				<button type="submit" name="state" value="private" class="btn btn-primary">Make Private</button>
+                        </form>
 			{% endif %}
 			<hr/>
-			<h5><strong>Listing</strong></h5>
+			<h5><strong>Profile Listing</strong></h5>
 			{% if listing == "Disabled" %}
-			<a href="/profile/{{p_username}}/me/list/allow"><button class="btn btn-primary">Allow Listing</button></a>
+                        <form action="/profile/{{p_username}}/me/list" method="post">
+                                <button type="submit" name="state" value="allow" class="btn btn-primary">Allow Listing</button>
+                        </form>
 			{% else %}
-			<a href="/profile/{{p_username}}/me/list/block"><button class="btn btn-primary">Block Listing</button></a>
+                        <form action="/profile/{{p_username}}/me/list" method="post">
+                                <button type="submit" name="state" value="block" class="btn btn-primary">Block Listing</button>
+                        </form>
 			{% endif %}
 			<hr/>
                         <h5><strong>Security</strong></h5>

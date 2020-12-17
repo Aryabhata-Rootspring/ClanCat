@@ -251,13 +251,39 @@ async def profile(request: Request, username: str):
         items = profile["items"]
     )
 
-@app.get("/profile/{username}/me/state/{state}")
-async def profile_state_set(request: Request, username: str, state: str):
-    if request.session.get("token") == None or request.session.get("username") == None:
-        return abort(401)
-    elif state not in ["public", "private", "disable", "enable", "disable_admin"]:
-        return abort(404)
-    if username == request.session.get("username") or request.session.get("admin") == 1:
+@app.get("/profile/{username}/me/profile/delete")
+async def profile_delete_get(request: Request, username: str):
+    return await render_template(request, "delete_account.html")
+
+@app.post("/profile/{username}/me/profile/delete")
+async def profile_delete_get(request: Request, username: str, otp: str = FastForm("")):
+    if request.session.get("mfa_delaccount") is None:
+        rc = requests.post(api + "/auth/account/delete", json = {
+            "username": username,
+            "token": request.session.get("token")
+        }).json()
+        if rc["code"] == "MFA_NEEDED":
+            request.session["mfa_delaccount"] = True
+            return await render_template(request, "mfa.html", mode = "delete")
+        elif rc["code"] != None:
+            return await render_template(request, "mfa.html", mode = "delete", error = Markup(rc.get("html")))
+    else:
+        rc = requests.post(api + "/auth/account/delete", json = {
+            "username": username,
+            "token": request.session.get("token"),
+            "otp": otp
+        }).json()
+        if rc["code"] is not None:
+            return await render_template(request, "mfa.html", mode = "delete", error = Markup(rc.get("html")))
+        del request.session["mfa_delaccount"]
+    return redirect("/logout")
+
+@app.post("/profile/{username}/me/state")
+@csrf_protect
+async def profile_state_set(request: Request, username: str, state: str = FastForm("public")):
+    if state not in ["public", "private", "disable", "enable", "disable_admin"]:
+        return abort(400)
+    elif request.session.get("token") is not None and (username == request.session.get("username") or request.session.get("admin") == 1):
         pass
     else:
         return abort(401)
@@ -276,10 +302,117 @@ async def profile_state_set(request: Request, username: str, state: str):
         api + "/profile/visible",
         json=post_data
         ).json()
-    print(x)
-    if state in ["disable", "disable_admin"] and request.session.get("admin") is not True:
+    if state == "disable":
         return redirect("/logout")
     return redirect("/settings/" + username)
+
+@app.get("/profile/{username}/me/account/{type}/change")
+async def profile_change_username_get(request: Request, username: str, type: str):
+    try:
+        del request.session["mfa_editaccount"]
+    except:
+        pass
+    return await render_template(request, "edit_account.html", mode = type)
+
+@app.post("/profile/{username}/me/account/{type}/change")
+@csrf_protect
+async def profile_change_username_post(request: Request, username: str, type: str, current_password: str = FastForm(None), new_username: str = FastForm("username"), new_password: str = FastForm("password"), otp: str = FastForm(None)):
+    if username != request.session.get("username"):
+        return abort(401)
+    if request.session.get("mfa_editaccount") is None:
+        if type == "username":
+            rc = requests.post(api + "/auth/account/edit/username", json = {
+                "old_username": username,
+                "new_username": new_username,
+                "token": request.session.get("token"),
+                "password": current_password
+            }).json()
+        elif type == "password":
+            rc = requests.post(api + "/auth/account/edit/password", json = {
+                "username": username,
+                "new_password": new_password,
+                "token": request.session.get("token"),
+                "old_password": current_password
+            }).json()
+        else:
+            rc = {"code": "ERROR", "html": "Invalid Type"}
+
+        if rc["code"] == "MFA_NEEDED":
+            request.session["mfa_editaccount"] = [type, current_password, new_username, new_password]
+            return await render_template(request, "mfa.html", mode = type)
+    elif request.session.get("mfa_editaccount") is None and rc["code"] != None:
+        return await render_template(request, "edit_account.html", mode = type, error = Markup(rc.get("html")))
+    elif request.session.get("mfa_editaccount") is not None:
+        if request.session["mfa_editaccount"][0] == "username":
+            new_username = request.session["mfa_editaccount"][2]
+            rc = requests.post(api + "/auth/account/edit/username", json = {
+                "old_username": username,
+                "new_username": request.session["mfa_editaccount"][2],
+                "token": request.session.get("token"),
+                "password": request.session["mfa_editaccount"][1],
+                "otp": otp
+            }).json()
+        elif request.session["mfa_editaccount"][0] == "password":
+            rc = requests.post(api + "/auth/account/edit/password", json = {
+                "username": username,
+                "new_password": request.session["mfa_editaccount"][3],
+                "token": request.session.get("token"),
+                "old_password": request.session["mfa_editaccount"][1],
+                "otp": otp
+            }).json()
+        if rc["code"] != None:
+            return await render_template(request, "mfa.html", mode = "edit", error = Markup(rc.get("html")))
+    if type == "username":
+        request.session["username"] = new_username
+    try:
+        del request.session["mfa_editaccount"]
+    except:
+        pass
+    await asyncio.sleep(3) # Give the db three seconds to update
+    return redirect("/settings/" + request.session["username"])
+
+@app.get("/profile/{username}/me/mfa/{state}")
+async def profile_mfa_set_get(request: Request, username: str, state: str):
+    if username != request.session.get("username"):
+        return abort(401)
+    elif state not in ["enable", "disable"]:
+        return abort(404)
+
+    if state == "enable":
+        rc = requests.post(api + "/auth/mfa/setup/1", json = {
+            "token": request.session.get("token")
+        }).json()
+        if rc["code"] != None:
+            request.session["status_code"] = 400
+            return await render_template(request, "mfa.html", mode = "setup", error = Markup(rc["html"]), key = request.session["mfa_key"])
+        request.session["mfa_key"] = rc["context"]["key"]
+        return await render_template(request, "mfa.html", mode = "setup", key = rc["context"]["key"])
+    
+    elif state == "disable":
+        return await render_template(request, "mfa.html", mode = "disable")
+
+@app.post("/profile/{username}/me/mfa/{state}")
+@csrf_protect
+async def profile_mfa_set_post(request: Request, username: str, state: str, otp: str = FastForm("")):
+    if state == "enable":
+        rc = requests.post(api + "/auth/mfa/setup/2", json = {
+            "token": request.session.get("token"),
+            "otp": otp
+        }).json()
+        if rc["code"] != None:
+            request.session["status_code"] = 400
+            return await render_template(request, "mfa.html", mode = "setup", error = Markup(rc["html"]), key = request.session["mfa_key"])
+        del request.session["mfa_key"]
+        return redirect("/settings/" + username)
+    elif state == "disable":
+        rc = requests.post(api + "/auth/mfa/disable", json = {
+            "token": request.session.get("token"),
+            "otp": otp
+        }).json()
+        if rc["code"] != None:
+            request.session["status_code"] = 400
+            return await render_template(request, "mfa.html", mode = "disable", error = Markup(rc["html"]))
+        return redirect("/settings/" + username)
 
 @app.get("/iframe/{sid}")
 async def iframe_simulation(request: Request, sid: str):
@@ -554,7 +687,7 @@ async def reset_pwd_post(request: Request, token: str, password: str = FastForm(
 
 @app.get("/settings/{username}")
 async def settings(request: Request, username: str):
-    if request.session.get("username") != username and session.get("admin") != 1:
+    if request.session.get("username") != username and request.session.get("admin") != 1:
         return abort(401)
 
     profile = requests.get(
