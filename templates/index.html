@@ -13,31 +13,50 @@
 </style>
 {% endblock %} 
 {% block content %}
-  <h2 style="text-align: center;"><strong>Welcome To CatPhi</strong></h2>
-  <h3 style="text-align: center;"><strong>A place for explorers to learn Physics <em>and</em> have fun!</strong></h3>
-  <br/>
-  <div style="text-align: center;">
-	  <!-- https://tenor.com/view/universe-sun-glasses-bite-rotating-gif-14467089 -->
-          <img src="https://media.tenor.com/images/a66bec255f77e0e71a9a387e67748b1d/tenor.gif" alt="Sun Nibbling Plant Revolving Around It" style="text-align: left; width:280px;height:280px;">
-	  <!-- https://tenor.com/view/science-billnye-gif-5246275 -->
-	  <img src="https://media.tenor.com/images/55c7ba3c5b108125f8b46085916adaaa/tenor.gif" alt="Mind-Blown Science!" style="text-align: right; width:280px;height:280px;">
-	  <br/>
-	  <!-- https://tenor.com/view/feeling-weekend-vibes-cliphy-not-lost-gif-13123636 -->
-          <img src="https://media.tenor.com/images/aeb920653d0c43c6c6d9a5b8e7370fea/tenor.gif" alt="I'm Not Lost, I'm Exploring!" style="text-align: left; width:280px;height:280px;">
-	  <!-- https://tenor.com/view/newtons-cradle-halloween-moon-pendulum-phases-gif-15055277 -->
-	  <!--<img src="https://media.tenor.com/images/603b9e1a1a3e3221c65fa882df76e4c3/tenor.gif" alt="Newton's Cradle" style="text-align: right; width:280px;height:280px;">-->
-	  <img src="/static/cradle.gif" alt="Newton's Cradle" style="text-align: right; width:280px;height:280px;">
-	  <br/><br/><br/><br/><br/><br/>
-	  <h4>With over <strong><span class="round-log">0</span></strong>s of topics and experiments to explore from...</h4>
-	  <a href="/login"><button class="btn btn-primary btn-round">Let's Start Exploring!</button></a><br/><br/>
-	<div class="tick-demo" style="text-align: center; display: flex; justify-content: center;">
-		<i class="el" style="text-align: center;"></i><br/><br/><br/>
+	<div id="app-index">
+  		<h2 style="text-align: center;" v-bind:title="message"><strong>Welcome To CatPhi</strong></h2>
+  		<h3 style="text-align: center;" v-bind:title="message2"><strong>A place for explorers to learn Physics <em>and</em> have fun!</strong></h3>
+  		<br/>
+  		<div style="text-align: center;">
+          		<img src="https://media.tenor.com/images/a66bec255f77e0e71a9a387e67748b1d/tenor.gif" alt="Sun Nibbling Plant Revolving Around It" style="text-align: left; width:280px;height:280px;">
+	  		<img src="https://media.tenor.com/images/55c7ba3c5b108125f8b46085916adaaa/tenor.gif" alt="Mind-Blown Science!" style="text-align: right; width:280px;height:280px;">
+	  		<br/>
+          		<img src="https://media.tenor.com/images/aeb920653d0c43c6c6d9a5b8e7370fea/tenor.gif" alt="I'm Not Lost, I'm Exploring!" style="text-align: left; width:280px;height:280px;">
+	  		<img src="/static/cradle.gif" alt="Newton's Cradle" style="text-align: right; width:280px;height:280px;">
+	  		<br/><br/><br/><br/><br/><br/>
+			<h4>With over <strong><span class="round-log">0</span></strong>s of topics and experiments to explore from...</h4>
+	  		<a href="/login"><button class="btn btn-primary btn-round">Let's Start Exploring!</button></a><br/><br/>
+			<div class="tick-demo" style="text-align: center; display: flex; justify-content: center;">
+				<i class="el" style="text-align: center;"></i><br/><br/><br/>
+			</div>
+     		</div>
+     	</div>
+     	<div style="text-align: center;">
+		<input type="range" min="0" max="5" id="speed" value="1" step="0.01" aria-label="Slider for animation of ball moving left to right and back" /><br/>
+		<div id="app-index-2">
+        		<p v-bind:title="message">Drag the slider and see what happens!</p>
 		</div>
-	<input type="range" min="0" max="5" id="speed" value="1" step="0.01" aria-label="Slider for animation of ball moving left to right and back" /><br/>
-        <p>Drag the slider and see what happens!</p>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+	</div>
+</div>
 <script>
+window.setTimeout(() => {
+var appindex = new Vue({
+  el: '#app-index',
+  data: {
+    message: 'Welcome back! It is currently ' + new Date().toLocaleString() + " and we are glad to see you",
+    message2: 'Did you hear that? Fun!'
+  },
+  delimiters: ['[[',']]']
+})
+
+var appindex2 = new Vue({
+  el: '#app-index-2',
+  data: {
+    message: 'Did you see it?!',
+  },
+  delimiters: ['[[',']]']
+})
+
 var roundLogEl = document.querySelector('.round-log');
 
 anime({
@@ -46,8 +65,7 @@ anime({
   easing: 'linear',
   round: 1 // Will round the animated value to 1 decimal
 });
-
-
+});
 
 // Animation One
 class TimeMagic {

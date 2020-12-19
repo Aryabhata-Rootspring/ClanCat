@@ -23,20 +23,33 @@ import requests as __r__
 
 
 # Middleware
-from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.status import HTTP_302_FOUND,HTTP_303_SEE_OTHER
 from starlette_wtf import StarletteForm, CSRFProtectMiddleware, csrf_protect
-
+from starlette_session import SessionMiddleware
+from starlette_session.backends import BackendType
+import aioredis
 
 # FastAPI App Code
 app = FastAPI()
-app.add_middleware(SessionMiddleware, secret_key="qEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Ddrejrj34jfjrc4j3fwkjVrT34jkFj34jkgce3jfqkeieiei3jd44584830290riuejnfdiuwrjncjnwe8uefhnewfu553kf84EyfFH48SHSWk", same_site = 'strict', max_age = 7 * 24 * 60 * 60, https_only = True)
 app.add_middleware(CSRFProtectMiddleware, csrf_secret='1f03eea1ffb7446294f71342bf110f21b91a849377144b789219a6a314ffb7815a0b69b2d6274bae84dd66b734393241')
 templates = Jinja2Templates(directory="templates")
 api = "https://127.0.0.1:443/api/v1"
+
+def get_token(length: str) -> str:
+    secure_str = "".join(
+        (secrets.choice(string.ascii_letters + string.digits) for i in range(length))
+    )
+    return secure_str
+
+@app.on_event("startup")
+async def on_startup():
+    redis_client = await aioredis.create_redis_pool(("localhost", 6379))
+    print(redis_client)
+    app.add_middleware(SessionMiddleware, secret_key="iiqEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Ddrejrj34jfjrc4j3fwkjVrT34jkFj34jkgce3jfqkeieiei3jd44584830290riuejnfdiuwrjncjnwe8uefhnewfu553kf84EyfFH48SHSWk", cookie_name="catphi_session-" + get_token(101), backend_type=BackendType.aioRedis, backend_client=redis_client, same_site = 'strict', max_age = 7 * 24 * 60 * 60, https_only = True)
+
 
 # Wrappers
 # A wrapper around requests
@@ -133,9 +146,9 @@ async def not_found(request, exc):
     if str(exc).__contains__("CSRF"):
         request.session["csrf"] = True
         request.session["status_code"] = 400
-        return await render_template(request, "csrf_error.html")
+        return await render_template(request, "generic_error.html", header = "CSRF Error", error = "CSRF Forgery Alert. Your request cannot be processed right now as it may not have come from you. Please click Back and then refresh your page and try again. Thank you :)")
     request.session["status_code"] = 404
-    return await render_template(request, "404.html")
+    return await render_template(request, "generic_error.html", header = "404", error = "We can't find what you're looking for... Ooops.")
 
 # Routes
 @app.get("/")
@@ -660,10 +673,9 @@ async def reset_pwd_s1_post(request: Request, username: str = FastForm(None), em
 @app.get("/reset/stage2")
 async def reset_pwd_get(request: Request, token: str):
     a = requests.get(api + f"/auth/reset/check/token?token={token}").json()
-    print(a)
     if a["code"] == False:
         request.session["status_code"] = 403
-        return await render_template(request, "reset_fail.html")
+        return await render_template(request, "generic_error.html", header = "Reset Password", error = "Something's Went Wrong. We cannot reset your password using this link. Plese try resetting your password again")
     return await render_template(request, "reset.html")
 
 @app.post("/reset/stage2")
@@ -1168,7 +1180,8 @@ async def topic_practice_solve(request: Request, tid: str, qid: int, data: Topic
             "lives": data.lives,
             "path": data.path
         }).json() # And track the answer he/she gave
-    return tracker_w
+        return tracker_w
+    return None
 
 @app.post("/topics/{tid}/concepts/{cid}/save")
 async def save_page(tid: str, cid: str, data: SaveExperimentPage):
@@ -1199,3 +1212,13 @@ async def save_topics(request: Request, tid: str, data: SaveTopic):
     a = a.json()
     return a
 
+
+# Testing
+
+@app.get("/temprun/{template}/")
+@app.get("/temprun/{template}")
+async def template_test_run(request: Request, template: str):
+    try:
+        return await render_template(request, template + ".html")
+    except:
+        return abort(404)

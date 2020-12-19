@@ -1,0 +1,6 @@
+Use https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-redis-on-ubuntu-16-04 to setup Redis
+
+# For seting up the user and group
+sudo useradd --system  --no-create-home redis
+sudo groupadd --system redis
+
