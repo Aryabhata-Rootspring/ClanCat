@@ -38,6 +38,7 @@ app.add_middleware(CSRFProtectMiddleware, csrf_secret='1f03eea1ffb7446294f71342b
 templates = Jinja2Templates(directory="templates")
 api = "https://127.0.0.1:443/api/v1"
 
+RKEY = open("rkey").read().replace("\n", "").replace(" ", "")
 def get_token(length: str) -> str:
     secure_str = "".join(
         (secrets.choice(string.ascii_letters + string.digits) for i in range(length))
@@ -48,7 +49,7 @@ def get_token(length: str) -> str:
 async def on_startup():
     redis_client = await aioredis.create_redis_pool(("localhost", 6379))
     print(redis_client)
-    app.add_middleware(SessionMiddleware, secret_key="iiqEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Ddrejrj34jfjrc4j3fwkjVrT34jkFj34jkgce3jfqkeieiei3jd44584830290riuejnfdiuwrjncjnwe8uefhnewfu553kf84EyfFH48SHSWk", cookie_name="catphi_session-" + get_token(101), backend_type=BackendType.aioRedis, backend_client=redis_client, same_site = 'strict', max_age = 7 * 24 * 60 * 60, https_only = True)
+    app.add_middleware(SessionMiddleware, secret_key="iiqEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Ddrejrj34jfjrc4j3fwkjVrT34jkFj34jkgce3jfqkeieiei3jd44584830290riuejnfdiuwrjncjnwe8uefhnewfu553kf84EyfFH48SHSWk", cookie_name="catphi_session-" + RKEY, backend_type=BackendType.aioRedis, backend_client=redis_client, same_site = 'strict', max_age = 7 * 24 * 60 * 60, https_only = True)
 
 
 # Wrappers
@@ -321,6 +322,12 @@ async def profile_state_set(request: Request, username: str, state: str = FastFo
     if state == "disable":
         return redirect("/logout")
     return redirect("/settings/" + username)
+
+@app.post("/profile/{username}/me/list")
+@csrf_protect
+async def profile_state_set(request: Request, username: str, state: str = FastForm("enable")):
+    if state not in ["enable", "disable"]:
+        return abort(404)
 
 @app.post("/profile/{username}/me/token")
 @csrf_protect

@@ -86,12 +86,12 @@ async def setup_db():
     )
     # A profile of a user
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS profile (username TEXT, joindate DATE, public BOOLEAN, badges TEXT, level TEXT, listing BOOLEAN, items TEXT)"
+        "CREATE TABLE IF NOT EXISTS profile (username TEXT, joindate DATE, public BOOLEAN, badges TEXT, level TEXT, listing BOOLEAN, items TEXT, followers TEXT[], following TEXT[])"
     )
     # Create an index for the three things that will never/rarely change,
     # namely join date , username and public/private profile
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS profile_index ON profile (username, joindate, public, badges, level, listing, items)"
+        "CREATE INDEX IF NOT EXISTS profile_index ON profile (username, joindate, public, badges, level, listing, items, followers, following)"
     )
     # All the topics a user has completed or is working on
     await __db.execute(
@@ -365,6 +365,9 @@ class AuthRecoveryRequest(BaseModel):
     backup_key: str
 
 # Profile Models
+
+class ProfileListingRequest(UserModel):
+    state: str
 
 class ProfileVisibleRequest(UserModel):
     state: str
@@ -1023,6 +1026,9 @@ async def change_visibility(pvr: ProfileVisibleRequest):
         )
         return {"error": "1000"}
 
+@app.post("/profile/listing", tags = ["Profile"])
+async def profile_listing(plr: ProfileListingRequest):
+    pass
 
 @app.get("/profile", tags = ["Profile"])
 async def get_profile(username: str, token: str = None):

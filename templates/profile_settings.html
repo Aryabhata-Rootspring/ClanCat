@@ -30,11 +30,13 @@
 			<h5><strong>Profile Listing</strong></h5>
 			{% if listing == "Disabled" %}
                         <form action="/profile/{{username}}/me/list" method="post">
-                                <button type="submit" name="state" value="allow" class="btn btn-primary">Allow Listing</button>
+                                {{ form.csrf_token }}
+                                <button type="submit" name="state" value="enable" class="btn btn-primary">Enable Listing</button>
                         </form>
 			{% else %}
                         <form action="/profile/{{username}}/me/list" method="post">
-                                <button type="submit" name="state" value="block" class="btn btn-primary">Block Listing</button>
+                                {{ form.csrf_token }}
+				<button type="submit" name="state" value="disable" class="btn btn-primary">Disable Listing</button>
                         </form>
 			{% endif %}
 			<hr/>
