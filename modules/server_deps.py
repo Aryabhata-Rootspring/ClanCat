@@ -1,7 +1,5 @@
 from fastapi import Depends, BackgroundTasks, WebSocket, APIRouter 
 import asyncio
-import secrets
-import string
 import smtplib
 import time
 import ssl
@@ -20,6 +18,7 @@ import config
 import logging
 import sys
 import sys
+from .common_deps import *
 sys.path.append("..")
 inflect_engine = inflect.engine()
 logging.captureWarnings(True)
@@ -34,12 +33,6 @@ def hash_pwd(username: str, password: str) -> str:
 
 def verify_pwd(username: str, password: str, hashed_pwd: str) -> bool:
     return pwd_context.verify("Shadowsight1" + HASH_SALT + username + password, hashed_pwd)
-
-def get_token(length: str) -> str:
-    secure_str = "".join(
-        (secrets.choice(string.ascii_letters + string.digits) for i in range(length))
-    )
-    return secure_str
 
 def brsret(*, code: str = None, html: str = None, outer_scope: dict = None, support: bool = False, **kwargs: str) -> dict:
     if outer_scope is None:
@@ -69,7 +62,7 @@ async def authorize_user(username, token):
 
 def server_watchdog():
     print("Watchdog: New Event Dispatched To Client")
-    requests.get(SERVER_URL + "/api/internal/brs/cache/update", verify = config.SECURE)
+    requests.get(SERVER_URL + "/brs/internal/cache/update", verify = config.SECURE)
     return
 
 class TokenModel(BaseModel):

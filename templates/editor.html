@@ -78,7 +78,7 @@ function addSimu() {
 	var sid = prompt("Enter the simulation ID for the experiment you wish to embed")
 	if(sid != null) {
 		var current = editor.getValue();
-		var new_code = '<iframe title="IFrame Simulation" sandbox="allow-scripts allow-pointer-lock" src="https://127.0.0.1/iframe/' + sid + '"></iframe>';
+		var new_code = '<iframe title="IFrame Simulation" sandbox="allow-scripts allow-pointer-lock" src="https://127.0.0.1/experiment/' + sid + '/iframe"></iframe>';
 		current = current + "\n" + new_code;
 		editor.setValue(current);
 	}

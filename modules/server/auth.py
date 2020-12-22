@@ -97,16 +97,17 @@ async def edit_account_username(request: AuthUsernameEdit, bt: BackgroundTasks):
     )
     if profile_db is None:
         return brsret(code = "INVALID_PROFILE", html = "Invalid Profile.", support = True)
-    elif new_account_db is not None:
+    if new_account_db is not None:
         return brsret(code = "USERNAME_TAKEN", html = "That username has been taken. Please choose another one")
-    elif profile_db["password"] is None:
+    if profile_db["password"] is None:
         # Invalid Username Or Password
         return brsret(code = "INVALID_USER_PASS", html = "Account Recovery is needed.", support = False)
-    elif verify_pwd(request.old_username, request.password, profile_db["password"]) is False:
+    print(verify_pwd(request.old_username, request.password, profile_db["password"]))
+    if verify_pwd(request.old_username, request.password, profile_db["password"]) == False:
         return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
-    elif profile_db["mfa"] is True:
+    if profile_db["mfa"] is True:
         if request.otp is None:
-            return brsret(code = "MFA_NEEDED", mfaChallenge = "mfa")
+            return brsret(code = "MFA_NEEDED", mfaChallenge = "mfa", html = "MFA is needed")
         else:
             otp = pyotp.TOTP(profile_db["mfa_shared_key"])
             if otp.verify(request.otp) is False:
@@ -125,12 +126,12 @@ async def edit_account_password(request: AuthPasswordEdit, bt: BackgroundTasks):
     )
     if profile_db is None:
         return brsret(code = "INVALID_PROFILE", html = "Invalid Profile.", support = True)
-    elif profile_db["password"] is None:
+    if profile_db["password"] is None:
         # Invalid Username Or Password
         return brsret(code = "INVALID_USER_PASS", html = "Account Recovery is needed.", support = False)
-    elif verify_pwd(request.username, request.old_password, profile_db["password"]) is False:
+    if verify_pwd(request.username, request.old_password, profile_db["password"]) is False:
         return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
-    elif profile_db["mfa"] is True:
+    if profile_db["mfa"] is True:
         if request.otp is None:
             return brsret(code = "MFA_NEEDED", mfaChallenge = "mfa")
         else:
@@ -267,7 +268,7 @@ async def login(login: AuthLoginRequest):
         # Invalid Username Or Password
         return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
 
-    elif verify_pwd(login.username, login.password, pwd["password"]) is False:
+    elif verify_pwd(login.username, login.password, pwd["password"]) == False:
         return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
 
     # Check for MFA

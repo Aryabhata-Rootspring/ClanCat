@@ -54,7 +54,7 @@
 	<h3>Passport Info</h3>
 	<h5>This user has been on CatPhi since {{join_date}}</h5>
           {% if p_admin or profile_owner %}
-	  <a href="/settings/{{p_username}}"><button class="btn btn-primary">Settings</button></a><br/><br/>
+	  <a href="/profile/{{p_username}}/settings"><button class="btn btn-primary">Settings</button></a><br/><br/>
           {% endif %}
 
 	{% if admin == 1 and profile_owner%}
