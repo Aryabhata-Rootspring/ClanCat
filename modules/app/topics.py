@@ -11,11 +11,6 @@ class SaveTopic(BaseModel):
     token: str
     description: str
 
-class SaveExperimentPage(BaseModel):
-    username: str
-    token: str
-    code: str
-
 router = APIRouter(
     prefix="/topics",
     tags=["Topics"],

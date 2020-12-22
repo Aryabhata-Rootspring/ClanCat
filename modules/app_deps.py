@@ -80,3 +80,9 @@ def redirect(path):
 def abort(code):
     raise StarletteHTTPException(status_code=code)
 
+# Lots of modules need this, so...
+class SaveExperimentPage(BaseModel):
+    username: str
+    token: str
+    code: str
+
