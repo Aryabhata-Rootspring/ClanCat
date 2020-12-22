@@ -1,0 +1,23 @@
+{% extends 'template.html' %}
+{% block header %}
+	<title>Example 01.02 - First Scene</title>
+	<meta charset="UTF-8" />
+	<script src="https://threejs.org/build/three.min.js"></script><!--r83-->
+	<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+	<script type="text/javascript" src="/static/clancat.js"></script>
+	<meta name="description" content="Aryabhata Inc - CatPhi">
+{% endblock %}
+{% block content %}
+
+    <!-- Div which will hold the Output -->
+    <div id="webgl-output"></div>
+
+    <!-- Javascript code that runs our Three.js examples -->
+    <script type="text/javascript">
+        (function () {
+            // your page initialization code here
+            // the DOM will be available here
+            init()
+        })();
+    </script>
+{% endblock %}
