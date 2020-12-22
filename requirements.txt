@@ -1,9 +1,9 @@
 asyncpg
-fastapi
+fastapi >= 0.63.0
 quart
 requests
 passlib
-uvicorn[standard]
+uvicorn[standard] >=0.13.2
 wtforms
 inflect
 pyotp
