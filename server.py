@@ -91,17 +91,19 @@ app = FastAPI(root_path="/api/v1", servers=[
 
 @app.on_event("startup")
 async def startup():
-    global db
+    print("SERVER: Setting up database")
     builtins.db = await setup_db()
 
 @app.on_event("shutdown")
 async def shutdown():
+    print("SERVER: Closing database")
     await db.close()
 
+print("SERVER: Loading Modules")
 # Include all the modules
 for f in os.listdir("modules/server"):
     if not f.startswith("_"):
-        print("Loading modules.server." + f.replace(".py", ""))
+        print("SERVER MODLOAD: modules.server." + f.replace(".py", ""))
         route = importlib.import_module("modules.server." + f.replace(".py", ""))
         app.include_router(route.router)
 

@@ -17,6 +17,24 @@ class TopicPracticeNew(UserModel):
     tid: str
     solution: str
 
+class SaveTopic(UserModel):
+    tid: str
+    description: str
+
+class SaveTopicConcept(UserModel):
+    tid: str
+    cid: int
+    code: str
+
+class SaveTopicPractice(UserModel):
+    type: str
+    question: str
+    answers: Optional[str] = None
+    correct_answer: str
+    tid: str
+    qid: int
+    solution: str
+    recommended_time: Optional[int] = 0
 
 router = APIRouter(
     prefix="/topics",
@@ -34,39 +52,6 @@ async def get_concept(tid: str, cid: int):
     if len(concept) == 0 or len(concept) < int(cid) or int(cid) <= 0:
         return brsret(code = "INVALID_PARAMETERS")
     return brsret(code = None, title = concept[int(cid) - 1]["title"], content = concept[int(cid) - 1]["content"])
-
-@router.get("/practice/get/count")
-async def get_topic_practice_count(tid: str):
-    topic_practice = await db.fetch("SELECT COUNT(1) FROM topic_practice WHERE tid = $1", tid)
-    return brsret(code = None, practice_count = topic_practice[0]["count"])
-
-@router.get("/practice/get")
-async def get_concept_practice(tid: str, qid: int):
-    question = await db.fetch("""
-        SELECT type, question, correct_answer,
-        answers, solution, recommended_time
-        FROM topic_practice
-        WHERE tid = $1 AND qid = $2
-        ORDER BY qid ASC""",
-        tid,
-        qid
-    )
-    if len(question) == 0 or int(qid) <= 0:
-        return brsret(code = "NO_PRACTICE_QUESTIONS")
-    question = question[0] # Get the absolute practice question ID
-    if question["solution"] is None or len(question["solution"]) < 3:
-        solution = "There is no solution for this problem yet!"
-    else:
-        solution = question["solution"]
-    return brsret(
-        code = None,
-        type = question["type"],
-        question = question["question"],
-        correct_answer = question["correct_answer"],
-        answers = question["answers"],
-        solution = solution,
-        recommended_time = question["recommended_time"],
-    )
 
 @router.get("/concepts/list")
 async def list_concepts(tid: str):
@@ -101,6 +86,62 @@ async def new_concept(concept: ConceptNew, bt: BackgroundTasks):
     bt.add_task(server_watchdog) #Update the client
     return brsret(code = None, page_count = cid)
 
+@router.post("/concepts/save")
+async def save_concept(save: SaveTopicConcept):
+    auth_check = await authorize_user(save.username, save.token)
+    if auth_check == False:
+        return brsret(code = "NOT_AUTHORIZED")
+    # Firstly, make sure the topic actually exists in topic_table
+    tcheck = await db.fetchrow("SELECT tid FROM topic_table WHERE tid = $1", save.tid)
+    if tcheck is None:
+        # Topic Does Not Exist
+        return brsret(code = "TOPIC_DOES_NOT_EXIST")
+    concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", save.tid)
+    if int(concept_count[0]["count"]) < int(save.cid):
+        return brsret(code = "INVALID_ARGUMENTS")
+    concepts = await db.fetch("SELECT cid FROM concept_table WHERE tid = $1 ORDER BY cid ASC", save.tid)  # Get all the concepts in ascending order
+    absolute_cid = concepts[int(save.cid) - 1]["cid"] # Calculate the absolute concept id
+    await db.execute(
+        "UPDATE concept_table SET content = $1 WHERE tid = $2 AND cid = $3",
+        save.code,
+        save.tid,
+        int(absolute_cid),
+    )
+    return brsret(code = None, outer_scope = {"message": "Successfully saved entity!"})
+
+@router.get("/practice/get/count")
+async def get_topic_practice_count(tid: str):
+    topic_practice = await db.fetch("SELECT COUNT(1) FROM topic_practice WHERE tid = $1", tid)
+    return brsret(code = None, practice_count = topic_practice[0]["count"])
+
+@router.get("/practice/get")
+async def get_concept_practice(tid: str, qid: int):
+    question = await db.fetch("""
+        SELECT type, question, correct_answer,
+        answers, solution, recommended_time
+        FROM topic_practice
+        WHERE tid = $1 AND qid = $2
+        ORDER BY qid ASC""",
+        tid,
+        qid
+    )
+    if len(question) == 0 or int(qid) <= 0:
+        return brsret(code = "NO_PRACTICE_QUESTIONS")
+    question = question[0] # Get the absolute practice question ID
+    if question["solution"] is None or len(question["solution"]) < 3:
+        solution = "There is no solution for this problem yet!"
+    else:
+        solution = question["solution"]
+    return brsret(
+        code = None,
+        type = question["type"],
+        question = question["question"],
+        correct_answer = question["correct_answer"],
+        answers = question["answers"],
+        solution = solution,
+        recommended_time = question["recommended_time"],
+    )
+
 @router.post("/practice/new")
 async def new_topic_practice(topic_practice: TopicPracticeNew, bt: BackgroundTasks):
     auth_check = await authorize_user(topic_practice.username, topic_practice.token)
@@ -131,6 +172,23 @@ async def new_topic_practice(topic_practice: TopicPracticeNew, bt: BackgroundTas
     )
     return brsret(code = None, practice_count = qid)
 
+@router.post("/practice/save")
+async def topic_practice_save(save: SaveTopicPractice):
+    auth_check = await authorize_user(save.username, save.token)
+    if auth_check == False:
+        return brsret(code = "NOT_AUTHORIZED")
+    await db.execute(
+        "UPDATE topic_practice SET type = $1, question = $2, answers = $3, correct_answer = $4, solution = $5, recommended_time = $6 WHERE tid = $7 AND qid = $8",
+        save.type,
+        save.question,
+        save.answers,
+        save.correct_answer,
+        save.solution,
+        save.recommended_time,
+        save.tid,
+        save.qid,
+    )
+    return brsret(code = None, outer_scope = {"message": "Successfully saved entity!"})
 
 @router.get("/get")
 async def get_topic(tid: str, simple: Optional[int] = 0):
@@ -181,3 +239,15 @@ async def new_topic(topic: TopicNew, bt: BackgroundTasks):
     bt.add_task(server_watchdog)# Update the client
     return brsret(code = None, id = id)
 
+@router.post("/save")
+async def save_topic(save: SaveTopic):
+    auth_check = await authorize_user(save.username, save.token)
+    if auth_check == False:
+        return brsret(code = "NOT_AUTHORIZED")
+    await db.execute(
+        "UPDATE topic_table SET description = $1 WHERE tid = $2",
+        save.description,
+        save.tid,
+    )
+    return brsret(code = None, outer_scope = {"message": "Successfully saved entity!"})
+ 
