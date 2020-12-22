@@ -431,7 +431,7 @@ iframe {
 	})
 
 	function track() {
-		post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/practice/{{qid}}/solve";
+		post_url = "https://" + window.location.hostname + "/topics/{{tid}}/practice/{{qid}}/solve";
                 console.log(post_url);
 		console.log(choices.join("|"))
 		post_data = {"csrf_token": csrf, "answer": answer, "lives": lives - incorrect, "path": choices.join("|")};
@@ -517,7 +517,7 @@ iframe {
 	}
 
         function track() {
-                post_url = "https://" + window.location.hostname + ":443/topics/{{tid}}/practice/{{qid}}/solve";
+                post_url = "/topics/{{tid}}/practice/{{qid}}/solve";
                 console.log(post_url);
                 post_data = {"csrf_token": csrf, "answer": answer, "lives": lives - incorrect, "path": "SAQ"};
                 postjson(post_url, post_data);

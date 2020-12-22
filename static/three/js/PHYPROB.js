@@ -371,7 +371,7 @@ class Box {
   //From https://stackoverflow.com/a/38306162/932184`
   getPosition() {
     this.geom.computeBoundingBox();
-    var center;
+    var center = new THREE.Vector3();
     center = this.geom.boundingBox.getCenter(center);
     var retval = this.obj.localToWorld(center);
     return retval;
@@ -589,7 +589,7 @@ class InclinedPlane {
   //From https://stackoverflow.com/a/38306162/932184`
   getPosition() {
     this.geom.computeBoundingBox();
-    var center;
+    var center = new THREE.Vector3();
     center = this.geom.boundingBox.getCenter(center);
     var retval = this.obj.localToWorld(center);
     return retval;
@@ -628,16 +628,15 @@ class InclinedPlane {
 const material = new THREE.MeshBasicMaterial({ color })
 const curve = new THREE.Line(geometry, material);
 */
-       this.geom = new THREE.CircleBufferGeometry(attr.R,64);
-       this.material = new THREE.MeshBasicMaterial();//{color:0xff00});
-       this.solid= new THREE.Line(this.geom, this.material);
+       this.geom = new THREE.CylinderBufferGeometry(7, 25, 19, 20);
+       this.material = new THREE.MeshBasicMaterial( {color: 0x34ebd5} );
+       this.solid = new THREE.Mesh(this.geom, this.material);
        this.sqgeom = new THREE.PlaneGeometry(attr.R,attr.R);
        this.sqmaterial = new THREE.MeshBasicMaterial({color:0x000000});
        this.sq = new THREE.Mesh(this.sqgeom, this.sqmaterial);
        this.obj = new THREE.Group();
        this.obj.add(this.solid);
        this.obj.add(this.sq);
-
        /*
        this.geom = new THREE.CircleGeometry(attr.R,64);
        if (attr.color != undefined) 
@@ -647,22 +646,21 @@ const curve = new THREE.Line(geometry, material);
           this.material = new THREE.MeshBasicMaterial();
        this.obj = new THREE.Mesh(this.geom, this.material);
       */
-       if (attr.x != undefined && attr.y != undefined && attr.z != undefined)
-           this.obj.position.set(attr.x,attr.y,attr.z);
-     };
-  addToScene(scene) {
-    scene.add(this.obj); 
-  }
+       if (attr.x != undefined && attr.y != undefined && attr.z != undefined) {
+           this.obj.position.set(attr.x - 3,attr.y,attr.z);
+       }
+    };
   //From https://stackoverflow.com/a/38306162/932184`
+  
+  addToScene(scene) {
+       scene.add(this.obj)
+  }
+
   getPosition() {
-    this.geom.computeBoundingBox();
-    var center;
-    center = this.geom.boundingBox.getCenter(center);
-    var retval = this.obj.localToWorld(center);
-    return retval;
+    return this.obj.position;
   }
   setPos(x,y,z) {
-    this.obj.position.set(x,y,z);
+    this.obj.position.set(x, y, z)
     this.obj.updateMatrixWorld();
    }
   //Probably should be common to all solid objects
@@ -683,6 +681,7 @@ const curve = new THREE.Line(geometry, material);
     for (var i =0; i< this.geom.vertices.length;i++) {
           newverts.push(this.solid.localToWorld(this.solid.geometry.vertices[i].clone()));
    }
+   console.log("Newverts is" + newverts);
    return newverts;
  }
 
@@ -942,7 +941,7 @@ const curve = new THREE.Line(geometry, material);
     document.getElementById("webgl-output").appendChild(renderer.domElement);
 
     // show axes in the screen
-    var axes = new THREE.AxisHelper(20);
+    var axes = new THREE.AxesHelper(20);
     scene.add(axes);
     var spotLight = new THREE.SpotLight(0xffffff);
     spotLight.position.set(0, 0, 50);
@@ -1012,13 +1011,14 @@ const curve = new THREE.Line(geometry, material);
     
     //Place a pulley a little above and to the right of this top point
     var plly_centre = new THREE.Vector3(topPoint.x+20,topPoint.y+20,topPoint.z-100);
-    var plly = new Pulley({"R":15,
-                           "x":plly_centre.x, //to the right by more than the radius of the pulley
-                           "y":plly_centre.y,  //a little above
-                           "z":plly_centre.z //The front face is at Z=0; back face is Z=-200; so we want it at the mid point
+    var plly = new Pulley({"R": 30,
+                           "x": plly_centre.x, //to the right by more than the radius of the pulley
+                           "y": plly_centre.y,  //a little above
+                           "z": plly_centre.z, //The front face is at Z=0; back face is Z=-200; so we want it at the mid point
                           });
-
-     plly.addToScene(scene);
+     plly.addToScene(scene)
+     camera.lookAt(plly)
+     console.log(plly_centre)
 	//renderer.render( scene, camera );
 
     //STEP 5
@@ -1136,9 +1136,9 @@ const curve = new THREE.Line(geometry, material);
 	requestAnimationFrame( animate );
 
         //Motion
-        plly.rotateZ(-0.01);
-        rope2Motion=ipL2.updateLine(0.1);
-        rope1Motion=ipL.updateLine(-0.1);
+        plly.rotateX(-0.02);
+        rope2Motion=ipL2.updateLine(0.2);
+        rope1Motion=ipL.updateLine(-0.2);
 
         pos_bx2 = bx2.getPosition().clone();
         pos_bx = bx.getPosition().clone();
