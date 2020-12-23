@@ -1,3 +1,28 @@
 To Load
 launchctl load /usr/local/cellar/nginx/X.Y.Z/homebrew.mxcl.nginx.plist   
 launchctl unload /usr/local/cellar/nginx/1.17.0/homebrew.mxcl.nginx.plist   
+
+
+Or
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+                       "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key><string>nginx</string>
+    <key>Program</key><string>/usr/local/sbin/nginx</string>
+    <key>KeepAlive</key><true/>
+    <key>NetworkState</key><true/>
+    <key>StandardErrorPath</key><string>/var/log/system.log</string>
+    <key>LaunchOnlyOnce</key><true/>
+  </dict>
+</plist>
+
+launchctl load -F /System/Library/LaunchDaemons/nginx.plist
+
+
+https://www.nginx.com/resources/wiki/start/topics/examples/osxlaunchd/
+
+https://www.javatpoint.com/installing-nginx-on-mac
