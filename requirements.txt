@@ -1,9 +1,12 @@
-asyncpg
-fastapi >= 0.63.0
-quart
-requests
-passlib
-uvicorn[standard] >=0.13.2
+asyncpg == 0.21.0
+git+https://github.com/Aryabhata-Rootspring/fastapi
+quart == 0.9.0
+requests == 2.25.0
+passlib == 1.7.3
+uvicorn[standard] == 0.13.2
 wtforms
-inflect
-pyotp
+inflect == 5.0.1
+pyotp == 2.4.0
+starlette_wtf
+starlette_session == 0.4.1
+aioredis == 1.3.0
