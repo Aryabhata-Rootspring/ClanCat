@@ -28,3 +28,11 @@ launchctl load -F /System/Library/LaunchDaemons/nginx.plist
 https://www.nginx.com/resources/wiki/start/topics/examples/osxlaunchd/
 
 https://www.javatpoint.com/installing-nginx-on-mac
+
+
+Docroot is: /usr/local/var/www
+
+The default port has been set in /usr/local/etc/nginx/nginx.conf to 8080 so that
+nginx can run without sudo.
+
+nginx will load all files in /usr/local/etc/nginx/servers/.
