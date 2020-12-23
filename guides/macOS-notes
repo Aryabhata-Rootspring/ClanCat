@@ -1,0 +1,3 @@
+brew install python@3.9
+
+Add PATH=/usr/local/bin:$PATH to ~/.bashrc::~/.zshrc
