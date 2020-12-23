@@ -1,0 +1,3 @@
+To Load
+launchctl load /usr/local/cellar/nginx/X.Y.Z/homebrew.mxcl.nginx.plist   
+launchctl unload /usr/local/cellar/nginx/1.17.0/homebrew.mxcl.nginx.plist   
