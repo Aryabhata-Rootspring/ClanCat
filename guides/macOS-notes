@@ -1,3 +1,5 @@
 brew install python@3.9
 
 Add PATH=/usr/local/bin:$PATH to ~/.bashrc::~/.zshrc
+
+http://www.varesano.net/blog/fabio/disable%20vim%20automatic%20visual%20mode%20using%20mouse

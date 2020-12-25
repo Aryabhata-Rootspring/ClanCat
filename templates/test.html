@@ -8,16 +8,17 @@
 	<meta name="description" content="Aryabhata Inc - CatPhi">
 {% endblock %}
 {% block content %}
-
+        <div style="text-align: center;">
+                <input type="range" min="0" max="5" id="mass" value="1" step="0.01" aria-label="Slider for animation of ball moving left to right and back" /><br/>
+                <div id="app-index-2">
+                        <p v-bind:title="message">Mass Of The Box</p>
+                </div>
+        </div>
     <!-- Div which will hold the Output -->
     <div id="webgl-output"></div>
 
     <!-- Javascript code that runs our Three.js examples -->
     <script type="text/javascript">
-        (function () {
-            // your page initialization code here
-            // the DOM will be available here
-	    init({"angle": 30, "length": 50, "depth": 100, "box_length": 20})
-        })();
+        init()
     </script>
 {% endblock %}
