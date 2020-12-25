@@ -369,7 +369,7 @@ class Box {
   //From https://stackoverflow.com/a/38306162/932184`
   getPosition() {
     this.geom.computeBoundingBox();
-    var center;
+    var center = new THREE.Vector3();
     center = this.geom.boundingBox.getCenter(center);
     var retval = this.obj.localToWorld(center);
     return retval;
@@ -587,7 +587,7 @@ class InclinedPlane {
   //From https://stackoverflow.com/a/38306162/932184`
   getPosition() {
     this.geom.computeBoundingBox();
-    var center;
+    var center = new THREE.Vector3();
     center = this.geom.boundingBox.getCenter(center);
     var retval = this.obj.localToWorld(center);
     return retval;
@@ -650,7 +650,7 @@ const curve = new THREE.Line(geometry, material);
   //From https://stackoverflow.com/a/38306162/932184`
   getPosition() {
     this.geom.computeBoundingBox();
-    var center;
+    var center = new THREE.Vector3();
     center = this.geom.boundingBox.getCenter(center);
     var retval = this.obj.localToWorld(center);
     return retval;
