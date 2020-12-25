@@ -1,10 +1,9 @@
 from fastapi import FastAPI, Depends, BackgroundTasks, WebSocket
 import asyncio
-import asyncpg
 import builtins
 import importlib
 import os
-from modules.db import *
+from modules.db import setup_db
 
 app = FastAPI(root_path="/api/v1", servers=[
     {"url": "/", "description": "Frontend"},
