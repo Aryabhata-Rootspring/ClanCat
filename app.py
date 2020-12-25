@@ -1,7 +1,7 @@
 # Basic dependencies
 from fastapi import FastAPI, Depends, BackgroundTasks, Request, Form as FastForm
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette_wtf import StarletteForm, CSRFProtectMiddleware
+from starlette_wtf import CSRFProtectMiddleware
 from starlette_session import SessionMiddleware
 from starlette_session.backends import BackendType
 from fastapi.templating import Jinja2Templates
@@ -60,12 +60,6 @@ class BRS():
 
 # Initial Cache On First Launch
 builtins.brs = BRS(requests.get(api + "/clancat/bristlefrost/rootspring/shadowsight").json()).brs_dict
-
-# Dummy form for Starlette-WTF
-class Form(StarletteForm):
-    pass
-
-builtins.Form = Form
 
 # Exceptions
 @app.exception_handler(StarletteHTTPException)

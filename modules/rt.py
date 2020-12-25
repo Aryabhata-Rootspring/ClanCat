@@ -1,4 +1,11 @@
 import builtins
+from starlette_wtf import StarletteForm
+
+# Dummy form for Starlette-WTF and render_template
+class Form(StarletteForm):
+    pass
+
+
 async def render_template(request, f, **kwargs):
     # This is a BristleRootShadow (brs) object which basically contains
     if f.__contains__("login.html") or f.__contains__("register.html") or f.__contains__("reset"):
