@@ -1,3 +1,4 @@
+import builtins
 async def render_template(request, f, **kwargs):
     # This is a BristleRootShadow (brs) object which basically contains
     if f.__contains__("login.html") or f.__contains__("register.html") or f.__contains__("reset"):

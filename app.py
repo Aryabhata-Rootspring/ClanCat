@@ -65,6 +65,8 @@ builtins.brs = BRS(requests.get(api + "/clancat/bristlefrost/rootspring/shadowsi
 class Form(StarletteForm):
     pass
 
+builtins.Form = Form
+
 # Exceptions
 @app.exception_handler(StarletteHTTPException)
 async def not_found(request, exc):
