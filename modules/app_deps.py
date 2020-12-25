@@ -21,6 +21,7 @@ import aioredis
 import builtins
 from .common_deps import *
 import logging
+from .rt import render_template
 logging.captureWarnings(True)
 
 api = "https://127.0.0.1:443/api/v1"
