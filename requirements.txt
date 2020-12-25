@@ -10,3 +10,4 @@ pyotp == 2.4.0
 starlette_wtf
 starlette_session == 0.4.1
 aioredis == 1.3.0
+tortoise-orm[asyncpg]
