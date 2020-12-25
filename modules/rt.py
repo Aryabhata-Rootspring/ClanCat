@@ -1,10 +1,11 @@
 import builtins
 from starlette_wtf import StarletteForm
+from fastapi.templating import Jinja2Templates
+templates = Jinja2Templates(directory="templates")
 
 # Dummy form for Starlette-WTF and render_template
 class Form(StarletteForm):
     pass
-
 
 async def render_template(request, f, **kwargs):
     # This is a BristleRootShadow (brs) object which basically contains

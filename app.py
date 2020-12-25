@@ -4,7 +4,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette_wtf import CSRFProtectMiddleware
 from starlette_session import SessionMiddleware
 from starlette_session.backends import BackendType
-from fastapi.templating import Jinja2Templates
 import aioredis
 import builtins
 import requests as __r__
@@ -18,15 +17,9 @@ from modules.rt import render_template
 # FastAPI App Code
 app = FastAPI()
 app.add_middleware(CSRFProtectMiddleware, csrf_secret='1f03eea1ffb7446294f71342bf110f21b91a849377144b789219a6a314ffb7815a0b69b2d6274bae84dd66b734393241')
-builtins.templates = Jinja2Templates(directory="templates")
 api = "https://127.0.0.1:443/api/v1"
 
 RKEY = open("rkey").read().replace("\n", "").replace(" ", "")
-def get_token(length: str) -> str:
-    secure_str = "".join(
-        (secrets.choice(string.ascii_letters + string.digits) for i in range(length))
-    )
-    return secure_str
 
 @app.on_event("startup")
 async def on_startup():

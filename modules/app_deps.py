@@ -49,10 +49,6 @@ class BRS():
                 brs_dict[obj["tid"]] = [[obj["topic_name"], obj["cid"], obj["concept_name"]]]
         self.brs_dict = brs_dict
 
-# Dummy form for Starlette-WTF
-class Form(StarletteForm):
-    pass
-
 # redirect wrapper
 def redirect(path):
     return RedirectResponse(path, status_code=HTTP_303_SEE_OTHER)

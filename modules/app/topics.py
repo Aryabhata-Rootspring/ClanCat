@@ -222,9 +222,8 @@ async def new_practice_question_post(request: Request, tid: str, qid: Optional[i
             url = "/topics/practice/new"
         return requests.post(api + url, json = json).json()
 
-@router.get("/new")
-async def new_topic_get(request: Request):
-    print("Got here")
+@router.get("/admin/new")
+async def new_topic_get_request(request: Request):
     subject_json = requests.get(api + "/subjects/list").json()
     if subject_json == {} or subject_json.get("code") is not None:
         subjects = []
@@ -233,20 +232,15 @@ async def new_topic_get(request: Request):
         subjects = []
         for subject in subject_json.keys():
             subjects.append([subject, subject_json[subject]])
-    if request.session.get("token") == None:
-        request.session["redirect"] = "/topics"
-        return redirect("/login")
-    elif request.session.get("admin") in [0, None, "0"]:
-        return abort(401)
     return await render_template(
         request,
-        "topic_new.html",
+        "/topic_new.html",
         subjects = subjects
     )
 
-@router.post("/new")
+@router.post("/admin/new")
 @csrf_protect
-async def new_topic_post(request: Request, name: str = FastForm(None), description: str = FastForm(None), metaid: str = FastForm(None)):
+async def new_topic_post_request(request: Request, name: str = FastForm(None), description: str = FastForm(None), metaid: str = FastForm(None)):
     x = requests.post(
         api + "/topics/new",
         json={
@@ -270,7 +264,6 @@ async def redir_topic(request: Request, tid: str):
         return redirect("/topics/" + tid + "/learn/" + str(cid))
     elif tracker_r["context"]["status"] == "PP":
         return redirect("/topics/" + tid + "/practice/" + str(cid))
-    return abort(404)
 
 @router.get("/{tid}/learn/{cid}")
 async def topic_concept_learn(request: Request, tid: str, cid: int):
