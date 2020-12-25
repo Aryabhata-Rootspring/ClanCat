@@ -78,12 +78,11 @@ router = APIRouter(
 
 # Profile Models
 
-class ProfileListingRequest(UserModel):
-    state: str
+class ProfileListingRequest(TokenModel):
+    state: bool
 
-class ProfileVisibleRequest(UserModel):
-    state: str
-    disable_state: Optional[int] = None
+class ProfileVisibleRequest(TokenModel):
+    state: bool
 
 class ProfileTrackWriter(UserModel):
     tid: str
@@ -100,66 +99,25 @@ class ProfileTrackPracticeWriter(UserModel):
 # Profile
 @router.post("/visible")
 async def change_visibility(pvr: ProfileVisibleRequest):
-    # This includes account disabling which is also changing the visibility as well
-    if pvr.state not in ["public", "private", "disable", "enable"]:
-        return brsret(code = "INVALID_VISIBILITY", html = "Only public, private, disable and enable are allowed")
-    usertok = await db.fetchrow("SELECT username, scopes FROM login WHERE token = $1", pvr.token)
-    if usertok is None:
+    profile_db = await db.fetchrow("SELECT username FROM login WHERE token = $1", pvr.token)
+    if profile_db is None:
         return brsret(code = "INVALID_TOKEN")
-    is_admin = ("admin" in usertok["scopes"].split(":"))
-    # Check if username and token match
-    if(usertok["username"] == pvr.username or is_admin):
-        pass
-    else:
-        return brsret(code = "FORBIDDEN")
-
-    # For account disabling, set state to private and flag account as disabled
-    if pvr.state == "disable":
-        state = "private" # Make the profile private on disable
-        if pvr.disable_state is not None and is_admin:
-            status = int(pvr.disable_state) # Admin disable
-        else:
-            status = 1
-        await db.execute(
-            "UPDATE login SET status = $1 WHERE username = $2", status, pvr.username
-        )
-
-    # For account re-enabling, first make sure the state is not 2 (admin disable) unless the user doing this is an admin
-    elif pvr.state == "enable":
-        status = await db.fetchrow(
-            "SELECT status, scopes FROM login WHERE username = $1", pvr.username
-        )
-        if status is None or scopes is None:
-            return brsret(code = "INTERNAL_DATABASE_ERROR", html = "Something's went wrong.", support = True)
-
-        status = status["status"]
-        if int(status) == 2:
-            if "admin" in status["scopes"].split(":"): # Admin check
-                pass
-            else:
-                return {"error": "1002"} # Only admins can reinstate state 2 disables
-        await db.execute(
-            "UPDATE login SET status = 0 WHERE username = $1", pvr.username # Re-enable the account now
-        )
-        return brsret(code = None)
-
-
-    elif pvr.state in ["public", "private"]:
-        visible = bool(pvr.state == "public")
-        await db.execute(
-            "UPDATE profile SET public = $1 WHERE username = $2", visible, pvr.username
-        )
-        return brsret(code = None)
+    await db.execute("UPDATE profile SET public = $1 WHERE username = $2", pvr.state, profile_db['username'])
+    return brsret(code = None)
 
 @router.post("/listing")
 async def profile_listing(plr: ProfileListingRequest):
-    pass
+    profile_db = await db.fetchrow("SELECT profile.username, profile.listing, login.status FROM profile INNER JOIN login ON profile.username = login.username WHERE login.token = $1", plr.token)
+    if profile_db is None:
+        return brsret(code = "INVALID_PROFILE")
+    await db.execute("UPDATE profile SET listing = $1 WHERE username = $2", plr.state, profile_db['username'])
+    return brsret()
 
 @router.get("/")
 async def get_profile(username: str, token: str = None):
     # Get the profile
     profile_db = await db.fetchrow(
-        "SELECT profile.public, profile.joindate, profile.badges, profile.level, profile.items, login.scopes, login.mfa FROM profile INNER JOIN login ON profile.username = login.username WHERE profile.username = $1",
+        "SELECT profile.public, profile.joindate, profile.listing, profile.badges, profile.level, profile.items, login.scopes, login.mfa FROM profile INNER JOIN login ON profile.username = login.username WHERE profile.username = $1",
         username,
     )
     if profile_db is None:
@@ -212,15 +170,13 @@ async def get_profile(username: str, token: str = None):
         idict[i]["count"] = int(item_count)
         i+=1
 
-    mfa = profile_db['mfa']
-    mfa = (mfa == True)
-
     return {
             "username": username,
             "scopes": profile_db["scopes"],
             "join": join,
             "private": private,
-            "mfa": mfa,
+            "mfa": profile_db['mfa'] == True,
+            "listing": profile_db["listing"] == True,
             "badges": badges,
             "level": level,
             "levelup_name": levelup_name,

@@ -82,32 +82,23 @@ async def profile_delete_get(request: Request, username: str, otp: str = FastFor
         del request.session["mfa_delaccount"]
     return redirect("/logout")
 
-@router.post("/{username}/me/state")
+@router.post("/{username}/me/visible/state")
 @csrf_protect
-async def profile_state_set(request: Request, username: str, state: str = FastForm("public")):
-    if state not in ["public", "private", "disable", "enable", "disable_admin"]:
+async def profile_visible_state_set(request: Request, username: str, state: str = FastForm("public")):
+    if state not in ["public", "private"]:
         return abort(400)
-    elif request.session.get("token") is not None and (username == request.session.get("username") or request.session.get("admin") == 1):
-        pass
-    else:
+    elif request.session.get("token") is None:
         return abort(401)
 
     post_data = {
-        "state": state,
-        "username": username,
+        "state": state == "public",
         "token": request.session.get("token"),
     }
-
-    if state == "disable_admin":
-        post_data["state"] = "disable"
-        post_data["disable_state"] = 2
 
     x = requests.post(
         api + "/profile/visible",
         json=post_data
         ).json()
-    if state == "disable":
-        return redirect("/logout")
     return redirect("/profile/" + username + "/settings")
 
 @router.post("/{username}/me/list")
