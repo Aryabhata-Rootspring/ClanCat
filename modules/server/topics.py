@@ -74,6 +74,9 @@ async def new_concept(concept: ConceptNew, bt: BackgroundTasks):
     if tcheck is None:
         # Topic Does Not Exist
         return brsret(code = "TOPIC_DOES_NOT_EXIST", html = "That topic does not exist yet")
+    concept_count = await db.fetchrow("SELECT title FROM concept_table WHERE title = $1", concept.title)
+    if concept_count is not None:
+        return brsret(code = "CONCEPT_ALREADY_EXISTS")
     concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", concept.tid)
     cid=concept_count[0]["count"] + 1 # Get the count + 1 for next concept
     await db.execute(

@@ -61,22 +61,22 @@ async def new_concept_get(request: Request, tid: str):
         return abort(401)
     return await render_template(
         request,
-        "concept_new.html",
+        "topic_new_concept.html",
     )
 
 @router.post("/{tid}/concepts/new")
 @csrf_protect
-async def new_concept_post(request: Request, tid: str, concept: str = FastForm("Untitled Concept")):
-    x = requests.post(
-        api + "/concepts/new",
-        json={
-            "username": request.session.get("username"),
-            "token": request.session.get("token"),
-            "topic": tid,
-            "concept": concept,
-        },
-    ).json()
-    return x
+async def new_concept_post(request: Request, tid, title: str = FastForm("Untitled Concept")):
+        a = requests.post(
+            api + "/topics/concepts/new",
+            json={
+                "username": request.session.get("username"),
+                "token": request.session.get("token"),
+                "tid": tid,
+                "title": title,
+            },
+        ).json()
+        return a
 
 @router.get("/{tid}/edit")
 async def topics_edit_description(request: Request, tid: str):
@@ -161,20 +161,6 @@ async def topic_edit_concept(request: Request, tid: str, cid: int):
         content = Markup(concept_json.get("content")),
         token = request.session.get("token"),
     )
-
-@router.post("/topics/{tid}/edit/concepts/new")
-@csrf_protect
-async def __topic_edit_new_concept_post__(request: Request, tid, title: str = FastForm("Untitled Concept")):
-        a = requests.post(
-            api + "/topics/concepts/new",
-            json={
-                "username": request.session.get("username"),
-                "token": request.session.get("token"),
-                "tid": tid,
-                "title": title,
-            },
-        ).json()
-        return a
 
 @router.get("/{tid}/practice/{qid}/edit")
 @router.get("/{tid}/edit/practice/new")
@@ -406,7 +392,7 @@ async def topic_practice_solve(request: Request, tid: str, qid: int, data: Topic
 
 @router.post("/{tid}/concepts/{cid}/save")
 @csrf_protect
-async def save_page(tid: str, cid: str, data: SaveExperimentPage):
+async def save_page(request: Request, tid: str, cid: str, data: SaveExperimentPage):
     a = requests.post(
         api + "/topics/concepts/save",
         json={

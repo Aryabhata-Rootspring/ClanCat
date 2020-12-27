@@ -62,7 +62,7 @@ async def authorize_user(username, token):
 
 def server_watchdog():
     print("Watchdog: New Event Dispatched To Client")
-    requests.get(SERVER_URL + "/brs/internal/cache/update", verify = config.SECURE)
+    requests.get(SERVER_URL + "/clancat/brs/internal/cache/update", verify = config.SECURE)
     return
 
 class TokenModel(BaseModel):
