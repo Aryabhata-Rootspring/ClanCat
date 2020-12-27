@@ -1,5 +1,5 @@
 MYEPSILON = 1e-8;
-
+var id;
 
 
   /* Given 10,8 this returns the string "8:10" */
@@ -1123,7 +1123,7 @@ const curve = new THREE.Line(geometry, material);
     //renderer.render(scene, camera);
 
     function animate() {
-	requestAnimationFrame( animate );
+	id = requestAnimationFrame( animate );
         var mass = document.querySelector("#mass").value;
 
         //Motion
@@ -1142,25 +1142,36 @@ const curve = new THREE.Line(geometry, material);
         //required if controls.enableDamping or controls.autoRotate are set to true
 	controls.update();
 	renderer.render( scene, camera );
-     }
-    animate();
+    }
+    setInterval(function() {
+        if(schange == true) {
+            animate();
+            schange = false;
+        }
+    }, 0)
 
 
   console.log( THREE.REVISION );
 
-/*
-
-  function render() {
-        var timer = Date.now() * 0.0003;
-        camera.position.x = Math.cos( timer ) * 70;
-        camera.position.z = Math.sin( timer ) * 70;
-        camera.lookAt({x:0,y:0,z:0});
-        renderer.render( scene, camera );
-        requestAnimationFrame(render);
-    }
-    requestAnimationFrame(render);
-*/
-    
-
 }
 
+// Pause Code
+var paused = false;
+var schange = true;
+setInterval(function() {
+    if(paused == true) {
+        cancelAnimationFrame(id);
+    }
+}, 0);
+
+function pauseCode() { 
+    if(paused == false) {
+        paused = true;
+        return
+    }
+    else {
+        paused = false;
+        schange = true;
+        return
+    }
+}
