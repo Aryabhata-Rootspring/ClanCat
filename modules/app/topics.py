@@ -66,7 +66,7 @@ async def new_concept_get(request: Request, tid: str):
 
 @router.post("/{tid}/concepts/new")
 @csrf_protect
-async def new_concept_post(request: Request, tid, title: str = FastForm("Untitled Concept")):
+async def new_concept_post(request: Request, tid: str, title: str = FastForm("Untitled Concept")):
         a = requests.post(
             api + "/topics/concepts/new",
             json={
