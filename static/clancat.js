@@ -278,7 +278,7 @@ class Box {
        this.LH1 = new Array();
 
        this.markFaces(this.geom);
-
+       this.mass = attr.mass;
     };
 
 
@@ -508,8 +508,8 @@ class InclinedPlane {
       var incdir = sidedir.clone();
       var otherdir = sidedir.clone();
 
-      var incdir = incdir.applyAxisAngle(new THREE.Vector3(0,0,1),alp1);
-      var otherdir = otherdir.applyAxisAngle(new THREE.Vector3(0,0,1),Math.PI-alp2);
+      incdir = incdir.applyAxisAngle(new THREE.Vector3(0,0,1),alp1);
+      otherdir = otherdir.applyAxisAngle(new THREE.Vector3(0,0,1),Math.PI-alp2);
 
       var pt1a = pt1.clone();
       var pt2a = pt2.clone();
@@ -921,7 +921,9 @@ const curve = new THREE.Line(geometry, material);
   }
 
   
-  function init() {
+  function init(angle) {
+    var angle = angle;
+
     var mass = document.querySelector("#mass").value;
     var scene = new THREE.Scene();
 
@@ -957,30 +959,29 @@ const curve = new THREE.Line(geometry, material);
     //STEP 1
     //ADD inclined plane with 60 degree angle and base of length 100
     var ip = new InclinedPlane({"L":100,
-                                "A1":60*(Math.PI/180),
+                                "A1":angle*(Math.PI/180),
                                 "D":200,
                                 "color":0xFF2222
                                },
                                scene
                                );
     ip.addToScene(scene);
-    //renderer.render( scene, camera );
 
 
     //STEP 2
     //Add box of size 20x20x20 and place at the centre of inclined surface
-    var bx = new Box( {"L":20,"H":20,"D":20,"color":0777777});
+    var bx = new Box( {"L":20,"H":20,"D":20,"color":0777777, "mass": 20});
     bx.addToScene(scene);
     //Find the point above the incliuned plane : which is the face "HD1" of the inclined plane
     var ptOnIncPlane = ip.getFaceMidp("HD1"); //Get midpt
     var ptAbovePlane = getPointAbovePlanePoint(ptOnIncPlane,ip.getPlane("HD1"),10);  //Get a point 10 units above midpt of HD1
     bx.setPos(ptAbovePlane.x,ptAbovePlane.y,ptAbovePlane.z); //Set bx there and rotate so its parallel to HD1
-    bx.rotateZ(60*(Math.PI/180));
+    bx.rotateZ(angle*(Math.PI/180));
 
 	//renderer.render( scene, camera );
     //STEP 3
     //Create a second box of same size; which is 35 units off the centre of  HD0, the vertical side of the incline plane
-    var bx2 = new Box( {"L":20,"H":20,"D":20,"color":0777777});
+    var bx2 = new Box( {"L":20,"H":20,"D":20,"color":0777777, "mass": 20});
     bx2.addToScene(scene);
     var ptOnStrtPlane = ip.getFaceMidp("HD0");
     var ptRightPlane = getPointAbovePlanePoint(ptOnStrtPlane,ip.getPlane("HD0"),35); 
@@ -1016,11 +1017,11 @@ const curve = new THREE.Line(geometry, material);
     //Locate where to place the "rope" connecting the pulley to the block on ip's HD1
 
 
-    var ipSlope_dy = Math.sin(60*(Math.PI/180)); 
-    var ipSlope_dx = Math.cos(60*(Math.PI/180)); 
+    var ipSlope_dy = Math.sin(angle*(Math.PI/180)); 
+    var ipSlope_dx = Math.cos(angle*(Math.PI/180)); 
     //tgtToPulley will hold the pulley points where the circle's tangents parallel to inclined plane LD0
     //and in the pulley's plane meet the circle
-    var tgtToPulley = getTangentPtsOfXYPlaneCircle(ipSlope_dx,ipSlope_dy,plly_centre,15) ;
+    var tgtToPulley = getTangentPtsOfXYPlaneCircle(ipSlope_dx,ipSlope_dy,plly_centre, 20 /*15*/) ;
     tgtToPulley.p1.z = tgtToPulley.p2.z = plly_centre.z;
     //One of tgtToPulley.p1 and tgtToPulley.p2 needs to be connected to the box bx on its HD0 face.
   
@@ -1034,7 +1035,7 @@ const curve = new THREE.Line(geometry, material);
     //pp1: Where does the tangent passing through tgtToPulley.p1 meet the box's HD0 face?
     var pp1 = getPointDirIntersectingPlane(tgtToPulley.p1,new THREE.Vector3(ipSlope_dx,ipSlope_dy,0).normalize(),bxpl);
     //Where does the tangent passing through tgtToPulley.p1 meet the box's HD0 face?
-    var  pp2 = getPointDirIntersectingPlane(tgtToPulley.p2,new THREE.Vector3(ipSlope_dx,ipSlope_dy,0).normalize(),bxpl);
+    var pp2 = getPointDirIntersectingPlane(tgtToPulley.p2,new THREE.Vector3(ipSlope_dx,ipSlope_dy,0).normalize(),bxpl);
 
     console.log("pp1",pp1);
     console.log("pp2",pp2);
@@ -1063,7 +1064,7 @@ const curve = new THREE.Line(geometry, material);
     //point when the box respectively moves down and up the inclined plane.
 
     
-    var ipL = new DynamicLine( {"fixedPt":    pulleyPoint.clone(), 
+    var ipL = new DynamicLine({"fixedPt":   pulleyPoint.clone(), 
                               "maxEnd" :    pp1,
                               "initialEnd": boxPoint.clone()});
     ipL.addToScene(scene);
@@ -1074,7 +1075,7 @@ const curve = new THREE.Line(geometry, material);
     var bxpl2 = bx2.getPlane("LD0");
     ipSlope_dy = 1; 
     ipSlope_dx = 0; 
-    tgtToPulley = getTangentPtsOfXYPlaneCircle(ipSlope_dx,ipSlope_dy,plly_centre,15) ;
+    tgtToPulley = getTangentPtsOfXYPlaneCircle(ipSlope_dx,ipSlope_dy,plly_centre, 20 /*15*/) ;
     tgtToPulley.p1.z = tgtToPulley.p2.z = plly_centre.z;
 
     //pp1: Where does the tangent passing through tgtToPulley.p1 meet the box's HD0 face?
@@ -1103,7 +1104,7 @@ const curve = new THREE.Line(geometry, material);
     //point when the box respectively moves down and up the inclined plane.
 
     
-    var ipL2 = new DynamicLine( {"fixedPt":    pulleyPoint.clone(), 
+    var ipL2 = new DynamicLine({"fixedPt":  pulleyPoint.clone(), 
                               "maxEnd" :    pp1,
                               "initialEnd": boxPoint.clone()});
     ipL2.addToScene(scene);
@@ -1154,6 +1155,30 @@ const curve = new THREE.Line(geometry, material);
   console.log( THREE.REVISION );
 
 }
+
+// Projects a force into its horizontal and vertical components
+function project(angle, force) {
+    return new THREE.Vector3(force*Math.cos(angle), force*Math.sin(angle), 0)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Pause Code
 var paused = false;
