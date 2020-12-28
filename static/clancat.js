@@ -1127,8 +1127,14 @@ const curve = new THREE.Line(geometry, material);
 
         pos_bx2 = bx2.getPosition().clone();
         pos_bx = bx.getPosition().clone();
-        if (rope2Motion) newpos_bx2 = pos_bx2.addScaledVector(ropeDir2,rope2Motion);
-        if (rope1Motion) newpos_bx = pos_bx.addScaledVector(ropeDir,rope1Motion);
+        if (rope2Motion) 
+            newpos_bx2 = pos_bx2.addScaledVector(ropeDir2,rope2Motion);
+        else
+            return
+        if (rope1Motion) 
+            newpos_bx = pos_bx.addScaledVector(ropeDir,rope1Motion);
+        else
+            return
         bx.setPos(newpos_bx.x,newpos_bx.y,newpos_bx.z);
         bx2.setPos(newpos_bx2.x,newpos_bx2.y,newpos_bx2.z);
         
@@ -1182,14 +1188,16 @@ setInterval(function() {
     }
 }, 0);
 
-function pauseCode() { 
+function pauseCode(e) { 
     if(paused == false) {
         paused = true;
+        e.innerHTML = "Unpause Code"
         return
     }
     else {
         paused = false;
         schange = true;
+        e.innerHTML = "Pause Code"
         return
     }
 }
