@@ -9,12 +9,16 @@
 {% endblock %}
 {% block content %}
         <div style="text-align: center;">
-                <input type="range" min="0" max="90" id="angle" value="45" step="1" aria-label="Slider for animation of ball moving left to right and back" /><br/>
+                <input type="range" min="30" max="89" id="angle" value="45" step="1" aria-label="Slider for animation of ball moving left to right and back" /><br/>
                 <button onclick='pauseCode(this);' class="btn btn-primary">Pause Code</button>
-                <button onclick='document.querySelector("#webgl-output").value = null; init(document.querySelector("#angle").value);' class="btn btn-primary">Start Code</button>
-                <p>Angle Of The Box</p>
+                <button onclick='cleanState(); init(document.querySelector("#angle").value); pauseCode(this); pauseCode(this); this.innerHTML = "Restart Code"' class="btn btn-primary">Start Code</button>
+                <p>Angle Of The Box: <span id="mrrow"></span></p>
         </div>
-    <!-- Div which will hold the Output -->
+        <script>
+            setInterval(function() {
+                document.querySelector("#mrrow").innerHTML = document.querySelector("#angle").value;
+            }, 0)
+        </script>
+    <!-- Output -->
     <div id="webgl-output"></div>
-
 {% endblock %}

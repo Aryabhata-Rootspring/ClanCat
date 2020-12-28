@@ -1,6 +1,15 @@
 MYEPSILON = 1e-8;
 var id;
-
+var scene;
+var controls;
+var camera;
+var projector
+var renderer = new THREE.WebGLRenderer();
+var sica
+var siai
+var ip
+var bx
+var bx2
 
   /* Given 10,8 this returns the string "8:10" */
   function sortedVertexStr(i,j) {
@@ -919,19 +928,17 @@ const curve = new THREE.Line(geometry, material);
   function init(angle) {
     var angle = angle;
 
-    var scene = new THREE.Scene();
+    scene = new THREE.Scene();
 
     // create a camera, which defines where we're looking at.
-    var camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 1000);
+    camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 1000);
 
-    // create a render and set the size
-    var renderer = new THREE.WebGLRenderer();
     //renderer.setClearColor(new THREE.Color(0x000000));
     renderer.setSize(window.innerWidth, window.innerHeight);
     // add the output of the renderer to the html element
     document.getElementById("webgl-output").appendChild(renderer.domElement);
 
-    var spotLight = new THREE.SpotLight(0xffffff);
+    spotLight = new THREE.SpotLight(0xffffff);
     spotLight.position.set(0, 0, 50);
     scene.add(spotLight);
 
@@ -952,7 +959,7 @@ const curve = new THREE.Line(geometry, material);
 
     //STEP 1
     //ADD inclined plane with 60 degree angle and base of length 100
-    var ip = new InclinedPlane({"L":100,
+    ip = new InclinedPlane({"L":100,
                                 "A1":angle*(Math.PI/180),
                                 "D":200,
                                 "color":0xFF2222
@@ -964,7 +971,7 @@ const curve = new THREE.Line(geometry, material);
 
     //STEP 2
     //Add box of size 20x20x20 and place at the centre of inclined surface
-    var bx = new Box( {"L":20,"H":20,"D":20,"color":0777777, "mass": 20});
+    bx = new Box( {"L":20,"H":20,"D":20,"color":0777777, "mass": 20});
     bx.addToScene(scene);
     //Find the point above the incliuned plane : which is the face "HD1" of the inclined plane
     var ptOnIncPlane = ip.getFaceMidp("HD1"); //Get midpt
@@ -975,7 +982,7 @@ const curve = new THREE.Line(geometry, material);
 	//renderer.render( scene, camera );
     //STEP 3
     //Create a second box of same size; which is 35 units off the centre of  HD0, the vertical side of the incline plane
-    var bx2 = new Box( {"L":20,"H":20,"D":20,"color":0777777, "mass": 20});
+    bx2 = new Box( {"L":20,"H":20,"D":20,"color":0777777, "mass": 20});
     bx2.addToScene(scene);
     var ptOnStrtPlane = ip.getFaceMidp("HD0");
     var ptRightPlane = getPointAbovePlanePoint(ptOnStrtPlane,ip.getPlane("HD0"), /* 35 */ 40); 
@@ -1113,44 +1120,45 @@ const curve = new THREE.Line(geometry, material);
     var newpos_bx2;
     var newpos_bx ;
     var rope1Motion, rope2Motion;
-
+    var exit = false
     //render the scene
-    //renderer.render(scene, camera);
-
+    sica = setInterval(controls.update, 0)
     function animate() {
 	id = requestAnimationFrame( animate );
-
+        if(exit == false) {
         //Motion
-	plly.rotateX(0.1)
-        rope2Motion=ipL2.updateLine(0.1);
-        rope1Motion=ipL.updateLine(-0.1);
+	plly.rotateX(0.15555555555555555555555555555555555555555555555555555555)
+        rope2Motion=ipL2.updateLine(0.15);
+        rope1Motion=ipL.updateLine(-0.15);
 
         pos_bx2 = bx2.getPosition().clone();
         pos_bx = bx.getPosition().clone();
         if (rope2Motion) 
             newpos_bx2 = pos_bx2.addScaledVector(ropeDir2,rope2Motion);
-        else
-            return
+        else {
+            exit = true
+        }
         if (rope1Motion) 
             newpos_bx = pos_bx.addScaledVector(ropeDir,rope1Motion);
-        else
-            return
-        bx.setPos(newpos_bx.x,newpos_bx.y,newpos_bx.z);
-        bx2.setPos(newpos_bx2.x,newpos_bx2.y,newpos_bx2.z);
-        
+        else {
+            exit = true
+        }
+        if(exit == false) {
+             // Only do this if exit is false
+             bx.setPos(newpos_bx.x,newpos_bx.y,newpos_bx.z);
+             bx2.setPos(newpos_bx2.x,newpos_bx2.y,newpos_bx2.z);
+        }
         //console.log("rotate");
         //required if controls.enableDamping or controls.autoRotate are set to true
-	controls.update();
 	renderer.render( scene, camera );
+      }
     }
-    setInterval(function() {
+    siai = setInterval(function() {
         if(schange == true) {
             animate();
             schange = false;
         }
     }, 0)
-
-
   console.log( THREE.REVISION );
 
 }
@@ -1160,8 +1168,28 @@ function project(angle, force) {
     return new THREE.Vector3(force*Math.cos(angle), force*Math.sin(angle), 0)
 }
 
+function empty(elem) {
+    while (elem.lastChild) elem.removeChild(elem.lastChild);
+}
 
+function cleanState() {
+    cancelAnimationFrame(id);// Stop the animation
+    try {
+        renderer.domElement.addEventListener('dblclick', null, false); //remove listener to render
+        scene = undefined;
+        projector = undefined;
+        camera = undefined;
+        controls = undefined;
+        ip = undefined;
+        bx = undefined;
+        bx2 = undefined;
+        empty(document.getElementById("webgl-output"));
+        clearInterval(sica)
+        clearInterval(siai)
 
+    }
+    catch {}
+}
 
 
 
