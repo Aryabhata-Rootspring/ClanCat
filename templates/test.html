@@ -11,7 +11,7 @@
         <div style="text-align: center;">
                 <input type="range" min="30" max="89" id="angle" value="45" step="1" aria-label="Slider for animation of ball moving left to right and back" /><br/>
                 <button onclick='pauseCode(this);' id='pause' class="btn btn-primary">Pause Code</button>
-                <button onclick='startCode(this);' class="btn btn-primary">Start Code</button>
+                <button onclick='startCode(this);' id='start' class="btn btn-primary">Start Code</button>
                 <p>Angle Of The Incline Plane: <span id="mrrow"></span></p>
                 <p>Currently Paused: <span id="paused"></span></p>
                 <p>Currently running: <span id="running"></span></p>
@@ -19,7 +19,14 @@
                 <p>Stop Time: <span id="stime">0</span> seconds</p>
         </div>
     <script>
+        var ac = false;
+        var angcur = document.querySelector("#angle").value;
         setInterval(function() {
+            if(document.querySelector("#angle").value != angcur) {
+                ac = true;
+                startCode(document.querySelector("#start"))
+                angcur = document.querySelector("#angle").value;
+            }
             document.querySelector("#mrrow").innerHTML = document.querySelector("#angle").value;
             document.querySelector("#paused").innerHTML = paused;
             document.querySelector("#running").innerHTML = running;
@@ -50,7 +57,10 @@
             init(document.querySelector("#angle").value); 
             pauseCode(e); // Doing this twice seems to rerender and get stuff working
             pauseCode(e); // Doing this twice seems to rerender and get stuff working
-            if(paused == true) {
+            if(ac == true) {
+                ac = false;
+            }
+            else if(paused == true) {
                 pauseCode(document.querySelector("#pause"));
             }
             e.innerHTML = "Restart Code"
