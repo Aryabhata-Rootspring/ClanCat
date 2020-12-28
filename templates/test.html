@@ -65,7 +65,9 @@
             }
             e.innerHTML = "Restart Code"
         }
-
+        window.addEventListener("onload", function () {
+            startCode(document.querySelector("#start"))
+        })
     </script>
     <!-- Output -->
     <div id="webgl-output"></div>
