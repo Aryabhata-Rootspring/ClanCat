@@ -10,15 +10,45 @@
 {% block content %}
         <div style="text-align: center;">
                 <input type="range" min="30" max="89" id="angle" value="45" step="1" aria-label="Slider for animation of ball moving left to right and back" /><br/>
-                <button onclick='pauseCode(this);' class="btn btn-primary">Pause Code</button>
-                <button onclick='cleanState(); init(document.querySelector("#angle").value); pauseCode(this); pauseCode(this); this.innerHTML = "Restart Code"' class="btn btn-primary">Start Code</button>
+                <button onclick='pauseCode(this);' id='pause' class="btn btn-primary">Pause Code</button>
+                <button onclick='cleanState(); updateStopTime(); updateClock(); init(document.querySelector("#angle").value); pauseCode(this); pauseCode(this); this.innerHTML = "Restart Code"' class="btn btn-primary">Start Code</button>
                 <p>Angle Of The Box: <span id="mrrow"></span></p>
+                <p>Elapsed Time: <span id="ctime">0</span> seconds</p>
+                <p>Stop Time: <span id="stime">0</span> seconds</p>
         </div>
-        <script>
-            setInterval(function() {
-                document.querySelector("#mrrow").innerHTML = document.querySelector("#angle").value;
-            }, 0)
-        </script>
+    <script>
+        setInterval(function() {
+            document.querySelector("#mrrow").innerHTML = document.querySelector("#angle").value;
+        }, 0)
+        var uct;
+        var time = 0
+        function updateClock() {
+            time = 0
+            document.querySelector("#ctime").innerHTML = 0;
+            clearInterval(uct);
+            uct = setInterval(function() {
+                if(paused == false) {
+                    time++
+                    document.querySelector("#ctime").innerHTML = time;
+                }
+            }, 1000);
+        }
+        function updateStopTime() {
+            if(time == 0) return; // Don't do anything at 0 seconds 
+            document.querySelector("#stime").innerHTML = time;
+        }
+
+        function startCode(e) {
+            cleanState(); 
+            updateStopTime(); 
+            updateClock(); 
+            init(document.querySelector("#angle").value); 
+            pauseCode(e); // Doing this twice seems to rerender and get stuff working
+            pauseCode(e); // Doing this twice seems to rerender and get stuff working
+            e.innerHTML = "Restart Code"
+        }
+
+    </script>
     <!-- Output -->
     <div id="webgl-output"></div>
 {% endblock %}

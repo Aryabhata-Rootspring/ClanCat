@@ -1127,7 +1127,7 @@ const curve = new THREE.Line(geometry, material);
 	id = requestAnimationFrame( animate );
         if(exit == false) {
         //Motion
-	plly.rotateX(0.15555555555555555555555555555555555555555555555555555555)
+	plly.rotateX(0.15)
         rope2Motion=ipL2.updateLine(0.15);
         rope1Motion=ipL.updateLine(-0.15);
 
