@@ -1,10 +1,8 @@
-from fastapi import Depends, BackgroundTasks, WebSocket, APIRouter 
 import asyncio
 import smtplib
 import time
 import ssl
 from pydantic import BaseModel, ValidationError, validator, BaseSettings
-from typing import Optional
 from passlib.context import CryptContext
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import json
@@ -14,12 +12,11 @@ import hashlib
 import math
 import pyotp
 import requests
-import config
 import logging
 import sys
 import sys
 from .common_deps import *
-sys.path.append("..")
+from .config import SECURE, HASH_SALT, SERVER_URL, EXP_RATE
 inflect_engine = inflect.engine()
 logging.captureWarnings(True)
 
@@ -62,7 +59,7 @@ async def authorize_user(username, token):
 
 def server_watchdog():
     print("Watchdog: New Event Dispatched To Client")
-    requests.get(SERVER_URL + "/clancat/brs/internal/cache/update", verify = config.SECURE)
+    requests.get(SERVER_URL + "/clancat/brs/internal/cache/update", verify = SECURE)
     return
 
 class TokenModel(BaseModel):

@@ -4,14 +4,9 @@ var id;
 
   /* Given 10,8 this returns the string "8:10" */
   function sortedVertexStr(i,j) {
-     var ret;
-     if (i<j) {
-        ret = i.toString()+":"+j.toString(); 
-     }
-     else {
-        ret = j.toString()+":"+i.toString(); 
-     }
-     return ret;
+     if (i<j) 
+        return i.toString()+":"+j.toString();
+    return j.toString()+":"+i.toString();
   };
 
   function addAndIncr(dic,key) {
@@ -19,7 +14,7 @@ var id;
      else dic[key]+=1;
   };    
 
-  /* Used in conjunction with sortedVertexStr*/
+  /* Used in conjunction with sortedVertexStr */
   function getIndividualVerts(s) {
      var nums = s.split(":");
      var ret =  {};
@@ -924,7 +919,6 @@ const curve = new THREE.Line(geometry, material);
   function init(angle) {
     var angle = angle;
 
-    var mass = document.querySelector("#mass").value;
     var scene = new THREE.Scene();
 
     // create a camera, which defines where we're looking at.
@@ -974,7 +968,7 @@ const curve = new THREE.Line(geometry, material);
     bx.addToScene(scene);
     //Find the point above the incliuned plane : which is the face "HD1" of the inclined plane
     var ptOnIncPlane = ip.getFaceMidp("HD1"); //Get midpt
-    var ptAbovePlane = getPointAbovePlanePoint(ptOnIncPlane,ip.getPlane("HD1"),10);  //Get a point 10 units above midpt of HD1
+    var ptAbovePlane = getPointAbovePlanePoint(ptOnIncPlane,ip.getPlane("HD1"), 15 /*10*/);  //Get a point 10 units above midpt of HD1
     bx.setPos(ptAbovePlane.x,ptAbovePlane.y,ptAbovePlane.z); //Set bx there and rotate so its parallel to HD1
     bx.rotateZ(angle*(Math.PI/180));
 
@@ -984,7 +978,7 @@ const curve = new THREE.Line(geometry, material);
     var bx2 = new Box( {"L":20,"H":20,"D":20,"color":0777777, "mass": 20});
     bx2.addToScene(scene);
     var ptOnStrtPlane = ip.getFaceMidp("HD0");
-    var ptRightPlane = getPointAbovePlanePoint(ptOnStrtPlane,ip.getPlane("HD0"),35); 
+    var ptRightPlane = getPointAbovePlanePoint(ptOnStrtPlane,ip.getPlane("HD0"), /* 35 */ 40); 
     bx2.setPos(ptRightPlane.x,ptRightPlane.y,ptRightPlane.z);
 
 	//renderer.render( scene, camera );
@@ -1125,7 +1119,6 @@ const curve = new THREE.Line(geometry, material);
 
     function animate() {
 	id = requestAnimationFrame( animate );
-        var mass = document.querySelector("#mass").value;
 
         //Motion
 	plly.rotateX(0.1)

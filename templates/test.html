@@ -9,17 +9,12 @@
 {% endblock %}
 {% block content %}
         <div style="text-align: center;">
-                <input type="range" min="0" max="5" id="mass" value="1" step="0.01" aria-label="Slider for animation of ball moving left to right and back" /><br/>
+                <input type="range" min="0" max="90" id="angle" value="45" step="1" aria-label="Slider for animation of ball moving left to right and back" /><br/>
                 <button onclick='pauseCode();' class="btn btn-primary">Pause Code</button>
-                <div id="app-index-2">
-                        <p v-bind:title="message">Mass Of The Box</p>
-                </div>
+                <button onclick='document.querySelector("#webgl-output").value = null; init(document.querySelector("#angle").value);' class="btn btn-primary">Start Code</button>
+                <p>Angle Of The Box</p>
         </div>
     <!-- Div which will hold the Output -->
     <div id="webgl-output"></div>
 
-    <!-- Javascript code that runs our Three.js examples -->
-    <script type="text/javascript">
-        init(45)
-    </script>
 {% endblock %}
