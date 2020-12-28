@@ -11,14 +11,18 @@
         <div style="text-align: center;">
                 <input type="range" min="30" max="89" id="angle" value="45" step="1" aria-label="Slider for animation of ball moving left to right and back" /><br/>
                 <button onclick='pauseCode(this);' id='pause' class="btn btn-primary">Pause Code</button>
-                <button onclick='cleanState(); updateStopTime(); updateClock(); init(document.querySelector("#angle").value); pauseCode(this); pauseCode(this); this.innerHTML = "Restart Code"' class="btn btn-primary">Start Code</button>
-                <p>Angle Of The Box: <span id="mrrow"></span></p>
+                <button onclick='startCode(this);' class="btn btn-primary">Start Code</button>
+                <p>Angle Of The Incline Plane: <span id="mrrow"></span></p>
+                <p>Currently Paused: <span id="paused"></span></p>
+                <p>Currently running: <span id="running"></span></p>
                 <p>Elapsed Time: <span id="ctime">0</span> seconds</p>
                 <p>Stop Time: <span id="stime">0</span> seconds</p>
         </div>
     <script>
         setInterval(function() {
             document.querySelector("#mrrow").innerHTML = document.querySelector("#angle").value;
+            document.querySelector("#paused").innerHTML = paused;
+            document.querySelector("#running").innerHTML = running;
         }, 0)
         var uct;
         var time = 0
@@ -27,7 +31,7 @@
             document.querySelector("#ctime").innerHTML = 0;
             clearInterval(uct);
             uct = setInterval(function() {
-                if(paused == false) {
+                if(running == true) {
                     time++
                     document.querySelector("#ctime").innerHTML = time;
                 }
@@ -39,12 +43,16 @@
         }
 
         function startCode(e) {
+            exit = false;
             cleanState(); 
             updateStopTime(); 
-            updateClock(); 
+            updateClock();
             init(document.querySelector("#angle").value); 
             pauseCode(e); // Doing this twice seems to rerender and get stuff working
             pauseCode(e); // Doing this twice seems to rerender and get stuff working
+            if(paused == true) {
+                pauseCode(document.querySelector("#pause"));
+            }
             e.innerHTML = "Restart Code"
         }
 

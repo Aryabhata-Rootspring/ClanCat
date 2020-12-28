@@ -7,9 +7,9 @@ var projector
 var renderer = new THREE.WebGLRenderer();
 var sica
 var siai
-var ip
-var bx
-var bx2
+var running = false
+var exit = false
+
 
   /* Given 10,8 this returns the string "8:10" */
   function sortedVertexStr(i,j) {
@@ -488,7 +488,7 @@ class InclinedPlane {
        // normals ( since they are not specified directly )
        this.geom.computeFaceNormals();
        this.geom.computeVertexNormals();
-       this.solid =  new THREE.Mesh( this.geom, new THREE.MeshNormalMaterial({transparent:true, opacity:0.5}) );
+       this.solid =  new THREE.Mesh( this.geom, new THREE.MeshNormalMaterial({transparent:false, opacity:1, color: "#0c64f2"}) );
 
        this.ledges = new THREE.EdgesGeometry( this.geom);
        this.lline = new THREE.LineSegments( this.ledges, new THREE.LineBasicMaterial( { color: 0xffffff } ) );
@@ -1120,9 +1120,9 @@ const curve = new THREE.Line(geometry, material);
     var newpos_bx2;
     var newpos_bx ;
     var rope1Motion, rope2Motion;
-    var exit = false
     //render the scene
     sica = setInterval(controls.update, 0)
+    exit = false;
     function animate() {
 	id = requestAnimationFrame( animate );
         if(exit == false) {
@@ -1193,7 +1193,11 @@ function cleanState() {
 
 
 
-
+setInterval(function() {
+    if(exit == true) {
+        running = false;
+    }
+}, 0)
 
 
 
@@ -1219,11 +1223,13 @@ setInterval(function() {
 function pauseCode(e) { 
     if(paused == false) {
         paused = true;
+        running = false;
         e.innerHTML = "Unpause Code"
         return
     }
     else {
         paused = false;
+        running = true;
         schange = true;
         e.innerHTML = "Pause Code"
         return
