@@ -945,7 +945,7 @@ const curve = new THREE.Line(geometry, material);
 
 
     // position and point the camera to the center of the scene
-    camera.position.set(0, 0, 900);
+    camera.position.set(0, 200, 1100);
     camera.lookAt(scene.position);
 
 
@@ -959,9 +959,9 @@ const curve = new THREE.Line(geometry, material);
 
     //STEP 1
     //ADD inclined plane with 60 degree angle and base of length 100
-    ip = new InclinedPlane({"L":100,
+    ip = new InclinedPlane({"L": 75,
                                 "A1":angle*(Math.PI/180),
-                                "D":200,
+                                "D":150,
                                 "color":0xFF2222
                                },
                                scene
