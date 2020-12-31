@@ -8,20 +8,6 @@ from .common_deps import *
 from .coremeow import render_template, BRS, requests, api, redirect, abort
 import builtins
 
-builtins.appdeps = (
-    BaseModel,
-    FastForm,
-    csrf_protect,
-    Markup,
-    render_template,
-    BRS,
-    requests,
-    api,
-    redirect,
-    abort.
-    asyncio
-)
-
 
 # Lots of modules need this, so...
 class SaveExperimentPage(BaseModel):

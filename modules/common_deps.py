@@ -2,16 +2,6 @@ import string
 import secrets
 from fastapi import Request, Depends, BackgroundTasks, WebSocket, APIRouter
 from typing import Optional
-import builtins
-
-builtins.commondeps = (
-    Request,
-    Depends,
-    BackgroundTasks,
-    WebSocket,
-    APIRouter,
-    Optional
-)
 
 
 def get_token(length: str) -> str:

@@ -54,7 +54,7 @@
             cleanState(); 
             updateStopTime(); 
             updateClock();
-            init(document.querySelector("#angle").value); 
+            init({"angle": document.querySelector("#angle").value}); 
             pauseCode(e); // Doing this twice seems to rerender and get stuff working
             pauseCode(e); // Doing this twice seems to rerender and get stuff working
             if(ac == true) {

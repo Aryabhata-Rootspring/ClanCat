@@ -925,21 +925,21 @@ const curve = new THREE.Line(geometry, material);
   }
 
   
-  function init(angle) {
-    var angle = angle;
+  function init(attr) {
+    var angle = attr.angle;
 
     scene = new THREE.Scene();
 
     // create a camera, which defines where we're looking at.
-    const camera = new THREE.PerspectiveCamera( 20, 500, 0, 500 );
+    camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 1000);
 
-    renderer.setClearColor(new THREE.Color(0x000000));
-    renderer.setSize(window.innerWidth/4, window.innerHeight/4);
+    //renderer.setClearColor(new THREE.Color(0x000000));
+    renderer.setSize(window.innerWidth, window.innerHeight);
     // add the output of the renderer to the html element
-    document.querySelector("#webgl-output").appendChild(renderer.domElement);
+    document.getElementById("webgl-output").appendChild(renderer.domElement);
 
     spotLight = new THREE.SpotLight(0xffffff);
-    spotLight.position.set(0, 0, 900);
+    spotLight.position.set(0, 0, 50);
     scene.add(spotLight);
 
 
