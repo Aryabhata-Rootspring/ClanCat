@@ -9,7 +9,7 @@ var sica
 var siai
 var running = false
 var exit = false
-
+var timestep
 
   /* Given 10,8 this returns the string "8:10" */
   function sortedVertexStr(i,j) {
@@ -927,7 +927,10 @@ const curve = new THREE.Line(geometry, material);
   
   function init(attr) {
     var angle = attr.angle;
-
+    if(attr.type == "regular")
+        timestep = false;
+    else
+        timestep = true;
     scene = new THREE.Scene();
 
     // create a camera, which defines where we're looking at.
