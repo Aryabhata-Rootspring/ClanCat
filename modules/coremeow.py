@@ -1,4 +1,4 @@
-from .config import SECURE, API as api
+from .config import CSRF_SECRET, SESSION_SECRET, SECURE, API as api
 import requests as __r__
 import logging
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -12,6 +12,8 @@ logging.captureWarnings(True)
 
 
 builtins.api = api
+builtins.CSRF_SECRET = CSRF_SECRET
+builtins.SESSION_SECRET = SESSION_SECRET
 
 
 # Dummy form for Starlette-WTF and render_template
