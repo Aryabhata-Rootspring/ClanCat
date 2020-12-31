@@ -24,6 +24,7 @@ async def shutdown():
     await db.close()
 
 print("SERVER: Loading Modules")
+
 # Include all the modules
 for f in os.listdir("modules/server"):
     if not f.startswith("_"):
