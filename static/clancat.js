@@ -1127,34 +1127,34 @@ const curve = new THREE.Line(geometry, material);
     sica = setInterval(controls.update, 0)
     exit = false;
     function animate() {
-	id = requestAnimationFrame( animate );
-        if(exit == false) {
-        //Motion
-	plly.rotateX(0.15)
-        rope2Motion=ipL2.updateLine(0.15);
-        rope1Motion=ipL.updateLine(-0.15);
+        if(timestep == false) {
+	    id = requestAnimationFrame( animate );
+            if(exit == false) {
+                //Motion
+	        plly.rotateX(0.15)
+                rope2Motion=ipL2.updateLine(0.15);
+                rope1Motion=ipL.updateLine(-0.15);
 
-        pos_bx2 = bx2.getPosition().clone();
-        pos_bx = bx.getPosition().clone();
-        if (rope2Motion) 
-            newpos_bx2 = pos_bx2.addScaledVector(ropeDir2,rope2Motion);
-        else {
-            exit = true
+                pos_bx2 = bx2.getPosition().clone();
+                pos_bx = bx.getPosition().clone();
+                if (rope2Motion) 
+                    newpos_bx2 = pos_bx2.addScaledVector(ropeDir2,rope2Motion);
+                else 
+                    exit = true
+                if (rope1Motion) 
+                    newpos_bx = pos_bx.addScaledVector(ropeDir,rope1Motion);
+                else
+                    exit = true
+                if(exit == false) {
+                    // Only do this if exit is false
+                    bx.setPos(newpos_bx.x,newpos_bx.y,newpos_bx.z);
+                    bx2.setPos(newpos_bx2.x,newpos_bx2.y,newpos_bx2.z);
+                }
+                //console.log("rotate");
+                //required if controls.enableDamping or controls.autoRotate are set to true
+	        renderer.render( scene, camera );
+            }
         }
-        if (rope1Motion) 
-            newpos_bx = pos_bx.addScaledVector(ropeDir,rope1Motion);
-        else {
-            exit = true
-        }
-        if(exit == false) {
-             // Only do this if exit is false
-             bx.setPos(newpos_bx.x,newpos_bx.y,newpos_bx.z);
-             bx2.setPos(newpos_bx2.x,newpos_bx2.y,newpos_bx2.z);
-        }
-        //console.log("rotate");
-        //required if controls.enableDamping or controls.autoRotate are set to true
-	renderer.render( scene, camera );
-      }
     }
     siai = setInterval(function() {
         if(schange == true) {
