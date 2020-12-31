@@ -931,15 +931,15 @@ const curve = new THREE.Line(geometry, material);
     scene = new THREE.Scene();
 
     // create a camera, which defines where we're looking at.
-    camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 1000);
+    const camera = new THREE.PerspectiveCamera( 20, 500, 0, 500 );
 
-    //renderer.setClearColor(new THREE.Color(0x000000));
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(new THREE.Color(0x000000));
+    renderer.setSize(window.innerWidth/4, window.innerHeight/4);
     // add the output of the renderer to the html element
-    document.getElementById("webgl-output").appendChild(renderer.domElement);
+    document.querySelector("#webgl-output").appendChild(renderer.domElement);
 
     spotLight = new THREE.SpotLight(0xffffff);
-    spotLight.position.set(0, 0, 50);
+    spotLight.position.set(0, 0, 900);
     scene.add(spotLight);
 
 
@@ -1180,9 +1180,6 @@ function cleanState() {
         projector = undefined;
         camera = undefined;
         controls = undefined;
-        ip = undefined;
-        bx = undefined;
-        bx2 = undefined;
         empty(document.getElementById("webgl-output"));
         clearInterval(sica)
         clearInterval(siai)

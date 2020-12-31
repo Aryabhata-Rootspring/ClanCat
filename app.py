@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, BackgroundTasks, Request, Form as FastForm
+from fastapi import FastAPI
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette_wtf import CSRFProtectMiddleware
 from starlette_session import SessionMiddleware
@@ -13,6 +13,7 @@ from modules.coremeow import api, render_template, BRS, requests
 app = FastAPI()
 app.add_middleware(CSRFProtectMiddleware, csrf_secret='1f03eea1ffb7446294f71342bf110f21b91a849377144b789219a6a314ffb7815a0b69b2d6274bae84dd66b734393241')
 RKEY = open("rkey").read().replace("\n", "").replace(" ", "")
+
 
 @app.on_event("startup")
 async def on_startup():
