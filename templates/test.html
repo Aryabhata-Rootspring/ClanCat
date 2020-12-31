@@ -17,6 +17,11 @@
                 <p>Currently running: <span id="running"></span></p>
                 <p>Elapsed Time: <span id="ctime">0</span> seconds</p>
                 <p>Stop Time: <span id="stime">0</span> seconds</p>
+                <label for="simtype">Choose A Simulation Type:</label>
+                <select name="simtype" id="simtype">
+                    <option value="regular">Regular/No Time Steps</option>
+                    <option value="timestep">Experiment Style/With Time Steps</option>
+                </select>
         </div>
     <script>
         var ac = false;
@@ -54,7 +59,7 @@
             cleanState(); 
             updateStopTime(); 
             updateClock();
-            init({"angle": document.querySelector("#angle").value}); 
+            init({"angle": document.querySelector("#angle").value, "type": document.querySelector("#simtype").value});
             pauseCode(e); // Doing this twice seems to rerender and get stuff working
             pauseCode(e); // Doing this twice seems to rerender and get stuff working
             if(ac == true) {
