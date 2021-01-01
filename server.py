@@ -4,8 +4,6 @@ import importlib
 import os
 from modules.db import setup_db
 
-db = builtins.db
-
 app = FastAPI(
     root_path="/api/v1",
     servers=[{"url": "/api/v1", "description": "Backend API"}]

@@ -1126,15 +1126,16 @@ const curve = new THREE.Line(geometry, material);
     //render the scene
     sica = setInterval(controls.update, 0)
     exit = false;
+    varinit = false; // The init variable
     function animate() {
+        id = requestAnimationFrame( animate );
         if(timestep == false) {
-	    id = requestAnimationFrame( animate );
             if(exit == false) {
                 //Motion
 	        plly.rotateX(0.15)
                 rope2Motion=ipL2.updateLine(0.15);
                 rope1Motion=ipL.updateLine(-0.15);
-
+                
                 pos_bx2 = bx2.getPosition().clone();
                 pos_bx = bx.getPosition().clone();
                 if (rope2Motion) 
@@ -1150,11 +1151,39 @@ const curve = new THREE.Line(geometry, material);
                     bx.setPos(newpos_bx.x,newpos_bx.y,newpos_bx.z);
                     bx2.setPos(newpos_bx2.x,newpos_bx2.y,newpos_bx2.z);
                 }
-                //console.log("rotate");
-                //required if controls.enableDamping or controls.autoRotate are set to true
-	        renderer.render( scene, camera );
             }
         }
+        else if(timestep == true) {
+            // Define some variables (TODO Make sliders for the todo ones)
+            if(varinit == false) {
+                dt = 0.01; // Small timestep TODO
+                friction = 0.2 // Friction coefficient TODO
+                box1_mass = 10; // TODO
+
+                varinit = true // No more need to run this part of js anymore
+            }
+
+            // Get box current positions
+            box1_pos = bx.getPosition().clone(); 
+ 
+            box1_Fxy = project(angle, box1_mass * 10) // Find the acceleration after dt time
+            console.log(box1_Fxy)
+            box1_ax = box1_Fxy.x / box1_mass
+            box1_ay = box1_Fxy.y / box1_mass
+            box1_vx = box1_ax / dt
+            box1_vy = box1_ay / dt
+
+            // Get the displacement s of box1
+            box1_disp_x = box1_pos.x + box1_vx*dt + box1_ax*dt*dt;
+            box1_disp_y = box1_pos.y + box1_vy*dt + box1_ay*dt*dt;
+            
+            // Get the new velocity
+
+
+            // Set box1 position TODO 3D
+            bx.setPos(box1_disp_x, box1_disp_y, 0)
+        }
+        renderer.render( scene, camera );
     }
     siai = setInterval(function() {
         if(schange == true) {
@@ -1166,9 +1195,9 @@ const curve = new THREE.Line(geometry, material);
 
 }
 
-// Projects a force into its horizontal and vertical components
-function project(angle, force) {
-    return new THREE.Vector3(force*Math.cos(angle), force*Math.sin(angle), 0)
+// Projects a vector into its horizontal and vertical components
+function project(angle, vector) {
+    return new THREE.Vector3(vector*Math.cos(angle), vector*Math.sin(angle), 0)
 }
 
 function empty(elem) {
