@@ -17,31 +17,11 @@ import sys
 import sys
 from .common_deps import *
 from .config import SECURE, HASH_SALT, SERVER_URL, EXP_RATE
+from .coremeow import *
 inflect_engine = inflect.engine()
 logging.captureWarnings(True)
 
-SERVER_URL = "https://127.0.0.1:443"  # Main Server URL
-HASH_SALT = "66801b86-06ff-49c7-a163-eeda39b8cba9_66bc6c6c-24e3-11eb-adc1-0242ac120002_66bc6c6c-24e3-11eb-adc1-0242ac120002"
 EXP_RATE = 11 # This is the rate at which users will get experience per concept (11 exp points per completed concept)
-pwd_context = CryptContext(schemes=["pbkdf2_sha512"], deprecated="auto")
-
-def hash_pwd(username: str, password: str) -> str:
-    return pwd_context.hash("Shadowsight1" + HASH_SALT + username + password)
-
-def verify_pwd(username: str, password: str, hashed_pwd: str) -> bool:
-    return pwd_context.verify("Shadowsight1" + HASH_SALT + username + password, hashed_pwd)
-
-def brsret(*, code: str = None, html: str = None, outer_scope: dict = None, support: bool = False, **kwargs: str) -> dict:
-    if outer_scope is None:
-        eMsg = {"code": code, "context": kwargs}
-    else:
-        eMsg = {"code": code, **outer_scope, "context": kwargs}
-    if html != None:
-        eMsg["html"] = f"<p style='text-align: center; color: red'>{html}"
-        if support is True:
-            eMsg["html"] += "<br/>Contact CatPhi Support for more information and support."
-        eMsg["html"] += "</p>"
-    return eMsg
 
 async def authorize_user(username, token):
     # Check if the username is even registered with us and if the username
