@@ -10,8 +10,9 @@
   {%endif%}
   <br/>
   <div style="text-align: center;">
-	<div id = "meow" style="margin-bottom: 200px;">
-	<form method='post' style="margin-bottom: 3px;" class="needs-validation" novalidate>
+  <div style="text-align: center;" class="form">
+	<div id = "meow">
+	<form method='post' class="needs-validation" novalidate>
 	{{ form.csrf_token }}
 	<div class="form-group">
 	   <div class="form-inline" style="justify-content: center; text-align: center;">
@@ -36,10 +37,12 @@
   	<button type="submit" class="btn btn-primary">Login</button>
 	</form><br/>
 	</div>
-	<h5>Or you can...</h5>
-	<a href="/topics"><button class="btn btn-primary">Continue As A Guest</button></a><br/><br/>
-        <small id="pwdHelp" class="form-text" style="font-size: 16px; color: black;"><strong>Note:</strong> You won't be able to save any of your progress if you continue as a guest</small>
-  </div>
+	    <h5 style="color: black;">Or you can...</h5>
+	    <a href="/topics"><button class="btn btn-primary">Continue As A Guest</button></a><br/><br/>
+            <small id="pwdHelp" class="form-text" style="font-size: 16px; color: black;"><strong>Note:</strong> You won't be able to save any of your progress if you continue as a guest</small>
+        </div>
+    </div>
+   </div>
 <script>
 (function() {
   'use strict';

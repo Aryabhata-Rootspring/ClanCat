@@ -1159,26 +1159,25 @@ const curve = new THREE.Line(geometry, material);
                 dt = 0.01; // Small timestep TODO
                 friction = 0.2 // Friction coefficient TODO
                 box1_mass = 10; // TODO
-
+                box2_mass = 10; // TODO
                 varinit = true // No more need to run this part of js anymore
             }
 
             // Get box current positions
             box1_pos = bx.getPosition().clone(); 
  
-            box1_Fxy = project(angle, box1_mass * 10) // Find the acceleration after dt time
             console.log(box1_Fxy)
-            box1_ax = box1_Fxy.x / box1_mass
-            box1_ay = box1_Fxy.y / box1_mass
-            box1_vx = box1_ax / dt
-            box1_vy = box1_ay / dt
+            var box1_Fxy_gravity = project(angle, box1_mass * 10) // Find the acceleration after dt time
+            var box2_Fxy = new THREE.Vector3(0, box2_mass * 10, 0)
+            var box1_Fxy = new THREE.Vector3(box1_Fxy_gravity.x, box2_Fxy.y + box1_Fxy_gravity.y, 0)
+            var box1_ax = box1_Fxy.x / box1_mass
+            var box1_ay = box1_Fxy.y / box1_mass
+            var box1_vx = box1_ax / dt
+            var box1_vy = box1_ay / dt
 
             // Get the displacement s of box1
-            box1_disp_x = box1_pos.x + box1_vx*dt + box1_ax*dt*dt;
-            box1_disp_y = box1_pos.y + box1_vy*dt + box1_ay*dt*dt;
-            
-            // Get the new velocity
-
+            box1_disp_x = box1_pos.x + box1_vx*dt + 0.5*box1_ax*dt*dt;
+            box1_disp_y = box1_pos.y + box1_vy*dt + 0.5*box1_ay*dt*dt;
 
             // Set box1 position TODO 3D
             bx.setPos(box1_disp_x, box1_disp_y, 0)

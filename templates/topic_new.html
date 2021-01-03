@@ -4,24 +4,24 @@
 <meta name="description" content="Aryabhata Inc - CatPhi Login">
 {% endblock %}
 {% block content %}
-  <h1 style="text-align: center;"><strong>  CatPhi Admin Interface </strong></h1>
+  <h2 style="text-align: center;"><strong>  CatPhi Admin Interface </strong></h2>
   {% if error %}
   	<p style="text-align: center; color: red;"><strong>{{error}}</strong></p>
   {%endif%}
   <br/>
   <div style="text-align: center;">
-	<form method='post'>
+	<form method='post' class="form">
 	{{form.csrf_token}}
-	<div class="form-group">
-    		<label for="name">Topic Name</label>
+	<div class="form-group form-inline">
+    		<label for="name" style="margin-right: 3px;">Topic Name:</label>
     		<input type="text" name='name' class="form-control" id='topic' aria-describedby="userHelp" placeholder='Topic Name' required aria-required="true">
   	</div>
-        <div class="form-group">
-                <label for="description">Topic Description</label>
+        <div class="form-group form-inline">
+                <label for="description" style="margin-right: 3px">Topic Description:</label>
                 <input type="text" name='description' class="form-control" id='description' aria-describedby="userHelp" placeholder='Topic Description' required aria-required="true">
         </div>
-        <div class="form-group">
-                <label for="metaid">Choose The Subject:</label>
+        <div class="form-group form-inline">
+                <label for="metaid" style="margin-right: 3px;">Choose The Subject:</label>
                 <select class="form-control" name="metaid" id="metaid" required>
 		{% for subject in subjects %}
 			<option value="{{subject[1]}}">{{subject[0]}}</option>

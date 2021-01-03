@@ -162,7 +162,7 @@ async def reset_password_send(reset: AuthResetRequest, background_tasks: Backgro
         )
         if login_cred is None:
             # Invalid Username Or Password
-            return {"error": "1001"}
+            return brsret(code = "INVALID_EMAIL")
 
         email = reset.email
     elif reset.email is None and reset.username is not None:
@@ -172,12 +172,12 @@ async def reset_password_send(reset: AuthResetRequest, background_tasks: Backgro
 
         if login_cred is None:
             # Invalid Username Or Password
-            return {"error": "1001"}
+            return brsret(code = "INVAALID_USERNAME")
 
         email = login_cred["email"]
     else:
             # Invalid Username Or Password
-            return {"error": "1001"}
+            return brsret("NO_USERNAME_OR_EMAIL_PROVIDED")
 
     url_flag = True  # Flag to check if we have a good url id yet
     while url_flag:
@@ -189,7 +189,7 @@ async def reset_password_send(reset: AuthResetRequest, background_tasks: Backgro
     reset_link = SERVER_URL + "/reset/stage2?token=" + atok
     reset_message = f"Subject: CCTP Password Reset\n\nUsername {login_cred['username']}\nPlease use {reset_link} to reset your password.\n\nIf you didn't authorize this action, please change your password immediately"
     background_tasks.add_task(send_email, email, reset_message)
-    return {"error": "1000"}  # Success
+    return brsret(code = None)
 
 def send_email(email: str, reset_message: str = ""):
     email_session = smtplib.SMTP("smtp.gmail.com", 587)

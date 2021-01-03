@@ -1,31 +1,14 @@
 {% extends 'template.html' %}
-{%block reg%}
+{% block header %}
 <title role="banner">{{name}}</title>
+{% endblock %}
+{%block content%}
 <div style="text-align: center;">
-<style>
-	canvas, html, .overlay {
-		text-align: center !important;
-	};
-	progress {
-  	 	margin-left: 10px;
-  	 	position: relative;
-  	 	top: 3px;
- 	 	width:600px;
-	}
-</style>
 <h3 style="text-align: center;"><strong>{{name}}</strong><br/><br/>
-
-<div>
-	{{description|safe}}
-</div>
-<style>
-        canvas, html, .overlay {
-                text-align: center !important;
-        };
-</style>
+<h4>{{description|safe}}</h4>
 <a href="/topics/{{tid}}/learn"><button class="btn btn-primary">Onwards!</button></a>
 {% if admin %}
 <a href="/topics/{{tid}}/editmenu"><button class="btn btn-primary">Edit!</button></a>
-{%endif%}
 </div>
+{%endif%}
 {%endblock%}

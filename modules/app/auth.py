@@ -199,7 +199,8 @@ async def reset_pwd_s1_post(request: Request, username: str = FastForm(None), em
     x = requests.post(
             api + "/auth/reset/send", json=json
     ).json()
-    if x["error"] == "1000":
+    print(x)
+    if x["code"] is None:
         msg = "We have sent a confirmation email to the email you provided. Please check your spam folder if you did not recieve one"
     else:
         msg = "Something has went wrong. Please recheck your email and make sure it is correct"

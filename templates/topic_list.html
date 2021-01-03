@@ -14,12 +14,12 @@
                 <a href="/subjects/admin/new"><button class="btn btn-primary">New Subject</button></a>
   	</div>
   {%endif%}
-  <br/><br/>
+  <div style="margin-bottom: 10px;"></div>
   <div class="cctp-exp-index">
   <div class="row top-buffer align-item-center" style="text-align: center;">
   {%for topic in topic_list%}
     <div class="col-sm-6">
-      <div class="card" style="width: 18rem; display: inline-block; border: solid; border-width: thin;">
+      <div class="card" style="width: 18rem; display: inline-block; border: solid; border-width: thin; background-color: #221d26; border-color: white;">
 	      <br/><h5 class="card-title">{{topic[0]}}</h5>
 	      <!--<a href="/topics/{{topic[1]}}" class="stretched-link stub"></a>-->
         <div class="card-body">
@@ -28,7 +28,7 @@
       </div>
     </div>
     {% if loop.index % 2 == 0 %}
-    <br/><br/><br/>
+    <div style="margin-bottom: 3%;"></div>
     </div>
     <div class="row top-buffer align-item-center" style="text-align: center;">
     {%endif%}

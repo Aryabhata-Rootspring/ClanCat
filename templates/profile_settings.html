@@ -4,7 +4,7 @@
 <meta name="description" content="Aryabhata Inc - CatPhi Dashboard">
 <style>
         hr {
-                background-color: black;
+                background-color: white;
         }
         img {
                 border-radius: 50%;
@@ -12,28 +12,31 @@
 </style>
 {% endblock %} 
 {% block content %}
-	<h2 style="text-align: center;"><strong><a style="color: black;" href="/profile/{{username}}">{{p_username}}'s</a> settings</strong></h2>
+	<h2 style="text-align: center;"><strong><a style="color: white;" href="/profile/{{username}}">{{p_username}}'s</a> settings</strong></h2>
   	<div style="text-align: center;" class="profile_settings" role="profile_settings">
-                	<h4><strong>Profile Status: </strong>{{private}}</h4>
+                        <h5><strong>Privacy<strong></h5>
 			{% if private == "Private" %}
-			<form action="/profile/{{username}}/me/visible/state" method="post">
+			<p>Your profile is currently private</p>
+                        <form action="/profile/{{username}}/me/visible/state" method="post">
 				{{ form.csrf_token }}
 				<button type="submit" name="state" value="public" class="btn btn-primary">Make Public</button>
 			</form>
 			{% else %}
+                        <p>Your profile is currently public</p>
                         <form action="/profile/{{username}}/me/visible/state" method="post">
                                 {{ form.csrf_token }}
 				<button type="submit" name="state" value="private" class="btn btn-primary">Make Private</button>
                         </form>
 			{% endif %}
-			<hr/>
-			<h5><strong>Profile Listing</strong></h5>
+			<h6><strong>Profile Listing</strong></h6>
 			{% if listing == "Disabled" %}
+                        <p>Currently not listing your profile</p>
                         <form action="/profile/{{username}}/me/list" method="post">
                                 {{ form.csrf_token }}
                                 <button type="submit" name="state" value="enable" class="btn btn-primary">Enable Listing</button>
                         </form>
 			{% else %}
+                        <p>Currently listing your profile</p>
                         <form action="/profile/{{username}}/me/list" method="post">
                                 {{ form.csrf_token }}
 				<button type="submit" name="state" value="disable" class="btn btn-primary">Disable Listing</button>
@@ -48,22 +51,22 @@
 			{% if mfa %}
 			<h6>MFA is currently enabled</h6>
 			<a href="/profile/{{username}}/me/mfa/disable"><button class="btn btn-primary">Disable MFA</button></a><br/>
-			<small class="form-text text-muted">It is not recommended to do this at all</small>
+			<small class="form-text text-muted" style="color: white !important;">It is not recommended to do this at all</small>
 			{% else %}
                         <h6>MFA is currently disabled</h6>
                         <a href="/profile/{{username}}/me/mfa/enable"><button class="btn btn-primary">Enable MFA</button></a>
-                        <small class="form-text text-muted">It is highly recommended that you do this</small>
+                        <small class="form-text text-muted" style="color: white !important;">It is highly recommended that you do this</small>
 			{%endif%}
 			<hr/><br/><br/>
                         <h5 style="color: red"><strong>DANGER ZONE</strong></h5>
 			<a href="/profile/{{username}}/me/profile/delete"><button class="btn btn-danger">Delete Account</button></a><
-	                <small class="form-text text-muted"><strong>Warning: </strong>Only click this if you are absolutely positive you know what you are doing.</small>
+	                <small class="form-text text-muted" style="color: white !important;"><strong>Warning: </strong>Only click this if you are absolutely positive you know what you are doing.</small>
 			<br/><br/>
 			<h6 style="color: red"><strong>User Token</strong></h6>
                         <form action="/profile/{{username}}/me/token" method="post">
                                 {{ form.csrf_token }}
 				<button type="submit" name="confirm" value="YesIKnowWhatIAmDoing2020AndIAmSureIWishToDoThisInRealLifePleaseDontDoThisUnlessYouAreDoingThisToFillOutTheCustomerSupportFormThanksBro{{username}}:)" class="btn btn-danger">View User Token</button>
-				<small class="form-text text-muted"><strong>Warning: </strong>Only click this if you know what you are doing.</small>
+				<small class="form-text text-muted" style="color: white !important;"><strong>Warning: </strong>Only click this if you know what you are doing.</small>
                         </form>
 	</div>
 {% endblock %}

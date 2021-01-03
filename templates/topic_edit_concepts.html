@@ -8,8 +8,21 @@
   <h2 style="text-align: center;"><strong> CatPhi Topic Editor </strong></h2>
   <br/><br/><br/>
   <div style="text-align: center;">
-  	{% for concept in concepts %}
-		<a href="/topics/{{tid}}/edit/concept/{{concept[1]}}">{{concept[0]}}</a><br/>
-	{% endfor %}
+  {% for concept in concepts %}
+    <div class="col-sm-6">
+      <div class="card" style="width: 18rem; display: inline-block; border: solid; border-width: thin; background-color: #221d26; border-color: white;">
+              <br/><h5 class="card-title">{{concept[0]}}</h5>
+        <div class="card-body">
+                <a href="/topics/{{tid}}/edit/concept/{{concept[1]}}" class="card-link"><button class="btn btn-primary">Edit</button></a>
+        </div>
+      </div>
+    </div>
+    {% if loop.index % 2 == 0 %}
+    <div style="margin-bottom: 3%;"></div>
+    </div>
+    <div class="row top-buffer align-item-center" style="text-align: center;">
+    {%endif%}
+  {%endfor%}
+  </div>
   </div>
 {% endblock %}

@@ -4,7 +4,7 @@
 <meta name="description" content="Aryabhata Inc - CatPhi Dashboard">
 <style>
 	hr {
-		background-color: black;
+		background-color: white;
 	}
 	img {
   		border-radius: 50%;
@@ -13,14 +13,14 @@
 {% endblock %} 
 {% block content %}
 <div style="text-align: center;">
-<h2><strong><a style="color: black;" href="/profile/{{username}}">{{p_capusername}}'s</a> Passport</strong></h2>
+<h2><strong><a style="color: white;" href="/profile/{{username}}">{{p_capusername}}'s</a> Passport</strong></h2>
      <hr/>
      <h3>Portfolio</h3>
      {% for item in items %}
-     <button class="btn btn-outline-info" onClick="modalShow('#item-{{loop.index}}')">{{item["display"]|safe}}{{item["count"]}}</button><br/><br/>
+     <button class="btn btn-outline-dark" style="color: white; border-color: white;" onClick="modalShow('#item-{{loop.index}}')">{{item["display"]|safe}}{{item["count"]}}</button><br/><br/>
      {%endfor%}
      <h4>Rank</h4><br/>
-		<button class="btn btn-outline-info" onClick="modalShow('#memberModal')">{{rank_name}}</button><br/><br/>
+		<button class="btn btn-outline-dark" style="color: white; border-color: white;" onClick="modalShow('#memberModal')">{{rank_name}}</button><br/><br/>
   <hr/>
   <h3>Badges</h3>
   	{% for badge_id, badge_dict in badges.items()%}
@@ -31,7 +31,7 @@
   			<div class="modal-dialog modal-dialog-centered">
     				<div class="modal-content">
       					<div class="modal-header">
-						<h5 class="modal-title" id="{{badge_id}}Label">{{badge_dict["name"]}}</h5>
+						<h5 style="color: black;" class="modal-title" id="{{badge_id}}Label">{{badge_dict["name"]}}</h5>
       					</div>
       					<div class="modal-body">
 					{{badge_dict["description"]}}<br/><br/>
@@ -69,7 +69,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-	      <h5 class="modal-title" id="memberModalLabel" style="text-align: center; justify-content: center;">{{rank_name}}</h5>
+	      <h5 class="modal-title" id="memberModalLabel" style="text-align: center; justify-content: center; color: black;">{{rank_name}}</h5>
       </div>
       <div class="modal-body">
 	      {{rank_desc|safe}}{% if admin == 0 %}<br/><br/><strong><em>Earn {{rank_levelup}} experience points to become a {{rank_levelup_name}}!</em></strong>{%endif%}
@@ -84,7 +84,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-	      <h5 class="modal-title" id='item-{{loop.index}}Label'>{{item["name"]}}</h5>
+	      <h5 class="modal-title" style="color: black;" id='item-{{loop.index}}Label'>{{item["name"]}}</h5>
       </div>
       <div class="modal-body">
 	      {{item["desc"]|safe}}

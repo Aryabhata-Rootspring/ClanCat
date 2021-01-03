@@ -11,15 +11,15 @@
   <br/>
   <p style = "text-align: center;">It's OK. Mistakes happen. In order to reset your password, we need to know EITHER your username OR its registered email address. A email will be sent to its registered email address.<br/></p>
   <div style="text-align: center;">
-	<form method='post'>
+	<form method='post' class="form">
 	{{form.csrf_token}}
-	<div class="form-group">
+	<div class="form-group form-inline">
     		<label for="username">Username</label>
     		<input style="margin: 2px;" type="username" name='username' class="form-control" id="email" placeholder="Enter your username">
         </div>
-        <div class="form-group">
-		<label for="email">Alternatively, enter your email</label>
-                <input style="margin: 2px;" type="email" name='email' class="form-control" id="email" placeholder="Alternatively, enter your email">
+        <div class="form-group form-inline">
+		<label for="email">Email</label>
+                <input style="margin: 2px;" type="email" name='email' class="form-control" id="email" placeholder="Or, enter your email">
   	</div>
   	<button type="submit" class="btn btn-primary">Next</button>
 	</form>	
