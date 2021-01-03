@@ -12,7 +12,7 @@
   <p style="text-align: center;"><strong>{%if mode == "username"%}Changing your username...<br/>{%elif mode == "password"%}Changing your password...{%endif%}</strong></p><br/>
 
   <div style="text-align: center;">
-	<form method='post' class="needs-validation" novalidate>
+	<form method='post' class="form needs-validation" novalidate>
         {{ form.csrf_token }}
         <div class="form-group">
            <div class="form-inline" style="justify-content: center; text-align: center;">

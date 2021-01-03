@@ -4,7 +4,7 @@
 <meta name="description" content="Aryabhata Inc - CatPhi Login">
 {% endblock %}
 {% block content %}
-  <h3 style="text-align: center;"><strong> Login To CatPhi </strong></h3>
+  <h3 style="text-align: center;"><strong>Login</strong></h3>
   {% if error %}
   	<p style="text-align: center; color: red;"><strong>{{error|safe}}</strong></p>
   {%endif%}
@@ -35,12 +35,11 @@
 		<small id="pwdHelp" class="form-text text-muted">Need to recover your account? <a class="underline" href="/recovery/options">See recovery options!</a></small>
 	</div>
   	<button type="submit" class="btn btn-primary">Login</button>
-	</form><br/>
-	</div>
-	    <h5 style="color: black;">Or you can...</h5>
-	    <a href="/topics"><button class="btn btn-primary">Continue As A Guest</button></a><br/><br/>
-            <small id="pwdHelp" class="form-text" style="font-size: 16px; color: black;"><strong>Note:</strong> You won't be able to save any of your progress if you continue as a guest</small>
-        </div>
+	</form>
+	<hr/>
+        <h5 style="color: black;">Or you can...</h5>
+	<a href="/topics"><button class="btn btn-primary">Continue As A Guest</button></a><br/><br/>
+        <small id="pwdHelp" class="form-text" style="font-size: 16px; color: black;"><strong>Note:</strong> You won't be able to save any of your progress if you continue as a guest</small>
     </div>
    </div>
 <script>

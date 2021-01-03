@@ -27,31 +27,31 @@ iframe {
 <br/><br/><br/><br/><br/>
 <!--<footer class="footer mt-auto py-3">-->
 <footer class="footer">
-<nav aria-label="CatPhi Concept Navigation">
+<nav aria-label="CatPhi Concept Navigation" style="color: white !important;">
     <ul class="pagination justify-content-center">
     {% if cid - 1 > 0 %}
     <li class="page-item">
-      <a class="page-link" href="/topics/{{tid}}/learn/{{cid - 1}}" tabindex="-1" aria-disabled="false">Previous</a>
+      <a class="page-link" href="/topics/{{tid}}/learn/{{cid - 1}}" tabindex="-1" aria-disabled="false" style="color: white;">Previous</a>
     </li>
     {%else%}
     <li class="page-item disabled">
-      <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Previous</a>
+      <a class="page-link" href="#" tabindex="-1" aria-disabled="true" style="color: grey;">Previous</a>
     </li>
     {%endif%}
     {%for concept in concepts%}
     	{%if concept == cid %}
-    		<li class="page-item active" aria-current="page"><a class="page-link" href="/topics/{{tid}}/learn/{{concept}}">{{concept}}<span class="sr-only">(current)</span></a></li>
+    		<li class="page-item active" aria-current="page"><a class="page-link" href="/topics/{{tid}}/learn/{{concept}}">{{concept}}<span style="color: white;" class="sr-only">(current)</span></a></li>
 	{% else %}
-		<li class="page-item"><a class="page-link" href="/topics/{{tid}}/learn/{{concept}}">{{concept}}</a></li>
+		<li class="page-item"><a class="page-link" href="/topics/{{tid}}/learn/{{concept}}" style="color: white;">{{concept}}</a></li>
 	{% endif %}
     {%endfor%}
     {% if cid + 1 <= concept_count %}
     <li class="page-item">
-      <a class="page-link" href="/topics/{{tid}}/learn/{{cid + 1}}" tabindex="-1" aria-disabled="false">Next</a>
+      <a class="page-link" href="/topics/{{tid}}/learn/{{cid + 1}}" tabindex="-1" style="color: white;" aria-disabled="false">Next</a>
     </li>
     {% else %}
     <li class="page-item">
-      <a class="page-link" href="/topics/{{tid}}/practice/1" tabindex="-1" aria-disabled="false">Let's Practice!</a>
+      <a class="page-link" href="/topics/{{tid}}/practice/1" tabindex="-1" aria-disabled="false" style="color: white;">Let's Practice!</a>
     </li>
     {% endif %}
   </ul>

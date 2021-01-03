@@ -10,14 +10,14 @@
   {%endif%}
   <br/>
   <div style="text-align: center;">
-	<form method='post'>
+	<form method='post' class="form">
 	{{form.csrf_token}}
-	<div class="form-group">
-    		<label for="password">New Password</label>
+	<div class="form-group form-inline">
+    		<label for="password" style="margin-right: 3px;">New Password</label>
     		<input style="margin: 2px;" type="password" name='password' class="form-control" id="password" placeholder="Password" minlength=9 required>
 	</div>
-  	<div class="form-group">
-    		<label for="cpassword">Confirm Password</label>
+  	<div class="form-group form-inline">
+    		<label for="cpassword" style="margin-right: 3px;">Retype Password</label>
     		<input style="margin: 2px;" type="password" name='cpassword' class="form-control" id="cpassword" placeholder="Confirm Password" minlength=9 required>
   	</div>
   	<button type="submit" class="btn btn-primary">Reset Password</button>

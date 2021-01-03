@@ -10,10 +10,10 @@
   {%endif%}
   <br/>
   <div style="text-align: center;">
-	<form method='post'>
+	<form method='post' class="form">
 	{{form.csrf_token}}
-	<div class="form-group">
-    		<label for="concept">Concept Title</label>
+	<div class="form-group form-inline">
+    		<label for="concept" style="margin-right: 3px;">Concept Title:</label>
     		<input type="text" name='title' class="form-control" id='concept' aria-describedby="userHelp" placeholder='Concept Name'>
   	</div>
   	<button type="submit" class="btn btn-primary">Create Concept</button>
