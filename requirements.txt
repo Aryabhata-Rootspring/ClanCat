@@ -3,6 +3,7 @@ git+https://github.com/Aryabhata-Rootspring/fastapi
 quart == 0.9.0
 requests == 2.25.0
 passlib == 1.7.3
+argon2_cffi
 uvicorn[standard] == 0.13.2
 wtforms
 inflect == 5.0.1

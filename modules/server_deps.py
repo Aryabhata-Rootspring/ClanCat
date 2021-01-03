@@ -2,10 +2,7 @@ import asyncio
 import smtplib
 import time
 import ssl
-from pydantic import BaseModel, ValidationError, validator, BaseSettings
-from passlib.context import CryptContext
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
-import json
+from pydantic import BaseModel
 from datetime import date
 import inflect
 import hashlib
@@ -16,12 +13,10 @@ import logging
 import sys
 import sys
 from .common_deps import *
-from .config import SECURE, HASH_SALT, SERVER_URL, EXP_RATE
+from .config import SECURE, SERVER_URL, EXP_RATE
 from .coremeow import *
 inflect_engine = inflect.engine()
 logging.captureWarnings(True)
-
-EXP_RATE = 11 # This is the rate at which users will get experience per concept (11 exp points per completed concept)
 
 async def authorize_user(username, token):
     # Check if the username is even registered with us and if the username

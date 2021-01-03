@@ -1,4 +1,4 @@
-from .config import CSRF_SECRET, SESSION_SECRET, SECURE, HASH_SALT, API as api
+from .config import CSRF_SECRET, SESSION_SECRET, SECURE, API as api
 import requests as __r__
 import logging
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -7,7 +7,7 @@ from starlette.status import HTTP_303_SEE_OTHER
 import builtins
 from starlette_wtf import StarletteForm
 from fastapi.templating import Jinja2Templates
-from passlib.context import CryptContext
+from passlib.hash import argon2 # Argon2 HASH
 templates = Jinja2Templates(directory="templates")
 logging.captureWarnings(True)
 
@@ -102,13 +102,12 @@ def abort(code):
 builtins.requests = requests
 builtins.BRS = BRS
 
-pwd_context = CryptContext(schemes=["pbkdf2_sha512"], deprecated="auto")
 
 def hash_pwd(username: str, password: str) -> str:
-    return pwd_context.hash("Shadowsight1" + HASH_SALT + username + password)
+    return argon2.hash("Rootspring:" + username + password)
 
 def verify_pwd(username: str, password: str, hashed_pwd: str) -> bool:
-    return pwd_context.verify("Shadowsight1" + HASH_SALT + username + password, hashed_pwd)
+    return argon2.verify("Rootspring:" + username + password, hashed_pwd)
 
 def brsret(*, code: str = None, html: str = None, outer_scope: dict = None, support: bool = False, **kwargs: str) -> dict:
     if outer_scope is None:
