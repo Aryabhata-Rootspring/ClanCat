@@ -5,13 +5,16 @@
 {% endblock %}
 {% block content %}
   <h3 style="text-align: center;"><strong>Login</strong></h3>
-  {% if error %}
-  	<p style="text-align: center; color: red;"><strong>{{error|safe}}</strong></p>
-  {%endif%}
   <br/>
   <div style="text-align: center;">
-  <div style="text-align: center;" class="form">
-	<div id = "meow">
+  <div class="form">
+        {% if error %}
+            <p style="text-align: center; color: red;"><strong>{{error|safe}}</strong></p>
+        {%endif%}
+        {% if locked %}
+            <p style="text-align: center; color: red;"><strong>This account has been locked due to unusual activity</strong></p>
+        {%endif%}
+        <div id = "meow">
 	<form method='post' class="needs-validation" novalidate>
 	{{ form.csrf_token }}
 	<div class="form-group">

@@ -25,7 +25,7 @@ async def login_post(request: Request, username: str = FastForm(None), password:
         api + "/auth/login", json={"username": username, "password": password}
     )
     rc = rc.json()
-    if rc["context"].get("mfaChallenge") != None:
+    if rc["context"].get("mfaChallenge") is not None:
         return redirect(f"/login/mfa/{username}/{rc['context']['mfaToken']}")
     elif rc["code"] == None:
         rc = rc["context"] # Get the status context
@@ -38,17 +38,21 @@ async def login_post(request: Request, username: str = FastForm(None), password:
         request.session["username"] = username
         request.session["token"] = rc["token"]
         return redirect("/topics")
-    if rc["code"] == "INVALID_USER_PASS":
+    elif rc["code"] == "INVALID_USER_PASS":
+        locked = rc["context"].get("locked") == True
         return await render_template(
             request,
             "login.html",
             error = Markup(rc["html"]),
+            locked = locked
         )
-    if rc["code"] == "ACCOUNT_DISABLED":
+    elif rc["code"] == "ACCOUNT_DISABLED":
         if rc["context"]["status"] == 1:
             msg = "We could not log you in as you have disabled your account. Please click <a href='/reset'>here</a> to reset your password and re-enable your account"
         elif rc["context"]["status"] == 2:
             msg = "We could not log you in as an admin has disabled your account. Please click <a href='/contactus'>here</a> to contact our customer support"
+        elif rc["context"]["status"] == 3:
+            msg = f"We could not log you in as there is an unusual {rc['context']['attempts']} incorrect login attempts on your account.<br/> Please click <a href='/reset'>here</a> to reset your password and re-enable your account"
         else:
             msg = f"Unknown account state. Please click <a href='/contactus'>here</a> to contact our customer support"
         return await render_template(

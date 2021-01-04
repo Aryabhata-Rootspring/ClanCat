@@ -8,6 +8,7 @@ CSRF_SECRET_2 = "144b789219a6a314ffb7815a0b69b2d6274bae84dd66b734393241"
 SESSION_SECRET_1 = "iiqEEZ0z1wXWeJ3lRJnPsamlvbmEq4tesBDJ38HD3dj329Ddrejrj34jf"
 SESSION_SECRET_2 = "jrc4j3fwkjVrT34jkFj34jkgce3jfqkeieiei3jd44584830290riuejn"
 SESSION_SECRET_3 = "fdiuwrjncjnwe8uefhnewfu553kf84EyfFH48SHSWk"
+AUTH_LIMIT = 7 # Auth Rate Limit
 
 # Important Stuff
 CSRF_SECRET = CSRF_SECRET_1 + CSRF_SECRET_2

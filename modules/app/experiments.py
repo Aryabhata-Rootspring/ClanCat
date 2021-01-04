@@ -40,7 +40,7 @@ async def experiment_edit(request: Request, sid: str):
     exp_json = requests.get(api + f"/experiment/get?sid={sid}").json()
     if exp_json["code"] is not None:
         return abort(404)
-    return await render_template(request, "generic_simulation_editor.html", sid = sid, code = exp_json["context"]["exp_code"])
+    return await render_template(request, "generic_simulation_editor.html", sid = sid, code = exp_json["context"]["exp_code"], type = exp_json["context"]["type"])
 
 @router.post("/{sid}/save")
 async def experiment_save(sid: str, data: SaveExperimentPage):

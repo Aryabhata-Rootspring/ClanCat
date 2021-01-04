@@ -58,6 +58,28 @@ class AuthRecoveryRequest(BaseModel):
 class AuthDeleteRequest(MFAModel):
     username: str
 
+# Basic Functions
+
+async def update_login_attempts(username: str, reset: bool) -> bool:
+    attempts = await db.fetchrow("SELECT status, attempts FROM login WHERE username = $1", username)
+    if attempts is None:
+        return False # Username doesnt even exist
+    elif reset:
+        attempt = 0
+    else:
+        try:
+            attempt = attempts["attempts"] + 1 # Increment attempts by 1
+        except:
+            attempt = 1
+    await db.execute("UPDATE login SET attempts = $1 WHERE username = $2", attempt, username)
+    if attempt > AUTH_LIMIT:
+        # Disable the account now that we have passed the limit (need account recovery or password reset)
+        if attempts["status"] not in [2, 3]:
+            attempts = await db.execute("UPDATE login SET status = 3 WHERE username = $1", username)
+        return True
+            
+    
+
 @router.post("/account/delete")
 async def delete_account(request: AuthDeleteRequest, bt: BackgroundTasks):
     profile_db = await db.fetchrow(
@@ -258,40 +280,34 @@ async def check_reset_token(token: str = None):
 
 @router.post("/login", tags = ["Authentication"])
 async def login(login: AuthLoginRequest):
-    if login.username is None or login.password is None:
-        return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
-    pwd = await db.fetchrow(
-        "SELECT password, mfa from login WHERE username = $1",
+    login_creds = await db.fetchrow(
+        "SELECT attempts, token, status, scopes, password, mfa from login WHERE username = $1",
         login.username
     )
-    if pwd is None:
-        # Invalid Username Or Password
-        return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
-
-    elif verify_pwd(login.username, login.password, pwd["password"]) == False:
-        return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
+    if login_creds is None:
+        return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", locked = False, support = False)
+    elif verify_pwd(login.username, login.password, login_creds["password"]) == False:
+        locked = await update_login_attempts(login.username, False)
+        return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", locked = locked, support = False)
 
     # Check for MFA
-    elif pwd["mfa"] is True:
+    elif login_creds["mfa"] is True:
         flag = True
         while flag:
             token = get_token(101)
             if token not in mfaDict.values() and token not in mfaDict.keys():
                 flag = False
         mfaDict[token] = login.username
-        return brsret(mfaChallenge = "mfa", mfaToken = token)
+        return brsret(code = "MFA", mfaChallenge = "mfa", mfaToken = token)
 
-    login_creds = await db.fetchrow(
-        "SELECT token, status, scopes from login WHERE username = $1",
-        login.username,
-    )
-    if login_creds is None:
-        return {"error": "1001"}
+    # Check status
     if login_creds["status"] in [None, 0]:
         pass
     else:
-        # This account is flagged as disabled (1) or disabled-by-admin (2)
-        return brsret(code = "ACCOUNT_DISABLED", status = login_creds["status"]) # Flagged Account
+        # This account is flagged as disabled (1) or disabled-by-admin (2) or locked (3)
+        return brsret(code = "ACCOUNT_DISABLED", status = login_creds["status"], attempts = login_creds["attempts"]) # Flagged Account
+
+    locked = await update_login_attempts(login.username, True)
     return brsret(token = login_creds["token"], scopes = login_creds["scopes"])
 
 
@@ -313,7 +329,7 @@ async def multi_factor_authentication(mfa: AuthMFARequest):
     if login_creds["status"] in [None, 0]:
         pass
     else:
-        # This account is flagged as disabled (1) or disabled-by-admin (2)
+        # This account is flagged as disabled (1) or disabled-by-admin (2) or locked (3)
         return brsret(code =  "ACCOUNT_DISABLED", status = login_creds["status"]) # Flagged or disabled account
     return brsret(token = login_creds["token"], scopes = login_creds["scopes"])
 

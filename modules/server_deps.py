@@ -13,7 +13,7 @@ import logging
 import sys
 import sys
 from .common_deps import *
-from .config import SECURE, SERVER_URL, EXP_RATE
+from .config import SECURE, SERVER_URL, EXP_RATE, AUTH_LIMIT
 from .coremeow import *
 inflect_engine = inflect.engine()
 logging.captureWarnings(True)

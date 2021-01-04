@@ -32,7 +32,7 @@ async def setup_db():
     )
     # Represents a single login in the database
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT, status INTEGER, scopes TEXT, mfa BOOLEAN, mfa_shared_key TEXT, backup_key TEXT)"
+        "CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT, status INTEGER, scopes TEXT, mfa BOOLEAN, mfa_shared_key TEXT, backup_key TEXT, attempts INTEGER)"
     )
     # Create an index for login
     await __db.execute(
