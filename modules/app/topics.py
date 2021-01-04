@@ -314,6 +314,12 @@ async def topic_practice_view(request: Request, tid: str, qid: int):
     count_json = requests.get(
         api + f"/topics/practice/get/count?tid={tid}"
     ).json()["context"]  # Get the page count of a concept
+    cid = requests.get(api + f"/topics/concepts/get/count?tid={tid}").json()
+    print(cid)
+    try:
+        cid = cid["context"]["concept_count"]
+    except:
+        cid = 0
     if practice_json["type"] == "MCQ":
         answers = practice_json["answers"].split("||")
     else:
@@ -358,6 +364,7 @@ async def topic_practice_view(request: Request, tid: str, qid: int):
         lives = lives,
         choices = choices,
         inans = inans,
+        cid = cid
     )
 
 # They have solved the question, save it on server session and on other locations (a database) if logged in

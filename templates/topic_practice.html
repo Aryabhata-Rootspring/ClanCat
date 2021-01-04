@@ -83,6 +83,9 @@ iframe {
     animation: 3s slidein-right-true;
 }
 
+#A, #B, #C, #D {
+    color: white;
+}
 </style>
 {% endblock %}
 {% block content %}
@@ -115,9 +118,9 @@ iframe {
 {% elif type == "SAQ" %}
 	<input id="ans" style="margin-left: 3px; margin-right: 3px; margin-bottom: 30px;" class="form-control animate-header-true-right" type="text" placeholder="Enter your answer here!"/>
 {%endif%}
-<button style="text-align: center; margin-bottom: 15px;" type="button" id="check-answers" class="btn btn-success btn-lg btn-block justify-content-center animate-header-true-left" disabled aria-disabled="true" onClick="checkAnswer(this);" >Check Answer!</button>
+<button style="text-align: center; margin-bottom: 15px; color: white;" type="button" id="check-answers" class="btn btn-success btn-lg btn-block justify-content-center animate-header-true-left" disabled aria-disabled="true" onClick="checkAnswer(this);" >Check Answer!</button>
 <div style="display: block; text-align: center; margin-bottom: 276px;">
-<button id="view-solution" style="visibility: hidden; text-align: center;" class="btn btn-outline-dark btn-block animate-header-true-right" onclick="viewSolution(false, null)">View Solution</button>
+<button id="view-solution" style="visibility: hidden; text-align: center; color: black; background-color: white" class="btn btn-outline-dark btn-block animate-header-true-right" onclick="viewSolution(false, null)">View Solution</button>
 </div>
 <footer class="footer">
 <nav aria-label="CatPhi Concept Navigation">
@@ -127,24 +130,24 @@ iframe {
       <a class="page-link" href="/topics/{{tid}}/practice/{{qid - 1}}" tabindex="-1" aria-disabled="false">Previous</a>
     </li>
     {%else%}
-    <li class="page-item disabled">
-      <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Previous</a>
+    <li class="page-item">
+      <a class="page-link" style="color: white !important;" href="/topics/{{tid}}/learn/{{cid}}">Previous</a>
     </li>
     {%endif%}
     {%for question in questions%}
     	{%if question == qid %}
-    		<li class="page-item active" aria-current="page"><a class="page-link" href="/topics/{{tid}}/practice/{{question}}">{{question}}<span class="sr-only">(current)</span></a></li>
+    		<li class="page-item active" aria-current="page"><a class="page-link" style="color: white !important;" href="/topics/{{tid}}/practice/{{question}}">{{question}}<span class="sr-only">(current)</span></a></li>
 	{% else %}
-		<li class="page-item" aria-current="page"><a class="page-link" href="/topics/{{tid}}/practice/{{question}}">{{question}}</a></li>
+		<li class="page-item" aria-current="page"><a class="page-link" style="color: white !important;" href="/topics/{{tid}}/practice/{{question}}">{{question}}</a></li>
 	{% endif %}
     {%endfor%}
     {% if qid + 1 <= practice_count %}
     <li class="page-item">
-      <a class="page-link" href="/topics/{{tid}}/practice/{{qid + 1}}" tabindex="-1" aria-disabled="false">Next</a>
+      <a class="page-link" style="color: white !important;" href="/topics/{{tid}}/practice/{{qid + 1}}" tabindex="-1" aria-disabled="false">Next</a>
     </li>
     {% else %}
     <li class="page-item">
-	    <a class="page-link" href="/topics/{{tid}}/return" tabindex="-1" aria-disabled="true">Return Home</a>
+	    <a class="page-link" style="color: white !important;" href="/topics/{{tid}}/return" tabindex="-1" aria-disabled="true">Return Home</a>
     </li>
     {% endif %}
   </ul>
@@ -172,9 +175,9 @@ iframe {
       </div>
       <div class="modal-footer">
         {% if qid + 1 <= practice_count %}
-		<button type="button" class="btn btn-primary"><a href="/topics/{{tid}}/practice/{{qid + 1}}">Set Sail!</a></button>
+		<button type="button" style="color: white;" class="btn btn-primary"><a href="/topics/{{tid}}/practice/{{qid + 1}}">Set Sail!</a></button>
 	{% else %}
-		<button type="button" class="btn btn-primary"><a href="/topics/{{tid}}/return">Return To Main Base!</a></button>
+		<button type="button" style="color: white;" class="btn btn-primary"><a href="/topics/{{tid}}/return">Return To Main Base!</a></button>
       	{% endif %}
       </div>
     </div>

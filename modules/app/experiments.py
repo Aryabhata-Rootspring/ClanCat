@@ -33,6 +33,15 @@ async def new_simulation_post(request: Request, exp_type: str = FastForm("glowsc
         )
     return redirect(f"/experiment/{poster['context']['id']}/edit")
 
+@router.get("/{sid}/edit")
+async def experiment_edit(request: Request, sid: str):
+    if "admin" not in request.session:
+        return abort(401)
+    exp_json = requests.get(api + f"/experiment/get?sid={sid}").json()
+    if exp_json["code"] is not None:
+        return abort(404)
+    return await render_template(request, "generic_simulation_editor.html", sid = sid, code = exp_json["context"]["exp_code"])
+
 @router.post("/{sid}/save")
 async def experiment_save(sid: str, data: SaveExperimentPage):
     a = requests.post(
