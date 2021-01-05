@@ -35,16 +35,19 @@ RANKS = {
     "leader": {
         "name": "Leader",
         "desc": "A CatPhi Leader. They make sure that CatPhi works correctly and they handle the entire website including the backend!<br/><strong><em>Not much else is known about them...</strong></em>",
+        "rank": 0
     },
     "apprentice": {
         "name": "Apprentice",
         "desc": "A new explorer arrives... It's OK! Everone has to start somewhere!",
+        "rank": 1,
         "levelup": 100,
         "next": "young_warrior"
     },
     "young_warrior": {
         "name": "Young Warrior",
         "desc": "TODO",
+        "rank": 2,
         "levelup": 600,
         "next": "TODO"
     }
