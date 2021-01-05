@@ -15,6 +15,7 @@ import sys
 from .common_deps import *
 from .config import SECURE, SERVER_URL, EXP_RATE, AUTH_LIMIT
 from .coremeow import *
+import orjson
 inflect_engine = inflect.engine()
 logging.captureWarnings(True)
 

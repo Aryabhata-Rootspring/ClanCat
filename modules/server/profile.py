@@ -9,25 +9,33 @@ BADGES = {
         "name": "Welcome To CatPhi!!!",
         "description": "Thank you for registering with CatPhi",
         "image": "https://interactive-examples.mdn.mozilla.net/media/cc0-images/grapefruit-slice-332-332.jpg",
-        "experience": 0
+        "requirements": {
+            "experience": 0
+        }
     },
     "FIRST_BADGE": {
         "name": "First Badge",
         "description": "It's your first badge! Enjoy!!!!",
         "image": "https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885__340.jpg",
-        "experience": 10,
+        "requirements": {
+            "experience": 10,
+        }
     },
     "APPRENTICE_I": {
         "name": "CatPhi Apprentice I",
         "description": "Congratulations on your first accomplishment as an apprentice",
         "image": "https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885__340.jpg",
-        "experience": 40,
+        "requirements": {
+            "experience": 30
+        }
     },
     "APPRENTICE_II": {
         "name": "CatPhi Apprentice II",
         "description": "Your almost a warrior now.",
         "image": "https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885__340.jpg",
-        "experience": 90,
+        "requirements": {
+            "experience": 90
+        }
     },
 }
 
@@ -64,15 +72,21 @@ ITEMS = {
     },
 }
 
-# Get all new badges given a current set of badges and the new exp_point value
-def get_new_badges(curr_badges, exp_points):
+# Get all new badges and items given a current set of badges and the new list of items (Experience ETC)
+def get_new_badges(curr_badges: list, curr_items: dict) -> tuple:
     new_badges = []
     for badge in BADGES.keys():
         if badge in curr_badges:
             continue # Ignore badges we already have
-        if int(BADGES[badge]["experience"]) <= int(exp_points):
+        flag = True # Flag that determines whether to give a badge or not
+        for item in BADGES[badge]["requirements"].keys():
+            if int(BADGES[badge]["requirements"][item]) <= int(curr_items[item]) and flag == True:
+                pass
+            else:
+                flag = False
+        if flag == True:
             new_badges.append(badge)
-    return "||".join(new_badges), "||".join(curr_badges.split("||") + new_badges)
+    return "||".join(new_badges), curr_badges + new_badges
 
 router = APIRouter(
     prefix="/profile",
@@ -147,9 +161,10 @@ async def get_profile(username: str, token: str = None):
 
     # Get badge URLs
     badges = {}
-    for badge in profile_db["badges"].split("||"):
+    for badge in profile_db["badges"]:
+        print(badge)
         try:
-            badges[badge] = {"name": BADGES[badge]["name"], "image": BADGES[badge]["image"], "experience": BADGES[badge]["experience"], "description": BADGES[badge]["description"]}
+            badges[badge] = BADGES[badge]
         except:
             continue # Illegal badge
 
@@ -163,15 +178,10 @@ async def get_profile(username: str, token: str = None):
 
     # Get items
     idict = []
-    i = 0
-    for item_obj in profile_db["items"].split("||"):
-        item = item_count = item_obj.split(":")[0]
-        item_count = item_obj.split(":")[1]
-        idict.append({})
-        idict[i] = ITEMS[item]
-        idict[i]["internal_name"] = item
-        idict[i]["count"] = int(item_count)
-        i+=1
+    for key, value in orjson.loads(profile_db["items"]).items():
+        base_data, extra = ITEMS[key], {"internal_name": key, "count": value}
+        data = base_data | extra
+        idict.append(data)
 
     return {
             "username": username,
@@ -195,31 +205,25 @@ async def profile_track_writer(tracker: ProfileTrackWriter):
     if profile_db is None:
         return brsret(code = "USER_DOES_NOT_EXIST")
     mode = 0 # Do nothing mode
-    entry = await db.fetchrow("SELECT profile_topic.done, profile.badges, profile.items FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username WHERE profile_topic.tid = $1 AND profile.username = $2", tracker.tid, tracker.username)
+    entry = await db.fetchrow("SELECT profile_topic.done FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username WHERE profile_topic.tid = $1 AND profile.username = $2", tracker.tid, tracker.username)
     if entry is None:
         mode = 1 # Don't update, use insert statement mode
     elif entry["done"] is not True:
         mode = 2 # Update mode
-    if mode == 1:
+    if mode == 0:
+        return brsret(code = None, debug = mode)
+    elif mode == 1:
         await db.execute("INSERT INTO profile_topic (username, tid, progress, done) VALUES ($1, $2, $3, $4)", tracker.username, tracker.tid, tracker.status + str(tracker.cid), False)
-        entry = await db.fetchrow("SELECT profile_topic.done, profile.badges, profile.items FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username WHERE profile_topic.tid = $1 AND profile.username = $2", tracker.tid, tracker.username)
     elif mode == 2:
         await db.execute("UPDATE profile_topic SET progress = $3 WHERE username = $1 AND tid = $2", tracker.username, tracker.tid, tracker.status + str(tracker.cid))
-    elif mode == 0:
-        return brsret(code = None, debug = mode)
+    
+    entry = await db.fetchrow("SELECT profile.badges, profile.items FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username WHERE profile_topic.tid = $1 AND profile.username = $2", tracker.tid, tracker.username)
 
-    item_list = []
-    for item in entry["items"].split("||"):
-        if item.split(":")[0] != "experience":
-            item_list.append(item)
-            continue
-        exp_points = str(int(item.split(":")[1]) + 10) # 10 new experience points per page
-        item_list.append("experience:" + exp_points)
-        break
-    items = "||".join(item_list)
-    exp_points = int(exp_points)
+    items = orjson.loads(entry["items"])
+    items["experience"] = int(items["experience"]) + 10 # Add 10 experience points
     # Get all the new badges a user has unlocked
-    new_badges = get_new_badges(entry["badges"], exp_points)
+    new_badges = get_new_badges(entry["badges"], items)
+    items = orjson.dumps(items).decode()
     if new_badges[0] == '':
         await db.execute("UPDATE profile SET items = $2 WHERE username = $1", tracker.username, items)
         return brsret(code = None, debug = mode)
@@ -251,7 +255,7 @@ async def profile_track_reader(tid: str, username: str):
     return brsret(code = "INVALID_ARGUMENTS")  # Invalid arguments (Default)
 
 @router.post("/track/practice")
-async def profile_track_writer(tracker: ProfileTrackPracticeWriter):
+async def profile_track_practice_writer(tracker: ProfileTrackPracticeWriter):
     profile_db = await db.fetchrow("SELECT mfa FROM login WHERE username = $1 AND token = $2", tracker.username, tracker.token)
     if profile_db is None:
         return brsret(code = "USER_DOES_NOT_EXIST")
@@ -261,29 +265,23 @@ async def profile_track_writer(tracker: ProfileTrackPracticeWriter):
         mode = 1 # Don't update, use insert statement mode
     elif entry["done"] is not True:
         mode = 2 # Update mode
-    if mode == 1:
+
+    if mode == 0:
+        return brsret(code = None, debug = mode)
+    elif mode == 1:
         await db.execute("INSERT INTO topic_practice_tracker (username, tid, qid, answer, lives, path) VALUES ($1, $2, $3, $4, $5, $6)", tracker.username, tracker.tid, tracker.qid, tracker.answer, tracker.lives, tracker.path)
-        entry = await db.fetchrow("SELECT profile_topic.done, profile.badges, profile.items FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username INNER JOIN topic_practice_tracker ON profile.username=topic_practice_tracker.username WHERE topic_practice_tracker.tid = $1 AND topic_practice_tracker.username = $2 AND topic_practice_tracker.qid = $3", tracker.tid, tracker.username, tracker.qid)
     elif mode == 2:
         await db.execute("UPDATE topic_practice_tracker SET answer = $4, lives = $5, path = $6 WHERE username = $1 AND tid = $2 AND qid = $3", tracker.username, tracker.tid, tracker.qid, tracker.answer, tracker.lives, tracker.path)
-    elif mode == 0:
-        return brsret(code = None, debug = mode)
 
-    item_list = []
-    for item in entry["items"].split("||"):
-        if item.split(":")[0] != "experience":
-            item_list.append(item)
-            continue
-        exp_points = str(int(item.split(":")[1]) + 10) # 10 new experience points per page
-        item_list.append("experience:" + exp_points)
-        break
-    items = "||".join(item_list)
-    exp_points = int(exp_points)
+    entry = await db.fetchrow("SELECT profile_topic.done, profile.badges, profile.items FROM profile_topic RIGHT JOIN profile ON profile_topic.username=profile.username INNER JOIN topic_practice_tracker ON profile.username=topic_practice_tracker.username WHERE topic_practice_tracker.tid = $1 AND topic_practice_tracker.username = $2 AND topic_practice_tracker.qid = $3", tracker.tid, tracker.username, tracker.qid)
+
+    items = orjson.loads(entry["items"])
+    items["experience"] = int(items["experience"]) + 10 # Add 10 experience points
     # Get all the new badges a user has unlocked
-    new_badges = get_new_badges(entry["badges"], exp_points)
+    new_badges = get_new_badges(entry["badges"], items)
+    items = orjson.dumps(items).decode()
     if new_badges[0] == '':
         await db.execute("UPDATE profile SET items = $2 WHERE username = $1", tracker.username, items)
         return brsret(code = None, debug = mode)
     await db.execute("UPDATE profile SET badges = $2, items = $3 WHERE username = $1", tracker.username, new_badges[1], items)
     return brsret(code = None, debug = mode, items = items, new_badges = new_badges[0])
-

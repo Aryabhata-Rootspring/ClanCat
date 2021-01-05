@@ -36,12 +36,12 @@
       					<div class="modal-body">
 					{{badge_dict["description"]}}<br/><br/>
 					{% if not profile_owner%}
-						{% if badge_dict["experience"] == 0 %}
+						{% if badge_id == "FIRST_TIME" %}
 							<strong><em>Register for CatPhi to automatically earn this badge!</em></strong>
 						{% elif not username %}
 							<strong><em>Register for CatPhi to earn this and many other badges and prizes!</em></strong>
 						{% else %}
-							<strong><em>Earn {{badge_dict["experience"]}} experience points to earn this badge</em></strong>
+							<strong><em>Earn {{badge_dict["requirements"]["experience"]}} experience points to earn this badge</em></strong>
 						{%endif%}
 					{%endif%}
 					</div>

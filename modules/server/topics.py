@@ -213,7 +213,7 @@ async def get_topic(tid: str, simple: Optional[int] = 0):
 
 @router.get("/list")
 async def list_topics():
-    topics = await db.fetch("SELECT name, tid FROM topic_table")
+    topics = await db.fetch("SELECT name, tid FROM topic_table ORDER BY name ASC")
     tjson = {}
     for topic in topics:
         tjson[topic["name"]] = topic["tid"]

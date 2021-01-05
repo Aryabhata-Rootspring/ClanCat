@@ -40,12 +40,12 @@ async def setup_db():
     )
     # A profile of a user
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS profile (username TEXT, joindate DATE, public BOOLEAN, badges TEXT, level TEXT, listing BOOLEAN, items TEXT, followers TEXT[], following TEXT[])"
+        "CREATE TABLE IF NOT EXISTS profile (username TEXT, joindate DATE, public BOOLEAN, badges TEXT[], level TEXT, listing BOOLEAN, items JSON, followers TEXT[], following TEXT[])"
     )
     # Create an index for the three things that will never/rarely change,
     # namely join date , username and public/private profile
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS profile_index ON profile (username, joindate, public, badges, level, listing, items, followers, following)"
+        "CREATE INDEX IF NOT EXISTS profile_index ON profile (username, joindate, public, level, listing)"
     )
     # All the topics a user has completed or is working on
     await __db.execute(

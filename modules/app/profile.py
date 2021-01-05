@@ -26,7 +26,7 @@ async def profile(request: Request, username: str):
             request,
             "generic_error.html",
             header="Profile Error",
-            error="Profile either does not exist or is still being updated on our databases. Please check back in a few minutes once our databases are fully up to date.",
+            error="Profile is either private, does not exist or is still being updated on our databases. Please try again in a few minutes."
         )
 
     profile_owner = (request.session.get("username") == username or request.session.get("admin") == 1)

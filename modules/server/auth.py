@@ -465,8 +465,8 @@ async def register_backend(token: str, username: str, password: str, email: str,
         username,
         date.today(),
         True,
-        "FIRST_TIME",
+        ["FIRST_TIME"],
         "apprentice",
-        "experience:0",
+        orjson.dumps({"experience": 0}).decode(),
     )
 
