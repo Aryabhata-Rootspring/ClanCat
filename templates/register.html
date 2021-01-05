@@ -5,12 +5,12 @@
 {% endblock %}
 {% block content %}
   <h3 style="text-align: center;"><strong>Register</strong></h3>
-  {% if error %}
-  	<p style="text-align: center; color: red;"><strong>{{error|safe}}</strong></p>
-  {%endif%}
-  <br/>
   <div style="text-align: center;">
-	<form class="form" method='post'>
+    <div class="form">	
+    <form method='post'>
+        {% if error %}
+        <p style="text-align: center; color: red;"><strong>{{error|safe}}</strong></p>
+        {%endif%}
         {{ form.csrf_token }}
 	<div class="form-group">
            <div class="form-inline" style="justify-content: center; text-align: center;">
@@ -40,8 +40,11 @@
             </div>
 	</div>
   	<button type="submit" class="btn btn-primary">Sign Up</button>
-	</form>	
+	</form>
+        <hr/>
+        <h5 style="color: black">Already have an account?</h5>
+        <a href="/login"<button class="btn btn-primary">Login</button></a>
   </div>
-
+</div>
 {% endblock %}
 
