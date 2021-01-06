@@ -1,6 +1,8 @@
 import pyximport
-pyximport.install(pyimport = True, load_py_module_on_import_failure = False, inplace = True) # Enable CYthon
+pyximport.install()
 
+import pyotp
+from .coremeow import *
 import asyncio
 import smtplib
 import time
@@ -10,14 +12,12 @@ from datetime import date
 import inflect
 import hashlib
 import math
-import pyotp
 import requests
 import logging
 import sys
 import sys
 from .common_deps import *
 from .config import SECURE, SERVER_URL, EXP_RATE, AUTH_LIMIT
-from .coremeow import *
 import orjson
 inflect_engine = inflect.engine()
 logging.captureWarnings(True)

@@ -1,3 +1,6 @@
+import pyximport
+pyximport.install()
+
 from ..server_deps import *
 
 # Badge Data
@@ -252,7 +255,6 @@ async def profile_track_reader(tid: str, username: str):
         cid = cid,
         done = done,
     )
-    return brsret(code = "INVALID_ARGUMENTS")  # Invalid arguments (Default)
 
 @router.post("/track/practice")
 async def profile_track_practice_writer(tracker: ProfileTrackPracticeWriter):

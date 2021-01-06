@@ -1,3 +1,6 @@
+import pyximport
+pyximport.install()
+
 from ..server_deps import *
 
 class GenericExperimentNew(UserModel):

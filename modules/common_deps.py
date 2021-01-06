@@ -1,3 +1,6 @@
+import pyximport
+pyximport.install()
+
 import string
 import secrets
 from fastapi import Request, Depends, BackgroundTasks, WebSocket, APIRouter

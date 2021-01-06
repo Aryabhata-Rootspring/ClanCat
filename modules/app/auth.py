@@ -1,3 +1,6 @@
+import pyximport
+pyximport.install()
+
 from ..app_deps import *
 
 router = APIRouter(

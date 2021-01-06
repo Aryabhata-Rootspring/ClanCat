@@ -1,5 +1,8 @@
 from ..server_deps import *
 
+import pyximport
+pyximport.install()
+
 # resetDict is a dictionary of password reset requests
 # currently present
 resetDict = {}
