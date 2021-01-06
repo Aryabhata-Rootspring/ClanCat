@@ -1,3 +1,6 @@
+import pyximport
+pyximport.install(pyimport = True) # Enable CYthon
+
 import asyncio
 import smtplib
 import time

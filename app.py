@@ -1,9 +1,10 @@
+import pyximport
+pyximport.install(pyimport = True) # Enable CYthon
+
 from fastapi import FastAPI
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette_wtf import CSRFProtectMiddleware
-from starlette_session import SessionMiddleware
-from starlette_session.backends import BackendType
-import aioredis
+from starlette.middleware.sessions import SessionMiddleware
 import builtins
 import os
 import importlib
@@ -18,18 +19,12 @@ from modules.coremeow import (
 # FastAPI App Code
 app = FastAPI()
 app.add_middleware(CSRFProtectMiddleware, csrf_secret=CSRF_SECRET)
-RKEY = open("rkey").read().replace("\n", "").replace(" ", "")
-
 
 @app.on_event("startup")
 async def on_startup():
-    redis_client = await aioredis.create_redis_pool(("localhost", 6379))
     app.add_middleware(
         SessionMiddleware,
         secret_key=SESSION_SECRET,
-        cookie_name="catphi_session-" + RKEY,
-        backend_type=BackendType.aioRedis,
-        backend_client=redis_client,
         same_site='strict',
         max_age=7 * 24 * 60 * 60,
         https_only=True

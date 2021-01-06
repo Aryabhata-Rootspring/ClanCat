@@ -1,3 +1,6 @@
+import pyximport
+pyximport.install(pyimport = True) # Enable CYthon
+
 # Basic dependencies
 from pydantic import BaseModel
 from fastapi import Form as FastForm

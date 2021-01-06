@@ -1,3 +1,6 @@
+import pyximport
+pyximport.install(pyimport = True) # Enable CYthon
+
 from fastapi import FastAPI
 import builtins
 import importlib
