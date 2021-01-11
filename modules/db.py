@@ -8,31 +8,31 @@ async def setup_db():
     await __db.execute("VACUUM")
     # Represents a subject
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS subject_table (metaid TEXT, name TEXT, description TEXT)"
+        "CREATE TABLE IF NOT EXISTS subjects (metaid TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL)"
     )
     # Create an index for the subjects
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS subject_index ON subject_table (metaid, name, description)"
+        "CREATE INDEX IF NOT EXISTS subject_index ON subjects (metaid, name, description)"
     )
     # Represents a topic
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS topic_table (metaid TEXT, name TEXT, description TEXT, tid TEXT)"
+        "CREATE TABLE IF NOT EXISTS topics (metaid TEXT NOT NULL UNIQUE, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL, tid TEXT PRIMARY KEY, FOREIGN KEY (metaid) REFERENCES subjects (metaid) ON DELETE CASCADE ON UPDATE CASCADE)"
     )
     # Create an index for the topics
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS topic_index ON topic_table (metaid, name, description, tid)"
+        "CREATE INDEX IF NOT EXISTS topics_index ON topics (metaid, name, description, tid)"
     )
     # Represents a concept
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS concept_table (tid TEXT, title TEXT, cid INTEGER NOT NULL, content TEXT)"
+        "CREATE TABLE IF NOT EXISTS concepts (tid TEXT NOT NULL, title TEXT NOT NULL, cid INTEGER NOT NULL, content TEXT NOT NULL, FOREIGN KEY (tid) REFERENCES topics (tid) ON DELETE CASCADE ON UPDATE CASCADE)"
     )
     # Create an index for the concepts
     await __db.execute(
-        "CREATE INDEX IF NOT EXISTS concept_index ON concept_table (tid, title, cid, content)"
+        "CREATE INDEX IF NOT EXISTS concept_index ON concepts (tid, title, cid, content)"
     )
     # Represents a single login in the database
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS login (token TEXT, username TEXT, password TEXT, email TEXT, status INTEGER, scopes TEXT, mfa BOOLEAN, mfa_shared_key TEXT, backup_key TEXT, attempts INTEGER)"
+        "CREATE TABLE IF NOT EXISTS login (token TEXT NOT NULL UNIQUE, username TEXT PRIMARY KEY, password TEXT NOT NULL, email TEXT NOT NULL UNIQUE, status INTEGER NOT NULL, scopes TEXT NOT NULL, mfa BOOLEAN NOT NULL, mfa_shared_key TEXT, backup_key TEXT NOT NULL UNIQUE, attempts INTEGER NOT NULL)"
     )
     # Create an index for login
     await __db.execute(
@@ -40,7 +40,7 @@ async def setup_db():
     )
     # A profile of a user
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS profile (username TEXT, joindate DATE, public BOOLEAN, badges TEXT[], level TEXT, listing BOOLEAN, items JSON, followers TEXT[], following TEXT[])"
+        "CREATE TABLE IF NOT EXISTS profile (username TEXT PRIMARY KEY, joindate DATE NOT NULL, public BOOLEAN NOT NULL, badges TEXT[] NOT NULL, level TEXT NOT NULL, listing BOOLEAN NOT NULL, items JSON, followers TEXT[], following TEXT[], FOREIGN KEY (username) REFERENCES login (username) ON DELETE CASCADE ON UPDATE CASCADE)"
     )
     # Create an index for the three things that will never/rarely change,
     # namely join date , username and public/private profile
@@ -49,7 +49,7 @@ async def setup_db():
     )
     # All the topics a user has completed or is working on
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS profile_topic (username TEXT, tid TEXT, progress TEXT, done BOOLEAN)"
+        "CREATE TABLE IF NOT EXISTS profile_topic (username TEXT PRIMARY KEY, tid TEXT NOT NULL, progress TEXT NOT NULL, done BOOLEAN, FOREIGN KEY (username) REFERENCES login (username) ON DELETE CASCADE ON UPDATE CASCADE, FOREIGN KEY (username) REFERENCES login (username) ON DELETE CASCADE ON UPDATE CASCADE)"
     )
     # Profile Concept Index
     await __db.execute(
@@ -57,7 +57,7 @@ async def setup_db():
     )
     # General Purpose Simulations
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS experiments (sid TEXT, description TEXT, code TEXT, type TEXT)"
+        "CREATE TABLE IF NOT EXISTS experiments (sid TEXT PRIMARY KEY, description TEXT NOT NULL, code TEXT NOT NULL, type TEXT NOT NULL)"
     )
     # Generic Simulations (Experiments) Index
     await __db.execute(
@@ -65,14 +65,14 @@ async def setup_db():
     )
     # Topic Practice
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS topic_practice (tid TEXT, qid INTEGER, type TEXT, question TEXT, answers TEXT, correct_answer TEXT, solution TEXT DEFAULT 'There is no solution for this problem yet!', recommended_time INTEGER)"
+        "CREATE TABLE IF NOT EXISTS topic_practice (tid TEXT NOT NULL, qid INTEGER NOT NULL, type TEXT NOT NULL, question TEXT NOT NULL, answers TEXT, correct_answer TEXT NOT NULL, solution TEXT DEFAULT 'There is no solution for this problem yet!', recommended_time INTEGER, FOREIGN KEY (tid) REFERENCES topics (tid) ON DELETE CASCADE ON UPDATE CASCADE)"
     )
     # Topic Practice Index
     await __db.execute(
         "CREATE INDEX IF NOT EXISTS topic_practice_index ON topic_practice (tid, qid, type, question, answers, correct_answer, solution, recommended_time)"
         )
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS topic_practice_tracker (username TEXT, tid TEXT, qid INTEGER, answer TEXT, lives TEXT, path TEXT)"
+        "CREATE TABLE IF NOT EXISTS topic_practice_tracker (username TEXT NOT NULL, tid TEXT NOT NULL, qid INTEGER NOT NULL, answer TEXT NOT NULL, lives TEXT NOT NULL, path TEXT DEFAULT '')"
     )
     await __db.execute(
         "CREATE INDEX IF NOT EXISTS topic_practice_index ON topic_practice_tracker (username, tid, qid, answer, lives, path)"

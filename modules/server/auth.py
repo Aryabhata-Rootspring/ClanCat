@@ -105,9 +105,6 @@ async def delete_account(request: AuthDeleteRequest, bt: BackgroundTasks):
 async def delete_disable_account_backend(token: str, username: str):
     # Delete the user from login and profile
     await db.execute("DELETE FROM login WHERE token = $1", token)
-    await db.execute("DELETE FROM profile WHERE username = $1", username)
-    await db.execute("DELETE FROM profile_topic WHERE username = $1", username)
-    await db.execute("DELETE FROM topic_practice_tracker WHERE username = $1", username)
 
 @router.post("/account/edit/username")
 async def edit_account_username(request: AuthUsernameEdit, bt: BackgroundTasks):
@@ -172,9 +169,6 @@ async def edit_account_password(request: AuthPasswordEdit, bt: BackgroundTasks):
 async def edit_account_backend(mode: str, token: str, new_data: str, password: Optional[str] = None, old_username: Optional[str] = None):
     if mode == "username":
         await db.execute(f"UPDATE login SET username = $1, password = $2 WHERE token = $3", new_data, password, token)
-        await db.execute("UPDATE profile SET username = $1 WHERE username = $2", new_data, old_username)
-        await db.execute("UPDATE profile_topic SET username = $1 WHERE username = $2", new_data, old_username)
-        await db.execute("UPDATE topic_practice_tracker SET username = $1 WHERE username = $2", new_data, old_username)
     elif mode == "password":
         await db.execute(f"UPDATE login SET password = $1 WHERE token = $2", new_data, token)
 
@@ -453,7 +447,7 @@ async def register(register: AuthRegisterRequest, background_tasks: BackgroundTa
 
 async def register_backend(token: str, username: str, password: str, email: str, backup_key: str):
     await db.execute(
-        "INSERT INTO login (token, username, password, email, status, scopes, mfa, backup_key) VALUES ($1, $2, $3, $4, 0, $5, $6, $7);",
+        "INSERT INTO login (token, username, password, email, status, scopes, mfa, backup_key, attempts) VALUES ($1, $2, $3, $4, 0, $5, $6, $7, 0);",
         token,
         username,
         password,
@@ -464,12 +458,13 @@ async def register_backend(token: str, username: str, password: str, email: str,
     )
     # Register their join date and add the first time registration badge
     await db.execute(
-        "INSERT INTO profile (username, joindate, public, badges, level, items) VALUES ($1, $2, $3, $4, $5, $6);",
+        "INSERT INTO profile (username, joindate, public, badges, level, items, listing) VALUES ($1, $2, $3, $4, $5, $6, $7);",
         username,
         date.today(),
         True,
         ["FIRST_TIME"],
         "apprentice",
         orjson.dumps({"experience": 0}).decode(),
+        False
     )
 

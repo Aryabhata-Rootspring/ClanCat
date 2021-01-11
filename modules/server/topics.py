@@ -46,19 +46,19 @@ router = APIRouter(
 
 @router.get("/concepts/get/count")
 async def get_concept_count(tid: str):
-    concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", tid)
+    concept_count = await db.fetch("SELECT COUNT(cid) FROM concepts WHERE tid = $1", tid)
     return brsret(code = None, concept_count = concept_count[0]["count"])
 
 @router.get("/concepts/get")
 async def get_concept(tid: str, cid: int):
-    concept = await db.fetch("SELECT title, content FROM concept_table WHERE tid = $1 ORDER BY cid ASC", tid)
+    concept = await db.fetch("SELECT title, content FROM concepts WHERE tid = $1 ORDER BY cid ASC", tid)
     if len(concept) == 0 or len(concept) < int(cid) or int(cid) <= 0:
         return brsret(code = "INVALID_PARAMETERS")
     return brsret(code = None, title = concept[int(cid) - 1]["title"], content = concept[int(cid) - 1]["content"])
 
 @router.get("/concepts/list")
 async def list_concepts(tid: str):
-    concepts = await db.fetch("SELECT title FROM concept_table WHERE tid = $1 ORDER BY title ASC", tid)
+    concepts = await db.fetch("SELECT title FROM concepts WHERE tid = $1 ORDER BY title ASC", tid)
     if len(concepts) == 0:
         return brsret(code = "NO_CONCEPTS_FOUND")
     cjson = {}
@@ -73,17 +73,17 @@ async def new_concept(concept: ConceptNew, bt: BackgroundTasks):
     auth_check = await authorize_user(concept.username, concept.token)
     if auth_check == False:
         return brsret(code = "NOT_AUTHORIZED")
-    tcheck = await db.fetchrow("SELECT tid FROM topic_table WHERE tid = $1", concept.tid)
+    tcheck = await db.fetchrow("SELECT tid FROM topics WHERE tid = $1", concept.tid)
     if tcheck is None:
         # Topic Does Not Exist
         return brsret(code = "TOPIC_DOES_NOT_EXIST", html = "That topic does not exist yet")
-    concept_count = await db.fetchrow("SELECT title FROM concept_table WHERE title = $1", concept.title)
+    concept_count = await db.fetchrow("SELECT title FROM concepts WHERE title = $1", concept.title)
     if concept_count is not None:
         return brsret(code = "CONCEPT_ALREADY_EXISTS")
-    concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", concept.tid)
+    concept_count = await db.fetch("SELECT COUNT(cid) FROM concepts WHERE tid = $1", concept.tid)
     cid=concept_count[0]["count"] + 1 # Get the count + 1 for next concept
     await db.execute(
-        "INSERT INTO concept_table (tid, title, content, cid) VALUES ($1, $2, $3, $4)",
+        "INSERT INTO concepts (tid, title, content, cid) VALUES ($1, $2, $3, $4)",
         concept.tid,
         concept.title,
         f"Type your content for concept {concept.title} here!",
@@ -97,18 +97,18 @@ async def save_concept(save: SaveTopicConcept):
     auth_check = await authorize_user(save.username, save.token)
     if auth_check == False:
         return brsret(code = "NOT_AUTHORIZED")
-    # Firstly, make sure the topic actually exists in topic_table
-    tcheck = await db.fetchrow("SELECT tid FROM topic_table WHERE tid = $1", save.tid)
+    # Firstly, make sure the topic actually exists in topics
+    tcheck = await db.fetchrow("SELECT tid FROM topics WHERE tid = $1", save.tid)
     if tcheck is None:
         # Topic Does Not Exist
         return brsret(code = "TOPIC_DOES_NOT_EXIST")
-    concept_count = await db.fetch("SELECT COUNT(cid) FROM concept_table WHERE tid = $1", save.tid)
+    concept_count = await db.fetch("SELECT COUNT(cid) FROM concepts WHERE tid = $1", save.tid)
     if int(concept_count[0]["count"]) < int(save.cid):
         return brsret(code = "INVALID_ARGUMENTS")
-    concepts = await db.fetch("SELECT cid FROM concept_table WHERE tid = $1 ORDER BY cid ASC", save.tid)  # Get all the concepts in ascending order
+    concepts = await db.fetch("SELECT cid FROM concepts WHERE tid = $1 ORDER BY cid ASC", save.tid)  # Get all the concepts in ascending order
     absolute_cid = concepts[int(save.cid) - 1]["cid"] # Calculate the absolute concept id
     await db.execute(
-        "UPDATE concept_table SET content = $1 WHERE tid = $2 AND cid = $3",
+        "UPDATE concepts SET content = $1 WHERE tid = $2 AND cid = $3",
         save.code,
         save.tid,
         int(absolute_cid),
@@ -153,7 +153,7 @@ async def new_topic_practice(topic_practice: TopicPracticeNew, bt: BackgroundTas
     auth_check = await authorize_user(topic_practice.username, topic_practice.token)
     if auth_check == False:
         return brsret(code = "NOT_AUTHORIZED")
-    tcheck = await db.fetchrow("SELECT tid FROM topic_table WHERE tid = $1", topic_practice.tid)
+    tcheck = await db.fetchrow("SELECT tid FROM topics WHERE tid = $1", topic_practice.tid)
     if tcheck is None:
         # Topic Does Not Exist
         return brsret(code = "TOPIC_DOES_NOT_EXIST", html = "That topic does not exist yet")
@@ -200,9 +200,9 @@ async def topic_practice_save(save: SaveTopicPractice):
 async def get_topic(tid: str, simple: Optional[int] = 0):
     """NOTE: Simple determines whether to just fetch the name or to fetch both the name and the description"""
     if simple == 0:
-        topic = await db.fetchrow("SELECT name, description FROM topic_table WHERE tid = $1", tid)
+        topic = await db.fetchrow("SELECT name, description FROM topics WHERE tid = $1", tid)
     else:
-        topic = await db.fetchrow("SELECT name FROM topic_table WHERE tid = $1", tid)
+        topic = await db.fetchrow("SELECT name FROM topics WHERE tid = $1", tid)
     if topic is None:
         return brsret(code = "TOPIC_DOES_NOT_EXIST", html = "This topic does not exist yet")
     if simple == 0:
@@ -216,7 +216,7 @@ async def get_topic(tid: str, simple: Optional[int] = 0):
 
 @router.get("/list")
 async def list_topics():
-    topics = await db.fetch("SELECT name, tid FROM topic_table ORDER BY name ASC")
+    topics = await db.fetch("SELECT name, tid FROM topics ORDER BY name ASC")
     tjson = {}
     for topic in topics:
         tjson[topic["name"]] = topic["tid"]
@@ -227,16 +227,16 @@ async def new_topic(topic: TopicNew, bt: BackgroundTasks):
     auth_check = await authorize_user(topic.username, topic.token)
     if auth_check == False:
         return brsret(code = "NOT_AUTHORIZED")
-    tcheck = await db.fetchrow("SELECT name FROM subject_table WHERE metaid = $1", topic.metaid)
+    tcheck = await db.fetchrow("SELECT name FROM subjects WHERE metaid = $1", topic.metaid)
     if tcheck is None:
         return brsret(code = "SUBJECT_DOES_NOT_EXIST", html = "That subject does not exist yet")
     while True:
         id = get_token(101)
-        id_check = await db.fetchrow("SELECT tid FROM topic_table WHERE tid= $1", id)
+        id_check = await db.fetchrow("SELECT tid FROM topics WHERE tid= $1", id)
         if id_check is None:
             break
     await db.execute(
-        "INSERT INTO topic_table (name, description, tid, metaid) VALUES ($1, $2, $3, $4)",
+        "INSERT INTO topics (name, description, tid, metaid) VALUES ($1, $2, $3, $4)",
         topic.name,
         topic.description,
         id,
@@ -251,7 +251,7 @@ async def save_topic(save: SaveTopic):
     if auth_check == False:
         return brsret(code = "NOT_AUTHORIZED")
     await db.execute(
-        "UPDATE topic_table SET description = $1 WHERE tid = $2",
+        "UPDATE topics SET description = $1 WHERE tid = $2",
         save.description,
         save.tid,
     )

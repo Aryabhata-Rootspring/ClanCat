@@ -11,7 +11,7 @@ router = APIRouter(
 
 @router.get("/list")
 async def list_subjects():
-    subjects = await db.fetch("SELECT name, metaid FROM subject_table")
+    subjects = await db.fetch("SELECT name, metaid FROM subjects")
     sjson = {}
     for subject in subjects:
         sjson[subject["name"]] = subject["metaid"]
@@ -24,11 +24,11 @@ async def new_subject(subject: SubjectNew, bt: BackgroundTasks):
         return brsret(code = "NOT_AUTHORIZED")
     while True:
         id = get_token(101)
-        id_check = await db.fetchrow("SELECT metaid FROM subject_table WHERE metaid = $1", id)
+        id_check = await db.fetchrow("SELECT metaid FROM subjects WHERE metaid = $1", id)
         if id_check is None:
             break
     await db.execute(
-        "INSERT INTO subject_table (metaid, name, description) VALUES ($1, $2, $3)",
+        "INSERT INTO subjects (metaid, name, description) VALUES ($1, $2, $3)",
         id,
         subject.name,
         subject.description,

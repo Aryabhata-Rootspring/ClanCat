@@ -10,6 +10,15 @@ var siai
 var running = false
 var exit = false
 var timestep
+var box1_pos
+var box1_Fxy_gravity
+var box2_Fxy
+var box1_Fxy
+var box1_ax
+var box1_ay
+var box1_vx
+var box1_vy
+const { AmmoPhysics, PhysicsLoader } = ENABLE3D
 
   /* Given 10,8 this returns the string "8:10" */
   function sortedVertexStr(i,j) {
@@ -283,6 +292,7 @@ class Box {
 
        this.markFaces(this.geom);
        this.mass = attr.mass;
+       physics.add.existing(this.geom)
     };
 
 
@@ -945,7 +955,9 @@ const curve = new THREE.Line(geometry, material);
     spotLight.position.set(0, 0, 50);
     scene.add(spotLight);
 
-
+    const physics = new AmmoPhysics(scene)
+    physics.debug.enable(true)
+    physics.add.ground({ width: 20, height: 20 })
 
     // position and point the camera to the center of the scene
     camera.position.set(0, 0, 900);
@@ -1127,6 +1139,7 @@ const curve = new THREE.Line(geometry, material);
     sica = setInterval(controls.update, 0)
     exit = false;
     varinit = false; // The init variable
+
     function animate() {
         id = requestAnimationFrame( animate );
         if(timestep == false) {
@@ -1153,34 +1166,12 @@ const curve = new THREE.Line(geometry, material);
                 }
             }
         }
-        else if(timestep == true) {
-            // Define some variables (TODO Make sliders for the todo ones)
-            if(varinit == false) {
-                dt = 0.01; // Small timestep TODO
-                friction = 0.2 // Friction coefficient TODO
-                box1_mass = 10; // TODO
-                box2_mass = 10; // TODO
-                varinit = true // No more need to run this part of js anymore
-            }
+        else if(timestep == true) {        
+          bx.body.needUpdate = true // this is how you update kinematic bodies
 
-            // Get box current positions
-            box1_pos = bx.getPosition().clone(); 
- 
-            console.log(box1_Fxy)
-            var box1_Fxy_gravity = project(angle, box1_mass * 10) // Find the acceleration after dt time
-            var box2_Fxy = new THREE.Vector3(0, box2_mass * 10, 0)
-            var box1_Fxy = new THREE.Vector3(box1_Fxy_gravity.x, box2_Fxy.y + box1_Fxy_gravity.y, 0)
-            var box1_ax = box1_Fxy.x / box1_mass
-            var box1_ay = box1_Fxy.y / box1_mass
-            var box1_vx = box1_ax / dt
-            var box1_vy = box1_ay / dt
+          physics.update(clock.getDelta() * 1000)
+          physics.updateDebugger()
 
-            // Get the displacement s of box1
-            box1_disp_x = box1_pos.x + box1_vx*dt + 0.5*box1_ax*dt*dt;
-            box1_disp_y = box1_pos.y + box1_vy*dt + 0.5*box1_ay*dt*dt;
-
-            // Set box1 position TODO 3D
-            bx.setPos(box1_disp_x, box1_disp_y, 0)
         }
         renderer.render( scene, camera );
     }
@@ -1194,7 +1185,7 @@ const curve = new THREE.Line(geometry, material);
 
 }
 
-// Projects a vector into its horizontal and vertical components
+// Projects a vector quantity into its horizontal and vertical components
 function project(angle, vector) {
     return new THREE.Vector3(vector*Math.cos(angle), vector*Math.sin(angle), 0)
 }
