@@ -61,6 +61,10 @@ class AuthRecoveryRequest(BaseModel):
 class AuthDeleteRequest(MFAModel):
     username: str
 
+# Responses
+class AuthLoginResponse(BRSRetResponse):
+    pass
+
 # Basic Functions
 
 async def update_login_attempts(username: str, reset: bool) -> bool:
@@ -275,8 +279,18 @@ async def check_reset_token(token: str = None):
     return brsret(code = True)
 
 
-@router.post("/login", tags = ["Authentication"])
+@router.post("/login", response_model=AuthLoginResponse)
 async def login(login: AuthLoginRequest):
+    """
+    Login a user to CatPhi
+
+    - **username**: Account Username
+    - **password**: Account Password
+    \f
+    :param username: User input.
+    :param password: User input.
+    """
+
     login_creds = await db.fetchrow(
         "SELECT attempts, token, status, scopes, password, mfa from login WHERE username = $1",
         login.username

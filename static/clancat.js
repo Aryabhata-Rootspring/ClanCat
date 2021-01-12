@@ -1,3 +1,5 @@
+const { AmmoPhysics, PhysicsLoader } = ENABLE3D
+
 MYEPSILON = 1e-8;
 var id;
 var scene;
@@ -18,7 +20,8 @@ var box1_ax
 var box1_ay
 var box1_vx
 var box1_vy
-const { AmmoPhysics, PhysicsLoader } = ENABLE3D
+var iattr = {};
+
 
   /* Given 10,8 this returns the string "8:10" */
   function sortedVertexStr(i,j) {
@@ -270,7 +273,7 @@ function LineLineIntersect(
 
 class Box {
 
-    constructor(attr) {
+    constructor(attr, physics) {
        this.geom = new THREE.BoxGeometry(attr.L,attr.H,attr.D);
        if (attr.color != undefined) 
           this.material = new THREE.MeshBasicMaterial({color:attr.color});
@@ -292,7 +295,6 @@ class Box {
 
        this.markFaces(this.geom);
        this.mass = attr.mass;
-       physics.add.existing(this.geom)
     };
 
 
@@ -935,7 +937,9 @@ const curve = new THREE.Line(geometry, material);
   }
 
   
-  function init(attr) {
+ const tinit = () => {
+    var attr = iattr;
+    console.log(attr)
     var angle = attr.angle;
     if(attr.type == "regular")
         timestep = false;
@@ -958,6 +962,7 @@ const curve = new THREE.Line(geometry, material);
     const physics = new AmmoPhysics(scene)
     physics.debug.enable(true)
     physics.add.ground({ width: 20, height: 20 })
+    const { factory } = physics
 
     // position and point the camera to the center of the scene
     camera.position.set(0, 0, 900);
@@ -986,7 +991,7 @@ const curve = new THREE.Line(geometry, material);
 
     //STEP 2
     //Add box of size 20x20x20 and place at the centre of inclined surface
-    bx = new Box( {"L":20,"H":20,"D":20,"color":0777777, "mass": 20});
+    bx = new Box( {"L":20,"H":20,"D":20,"color":0777777, "mass": 20}, physics);
     bx.addToScene(scene);
     //Find the point above the incliuned plane : which is the face "HD1" of the inclined plane
     var ptOnIncPlane = ip.getFaceMidp("HD1"); //Get midpt
@@ -997,7 +1002,7 @@ const curve = new THREE.Line(geometry, material);
 	//renderer.render( scene, camera );
     //STEP 3
     //Create a second box of same size; which is 35 units off the centre of  HD0, the vertical side of the incline plane
-    bx2 = new Box( {"L":20,"H":20,"D":20,"color":0777777, "mass": 20});
+    bx2 = new Box( {"L":20,"H":20,"D":20,"color":0777777, "mass": 20}, physics);
     bx2.addToScene(scene);
     var ptOnStrtPlane = ip.getFaceMidp("HD0");
     var ptRightPlane = getPointAbovePlanePoint(ptOnStrtPlane,ip.getPlane("HD0"), /* 35 */ 40); 
@@ -1126,9 +1131,7 @@ const curve = new THREE.Line(geometry, material);
     ipL2.addToScene(scene);
     
 
-    const controls = new THREE.OrbitControls( camera, renderer.domElement );
-    controls.update();
-
+     const controls = new THREE.OrbitControls( camera, renderer.domElement );
 
     var pos_bx2 ;
     var pos_bx ;
@@ -1136,7 +1139,6 @@ const curve = new THREE.Line(geometry, material);
     var newpos_bx ;
     var rope1Motion, rope2Motion;
     //render the scene
-    sica = setInterval(controls.update, 0)
     exit = false;
     varinit = false; // The init variable
 
@@ -1203,13 +1205,16 @@ function cleanState() {
         camera = undefined;
         controls = undefined;
         empty(document.getElementById("webgl-output"));
-        clearInterval(sica)
         clearInterval(siai)
 
     }
     catch {}
 }
 
+function init(attr) {
+    iattr = attr
+    PhysicsLoader('/static', () => tinit())
+}
 
 
 setInterval(function() {

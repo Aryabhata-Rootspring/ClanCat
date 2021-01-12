@@ -57,3 +57,7 @@ class UserPassModel(BaseModel):
     username: str
     password: str
 
+class BRSRetResponse(BaseModel):
+    code: Optional[str] = None
+    outer_scope: Optional[str] = None
+    context: Optional[dict] = None

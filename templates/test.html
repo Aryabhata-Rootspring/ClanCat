@@ -1,16 +1,10 @@
 {% extends 'template.html' %}
 {% block header %}
 	<title>Example 01.02 - First Scene</title>
-	<meta charset="UTF-8" />
-	<script src="/static/three.min.js"></script>
-        <script type="text/javascript" src="/static/enable3d.js"></script>
-        <script type="text/javascript" src="/static/ammo.wasm.js"></script>
-        <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
-	<script type="text/javascript" src="/static/clancat.js"></script>
-        <meta name="description" content="Aryabhata Inc - CatPhi">
+	<script src="/static/clancat.js"></script>
 {% endblock %}
 {% block content %}
-        <div style="text-align: center;">
+        <div style="text-align: center;" id="info-text">
                 <input type="range" min="30" max="89" id="angle" value="45" step="1" aria-label="Slider for animation of ball moving left to right and back" /><br/>
                 <button onclick='pauseCode(this);' id='pause' class="btn btn-primary">Pause Code</button>
                 <button onclick='startCode(this);' id='start' class="btn btn-primary">Start Code</button>
