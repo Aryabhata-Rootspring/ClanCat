@@ -2,6 +2,7 @@ import pyximport
 pyximport.install()
 
 from fastapi import FastAPI
+from fastapi.responses import ORJSONResponse
 import builtins
 import importlib
 import os
@@ -9,7 +10,8 @@ from modules.db import setup_db
 
 app = FastAPI(
     root_path="/api/v1",
-    servers=[{"url": "/api/v1", "description": "Backend API"}]
+    servers=[{"url": "/api/v1", "description": "Backend API"}],
+    default_response_class = ORJSONResponse
 )
 
 

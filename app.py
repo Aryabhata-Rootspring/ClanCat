@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette_wtf import CSRFProtectMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from fastapi.responses import ORJSONResponse
 import builtins
 import os
 import importlib
@@ -17,7 +18,7 @@ from modules.coremeow import (
     SESSION_SECRET
 )
 # FastAPI App Code
-app = FastAPI()
+app = FastAPI(default_response_class = ORJSONResponse)
 app.add_middleware(CSRFProtectMiddleware, csrf_secret=CSRF_SECRET)
 
 @app.on_event("startup")

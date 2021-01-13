@@ -1170,13 +1170,12 @@ const curve = new THREE.Line(geometry, material);
         }
         else if(timestep == true) {        
           bx.body.needUpdate = true // this is how you update kinematic bodies
-
           physics.update(clock.getDelta() * 1000)
           physics.updateDebugger()
-
         }
         renderer.render( scene, camera );
     }
+
     siai = setInterval(function() {
         if(schange == true) {
             animate();
