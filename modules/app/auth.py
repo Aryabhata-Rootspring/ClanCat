@@ -24,12 +24,13 @@ async def login_get(request: Request):
 @router.post("/login")
 @csrf_protect
 async def login_post(request: Request, username: str = FastForm(None), password: str = FastForm(None)):
-    rc = requests.post(
-        api + "/auth/login", json={"username": username, "password": password}
+    rc = requests.get(
+        api + "/users", json={"username": username, "password": password}
     )
     rc = rc.json()
     if rc["context"].get("mfaChallenge") is not None:
-        return redirect(f"/login/mfa/{username}/{rc['context']['mfaToken']}")
+        request.session["mfa_pass"] = password
+        return redirect(f"/login/mfa/{username}")
     elif rc["code"] == None:
         rc = rc["context"] # Get the status context
         request.session.clear() # remove old session
@@ -65,21 +66,24 @@ async def login_post(request: Request, username: str = FastForm(None), password:
         )
     return rc
 
-@router.get("/login/mfa/{username}/{token}")
-async def login_mfa_get(request: Request, username: str, token: str):
-    if request.session.get("token") is not None:
+@router.get("/login/mfa/{username}")
+async def login_mfa_get(request: Request, username: str):
+    if request.session.get("mfa_pass") is None:
         return redirect("/redir")
     if request.method == "GET":
         return await render_template(request, "mfa.html", mode = "login", proposed_username = username)
 
-@router.post("/login/mfa/{username}/{token}")
+@router.post("/login/mfa/{username}")
 @csrf_protect
-async def login_mfa_post(request: Request, username: str, token: str, otp: str = FastForm("")):
+async def login_mfa_post(request: Request, username: str, otp: str = FastForm("")):
+    if request.session.get("mfa_pass") is None:
+        return redirect("/redir")
     otp = str(otp.replace(' ', ''))
     if len(otp) != 6: # Take 5 in to account as well
         return await render_template(request, "mfa.html", mode = "login", error = "OTP must be 6 digit number", proposed_username = username)
-    rc = requests.post(api + "/auth/mfa", json = {
-        "token": token,
+    rc = requests.get(api + "/users", json = {
+        "username": username,
+        "password": request.session.get("mfa_pass"),
         "otp": otp
     }).json()
     if rc["code"] != None:
@@ -122,17 +126,18 @@ async def recovery_get(request: Request):
 @router.post("/recovery")
 @csrf_protect
 async def recovery_post(request: Request, otp: str = FastForm("")):
-    rc = requests.post(api + "/auth/recovery", json = {
+    rc = requests.post(api + "/users/recovery", json = {
         "backup_key": otp
     }).json()
-    if rc["code"] != None:
+    if rc["code"] is not None:
+        print(rc)
         return await render_template(request, "mfa.html", mode = "backup", error = Markup(rc["html"]), done = False)
+    print(rc)
     return await render_template(
         request,
         "mfa.html",
         mode = "backup",
         error = Markup(rc["html"]),
-        done = True
     )
 
 @router.get("/recovery/options")
@@ -167,8 +172,8 @@ async def register_post(request: Request, email: str = FastForm(None), password 
             "register.html",
             error="Your retyped password does not match",
         )
-    rc = requests.post(
-        api + "/auth/register",
+    rc = requests.put(
+        api + "/users",
         json={
             "email": email,
             "username": username,
@@ -190,21 +195,20 @@ async def register_post(request: Request, email: str = FastForm(None), password 
 # Stage 1 (sending the email)
 @router.get("/reset")
 async def reset_pwd_s1_get(request: Request):
-    if request.method == "GET":
-        return await render_template(
-            request,
-            "/reset_gen.html",
-        )
+    return await render_template(
+        request,
+        "/reset_gen.html",
+    )
 
 @router.post("/reset")
 @csrf_protect
 async def reset_pwd_s1_post(request: Request, username: str = FastForm(None), email: str = FastForm(None)):
     if username is None or username == "":
-        json={"email": email}
+        json={"email": email, "operation": 1}
     else:
         json={"username": username}
-    x = requests.post(
-            api + "/auth/reset/send", json=json
+    x = requests.put(
+            api + "/users/creds", json=json
     ).json()
     print(x)
     if x["code"] is None:
@@ -219,10 +223,6 @@ async def reset_pwd_s1_post(request: Request, username: str = FastForm(None), em
 
 @router.get("/reset/stage2")
 async def reset_pwd_get(request: Request, token: str):
-    a = requests.get(api + f"/auth/reset/check/token?token={token}").json()
-    if a["code"] == False:
-        request.session["status_code"] = 403
-        return await render_template(request, "generic_error.html", header = "Reset Password", error = "Something's Went Wrong. We cannot reset your password using this link. Plese try resetting your password again")
     return await render_template(request, "reset.html")
 
 @router.post("/reset/stage2")
@@ -240,17 +240,14 @@ async def reset_pwd_post(request: Request, token: str, password: str = FastForm(
             "reset.html",
             error="Your password must be at least 9 characters long",
         )
-    x = requests.post(
-        api + "/auth/reset/change",
-        json={"token": token, "new_password": password},
+    x = requests.put(
+        api + "/users/creds",
+        json={"token": token, "new_password": password, "operation": 2},
     ).json()
-    if x["error"] == "1000":
+    if x["code"] is None:
         msg = "Your password has been reset successfully."
     else:
-        if x["error"] == "1101":
-            msg = "Your account has been disabled by an administrator. It may not have its password reset."
-        else:
-            msg = "Something has went wrong while we were trying to reset your password. Please try again later."
+        msg = "Something has went wrong while we were trying to reset your password. Please try again later."
     return await render_template(
         request,
         "/reset_confirm.html",

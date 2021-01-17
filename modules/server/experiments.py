@@ -12,18 +12,17 @@ class SaveExperiment(UserModel):
     code: str
 
 router = APIRouter(
-    prefix="/experiment",
     tags=["Experiments"],
 )
 
-@router.get("/get")
+@router.get("/experiments")
 async def get_experiment(sid: str):
     experiment = await db.fetchrow("SELECT description, code, type FROM experiments WHERE sid = $1", sid)
     if experiment is None:
         return brsret(code = "FORBIDDEN", html = "Forbidden Request")  # Not Authorized
     return brsret(code = None, sid = sid, description = experiment["description"], exp_code = experiment["code"], type = experiment["type"])
 
-@router.post("/new")
+@router.post("/experiments")
 async def new_experiment(experiment: GenericExperimentNew, bt: BackgroundTasks):
     auth_check = await authorize_user(experiment.username, experiment.token)
     if auth_check == False:
@@ -42,7 +41,7 @@ async def new_experiment(experiment: GenericExperimentNew, bt: BackgroundTasks):
     )
     return brsret(code = None, id = id)
 
-@router.post("/save")
+@router.patch("/experiments")
 async def save_experiment(save: SaveExperiment):
     auth_check = await authorize_user(save.username, save.token)
     if auth_check == False:

@@ -62,7 +62,7 @@ async def profile_delete_get(request: Request, username: str):
 @csrf_protect
 async def profile_delete_get(request: Request, username: str, otp: str = FastForm("")):
     if request.session.get("mfa_delaccount") is None:
-        rc = requests.post(api + "/auth/account/delete", json = {
+        rc = requests.delete(api + "/users", json = {
             "username": username,
             "token": request.session.get("token")
         }).json()
@@ -72,7 +72,7 @@ async def profile_delete_get(request: Request, username: str, otp: str = FastFor
         elif rc["code"] != None:
             return await render_template(request, "mfa.html", mode = "delete", error = Markup(rc.get("html")))
     else:
-        rc = requests.post(api + "/auth/account/delete", json = {
+        rc = requests.delete(api + "/users", json = {
             "username": username,
             "token": request.session.get("token"),
             "otp": otp
@@ -93,10 +93,11 @@ async def profile_visible_state_set(request: Request, username: str, state: str 
     post_data = {
         "state": state == "public",
         "token": request.session.get("token"),
+        "operation": "visible"
     }
 
-    x = requests.post(
-        api + "/profile/visible",
+    x = requests.patch(
+        api + "/profile/privacy",
         json=post_data
         ).json()
     return redirect("/profile/" + username + "/settings")
@@ -116,6 +117,7 @@ async def profile_token_view(request: Request, username: str, confirm: str = Fas
         return await render_template(request, "token.html", mode = 1, api = api, token = request.session.get("token"))
     else:
         return await render_template(request, "token.html", mode = 0)
+
 @router.get("/{username}/me/account/{type}/change")
 async def profile_change_username_get(request: Request, username: str, type: str):
     try:
@@ -131,18 +133,20 @@ async def profile_change_username_post(request: Request, username: str, type: st
         return abort(401)
     if request.session.get("mfa_editaccount") is None:
         if type == "username":
-            rc = requests.post(api + "/auth/account/edit/username", json = {
+            rc = requests.patch(api + "/users/creds", json = {
+                "operation": 1,
                 "old_username": username,
                 "new_username": new_username,
                 "token": request.session.get("token"),
                 "password": current_password
             }).json()
         elif type == "password":
-            rc = requests.post(api + "/auth/account/edit/password", json = {
-                "username": username,
+            rc = requests.patch(api + "/users/creds", json = {
+                "operation": 2,
+                "old_username": username,
                 "new_password": new_password,
                 "token": request.session.get("token"),
-                "old_password": current_password
+                "password": current_password
             }).json()
         else:
             rc = {"code": "ERROR", "html": "Invalid Type"}
@@ -155,7 +159,8 @@ async def profile_change_username_post(request: Request, username: str, type: st
     elif request.session.get("mfa_editaccount") is not None:
         if request.session["mfa_editaccount"][0] == "username":
             new_username = request.session["mfa_editaccount"][2]
-            rc = requests.post(api + "/auth/account/edit/username", json = {
+            rc = requests.patch(api + "/users/creds", json = {
+                "operation": 1,
                 "old_username": username,
                 "new_username": request.session["mfa_editaccount"][2],
                 "token": request.session.get("token"),
@@ -163,7 +168,8 @@ async def profile_change_username_post(request: Request, username: str, type: st
                 "otp": otp
             }).json()
         elif request.session["mfa_editaccount"][0] == "password":
-            rc = requests.post(api + "/auth/account/edit/password", json = {
+            rc = requests.patch(api + "/users/creds", json = {
+                "operation": 2,
                 "username": username,
                 "new_password": request.session["mfa_editaccount"][3],
                 "token": request.session.get("token"),
@@ -191,8 +197,9 @@ async def profile_mfa_set_get(request: Request, username: str, state: str):
         return abort(404)
 
     if state == "enable":
-        rc = requests.post(api + "/auth/mfa/setup/1", json = {
-            "token": request.session.get("token")
+        rc = requests.patch(api + "/users/mfa", json = {
+            "token": request.session.get("token"),
+            "operation": 1
         }).json()
         if rc["code"] != None:
             request.session["status_code"] = 400
@@ -207,9 +214,10 @@ async def profile_mfa_set_get(request: Request, username: str, state: str):
 @csrf_protect
 async def profile_mfa_set_post(request: Request, username: str, state: str, otp: str = FastForm("")):
     if state == "enable":
-        rc = requests.post(api + "/auth/mfa/setup/2", json = {
+        rc = requests.patch(api + "/users/mfa", json = {
             "token": request.session.get("token"),
-            "otp": otp
+            "otp": otp,
+            "operation": 2
         }).json()
         if rc["code"] != None:
             request.session["status_code"] = 400
@@ -217,7 +225,7 @@ async def profile_mfa_set_post(request: Request, username: str, state: str, otp:
         del request.session["mfa_key"]
         return redirect("/profile/" + username + "/settings")
     elif state == "disable":
-        rc = requests.post(api + "/auth/mfa/disable", json = {
+        rc = requests.delete(api + "/users/mfa", json = {
             "token": request.session.get("token"),
             "otp": otp
         }).json()

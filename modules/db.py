@@ -8,7 +8,7 @@ async def setup_db():
     await __db.execute("VACUUM")
     # Represents a subject
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS subjects (metaid TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL)"
+        "CREATE TABLE IF NOT EXISTS subjects (metaid TEXT NOT NULL, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL)"
     )
     # Create an index for the subjects
     await __db.execute(
@@ -16,7 +16,7 @@ async def setup_db():
     )
     # Represents a topic
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS topics (metaid TEXT NOT NULL UNIQUE, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL, tid TEXT PRIMARY KEY, FOREIGN KEY (metaid) REFERENCES subjects (metaid) ON DELETE CASCADE ON UPDATE CASCADE)"
+        "CREATE TABLE IF NOT EXISTS topics (metaid TEXT NOT NULL, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL, tid TEXT PRIMARY KEY)"
     )
     # Create an index for the topics
     await __db.execute(
@@ -32,7 +32,7 @@ async def setup_db():
     )
     # Represents a single login in the database
     await __db.execute(
-        "CREATE TABLE IF NOT EXISTS login (token TEXT NOT NULL UNIQUE, username TEXT PRIMARY KEY, password TEXT NOT NULL, email TEXT NOT NULL UNIQUE, status INTEGER NOT NULL, scopes TEXT NOT NULL, mfa BOOLEAN NOT NULL, mfa_shared_key TEXT, backup_key TEXT NOT NULL UNIQUE, attempts INTEGER NOT NULL)"
+        "CREATE TABLE IF NOT EXISTS login (token UUID NOT NULL UNIQUE, username TEXT PRIMARY KEY, password TEXT NOT NULL, email TEXT NOT NULL UNIQUE, status INTEGER NOT NULL, scopes TEXT NOT NULL, mfa BOOLEAN NOT NULL, mfa_shared_key TEXT, backup_key TEXT NOT NULL UNIQUE, attempts INTEGER NOT NULL)"
     )
     # Create an index for login
     await __db.execute(

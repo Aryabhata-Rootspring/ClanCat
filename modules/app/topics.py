@@ -18,7 +18,7 @@ router = APIRouter(
 
 @router.get("/")
 async def topics(request: Request):
-    topic_list_json = requests.get(api + "/topics/list").json()  # Get the list of topics in JSON
+    topic_list_json = requests.get(api + "/topics?operation=2").json()  # Get the list of topics in JSON
     topic_list = []  # ejson as list
     if topic_list_json.get("code") is not None:
         return await render_template(
@@ -39,7 +39,7 @@ async def topics(request: Request):
 @router.get("/{tid}")
 async def get_topic_index(request: Request, tid: str):
     topic_json = requests.get(
-        api + f"/topics/get?tid={tid}&simple=0"
+        api + f"/topics?tid={tid}&simple=0&operation=1"
     ).json()  # Get the full topic info
     if topic_json.get("code") != None:
         return abort(404)
@@ -68,7 +68,7 @@ async def new_concept_get(request: Request, tid: str):
 @csrf_protect
 async def new_concept_post(request: Request, tid: str, title: str = FastForm("Untitled Concept")):
         a = requests.post(
-            api + "/topics/concepts/new",
+            api + "/concepts",
             json={
                 "username": request.session.get("username"),
                 "token": request.session.get("token"),
@@ -86,7 +86,7 @@ async def topics_edit_description(request: Request, tid: str):
     elif request.session.get("admin") in [0, None, "0"]:
         return abort(401)
     ejson = requests.get(
-        api + f"/topics/get?tid={tid}&simple=0" # We need the description here. No simple mode
+        api + f"/topics?tid={tid}&simple=0&operation=1" # We need the description here. No simple mode
     ).json()
     if ejson.get("code") != None:
         return abort(404)
@@ -106,7 +106,7 @@ async def topics_edit_menu(request: Request, tid: str):
         return redirect("/login")
     elif request.session.get("admin") in [0, None, "0"]:
         return abort(401)
-    topic_exp_json = requests.get(api + f"/topics/get?tid={tid}&simple=1").json()
+    topic_exp_json = requests.get(api + f"/topics?tid={tid}&simple=1&operation=1").json()
     if topic_exp_json.get("code") != None:
         return abort(404)
     return await render_template(
@@ -122,10 +122,10 @@ async def topic_edit_concepts(request: Request, tid: str):
         return redirect("/login")
     elif request.session.get("admin") in [0, None, "0"]:
         return abort(401)
-    exp_json = requests.get(api + f"/topics/get?tid={tid}&simple=1").json()
+    exp_json = requests.get(api + f"/topics?tid={tid}&simple=1&operation=1").json()
     if exp_json.get("code") != None:
         return abort(404)
-    concepts_json = requests.get(api + f"/topics/concepts/list?tid={tid}").json()
+    concepts_json = requests.get(api + f"/concepts?tid={tid}&operation=3").json()
     if concepts_json.get("code") is not None:
         concepts = []
     else:
@@ -147,7 +147,7 @@ async def topic_edit_concept(request: Request, tid: str, cid: int):
         return redirect("/login")
     elif request.session.get("admin") in [0, None, "0"]:
         return abort(401)
-    concept_json = requests.get(api + f"/topics/concepts/get?tid={tid}&cid={str(cid)}").json()
+    concept_json = requests.get(api + f"/concepts?tid={tid}&cid={str(cid)}&operation=2").json()
 
     if concept_json.get("code") is not None or int(cid) < 0:
         return abort(404)
@@ -167,7 +167,7 @@ async def topic_edit_concept(request: Request, tid: str, cid: int):
 async def new_or_edit_practice_question_get(request: Request, tid: str, qid: Optional[int] = None):
     default_values = {"type": "MCQ", "question": "", "answers": "", "correct_answer": "", "solution": ""}
     if qid is not None:
-        practice_json = requests.get(api + f"/topics/practice/get?tid={tid}&qid={str(qid)}").json()
+        practice_json = requests.get(api + f"/topics/practice?tid={tid}&qid={str(qid)}&operation=2").json()
         if practice_json["code"] is not None:
             return abort(404)
         default_values = practice_json["context"]
@@ -203,14 +203,15 @@ async def new_practice_question_post(request: Request, tid: str, qid: Optional[i
             json["recommended_time"] = int(recommended_time)
         if qid is not None:
             json["qid"] = int(qid)
-            url = "/topics/practice/save"
+            url = "/topics/practice"
+            return requests.patch(api + url, json = json).json()
         else:
-            url = "/topics/practice/new"
-        return requests.post(api + url, json = json).json()
+            url = "/topics/practice"
+            return requests.post(api + url, json = json).json()
 
 @router.get("/admin/new")
 async def new_topic_get_request(request: Request):
-    subject_json = requests.get(api + "/subjects/list").json()
+    subject_json = requests.get(api + "/subjects?operation=1").json()
     if subject_json == {} or subject_json.get("code") is not None:
         subjects = []
     else:
@@ -228,7 +229,7 @@ async def new_topic_get_request(request: Request):
 @csrf_protect
 async def new_topic_post_request(request: Request, name: str = FastForm(None), description: str = FastForm(None), metaid: str = FastForm(None)):
     x = requests.post(
-        api + "/topics/new",
+        api + "/topics",
         json={
             "username": request.session.get("username"),
             "token": request.session.get("token"),
@@ -236,15 +237,16 @@ async def new_topic_post_request(request: Request, name: str = FastForm(None), d
             "description": description,
             "metaid": metaid
         }).json()
-    if x.get("error") == "1000":
-        return redirect(f"/topics/{x['tid']}")
+    if x.get("code") is None:
+        print(x)
+        return redirect(f"/topics/{x['context']['id']}")
     return x
 
 @router.get("/{tid}/learn")
 async def redir_topic(request: Request, tid: str):
     if "username" not in request.session:
         return redirect("/topics/" + tid + "/learn/1")
-    tracker_r = requests.get(api + "/profile/track?username=" + request.session.get("username") + "&tid=" + tid).json()
+    tracker_r = requests.get(api + "/profile/progress?username=" + request.session.get("username") + "&tid=" + tid).json()
     cid = tracker_r["context"]['cid']
     if tracker_r["context"]["status"] == "LP":
         return redirect("/topics/" + tid + "/learn/" + str(cid))
@@ -253,21 +255,21 @@ async def redir_topic(request: Request, tid: str):
 
 @router.get("/{tid}/learn/{cid}")
 async def topic_concept_learn(request: Request, tid: str, cid: int):
-    concept_json = requests.get(api + f"/topics/concepts/get?tid={tid}&cid={cid}").json()
+    concept_json = requests.get(api + f"/concepts?tid={tid}&cid={cid}&operation=2").json()
     if concept_json.get("code") is not None:
         return abort(404)
     concept_json = concept_json["context"]
     count_json = requests.get(
-        api + f"/topics/concepts/get/count?tid={tid}"
+        api + f"/concepts?tid={tid}&operation=1"
     ).json()  # Get the page count of a concept
     count_json = count_json["context"]
     if "username" in request.session:
         # User is logged in, track their progress
-        tracker_r = requests.get(api + "/profile/track?username=" + request.session.get("username") + "&tid=" + tid).json()
+        tracker_r = requests.get(api + "/profile/progress?username=" + request.session.get("username") + "&tid=" + tid).json()
         done = tracker_r["context"]['done']
         tracked_cid = tracker_r["context"]['cid']
         if int(tracked_cid) < int(cid) and not done and tracker_r["context"]["status"] == "LP":
-            tracker_w = requests.post(api + "/profile/track", json = {
+            tracker_w = requests.put(api + "/profile/progress", json = {
                 "username": request.session.get("username"),
                 "token": request.session.get("token"),
                 "status": "LP",
@@ -291,7 +293,7 @@ async def topic_concept_learn(request: Request, tid: str, cid: int):
 async def redir_topic_practice(request: Request, tid: str):
     if "username" not in request.session:
         return redirect("/topics/" + tid + "/practice/1")
-    tracker = requests.get(api + "/profile/track?username=" + request.session.get("username") + "&tid=" + tid).json()
+    tracker = requests.get(api + "/profile/progress?username=" + request.session.get("username") + "&tid=" + tid).json()
     cid = tracker["context"]['cid']
     if tracker["context"]["status"] == "PP":
         return redirect("/topics/" + tid + "/practice/" + str(cid))
@@ -300,7 +302,7 @@ async def redir_topic_practice(request: Request, tid: str):
 
 @router.get("/{tid}/practice/{qid}")
 async def topic_practice_view(request: Request, tid: str, qid: int):
-    practice_json = requests.get(api + f"/topics/practice/get?tid={tid}&qid={qid}").json()
+    practice_json = requests.get(api + f"/topics/practice?tid={tid}&qid={qid}&operation=2").json()
     if practice_json.get("code") is not None:
         return await render_template(
             request,
@@ -312,9 +314,9 @@ async def topic_practice_view(request: Request, tid: str, qid: int):
         )
     practice_json = practice_json["context"]
     count_json = requests.get(
-        api + f"/topics/practice/get/count?tid={tid}"
+        api + f"/topics/practice?tid={tid}&operation=1"
     ).json()["context"]  # Get the page count of a concept
-    cid = requests.get(api + f"/topics/concepts/get/count?tid={tid}").json()
+    cid = requests.get(api + f"/concepts?tid={tid}&operation=1").json()
     print(cid)
     try:
         cid = cid["context"]["concept_count"]
@@ -378,14 +380,14 @@ async def topic_practice_solve(request: Request, tid: str, qid: int, data: Topic
     key = "|".join(["practice", "path", tid, str(qid)])
     request.session[key] = data.path
     if "username" in request.session.keys():
-        tracker_w = requests.post(api + "/profile/track", json = {
+        tracker_w = requests.put(api + "/profile/progress", json = {
             "username": request.session.get("username"),
             "token": request.session.get("token"),
             "status": "PP",
             "tid": tid,
             "cid": qid
         }).json() # Track the fact that he went here
-        tracker_w = requests.post(api + "/profile/track/practice", json = {
+        tracker_w = requests.put(api + "/profile/progress/practice", json = {
             "username": request.session.get("username"),
             "token": request.session.get("token"),
             "tid": tid,
@@ -400,8 +402,8 @@ async def topic_practice_solve(request: Request, tid: str, qid: int, data: Topic
 @router.post("/{tid}/concepts/{cid}/save")
 @csrf_protect
 async def save_page(request: Request, tid: str, cid: str, data: SaveExperimentPage):
-    a = requests.post(
-        api + "/topics/concepts/save",
+    a = requests.patch(
+        api + "/concepts",
         json={
             "username": data.username,
             "token": data.token,
@@ -415,8 +417,8 @@ async def save_page(request: Request, tid: str, cid: str, data: SaveExperimentPa
 
 @router.post("/{tid}/save")
 async def save_topics(request: Request, tid: str, data: SaveTopic):
-    a = requests.post(
-        api + "/topics/save",
+    a = requests.patch(
+        api + "/topics",
         json={
             "username": data.username,
             "token": data.token,

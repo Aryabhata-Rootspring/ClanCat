@@ -83,13 +83,24 @@ class BRS():
 
 class requests():
     @staticmethod
-    def get(url):
-        return __r__.get(url, verify=SECURE)
+    def get(url, *, json = None):
+        return __r__.get(url, verify=SECURE, json = json)
 
     @staticmethod
     def post(url, json):
         return __r__.post(url, json=json, verify=SECURE)
 
+    @staticmethod
+    def put(url, json):
+        return __r__.put(url, json=json, verify=SECURE)
+
+    @staticmethod
+    def patch(url, json):
+        return __r__.patch(url, json=json, verify=SECURE)
+
+    @staticmethod
+    def delete(url, json):
+        return __r__.delete(url, json=json, verify=SECURE)
 
 def redirect(path):
     return RedirectResponse(path, status_code=HTTP_303_SEE_OTHER)

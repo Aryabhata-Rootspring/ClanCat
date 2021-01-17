@@ -92,7 +92,6 @@ def get_new_badges(curr_badges: list, curr_items: dict) -> tuple:
     return "||".join(new_badges), curr_badges + new_badges
 
 router = APIRouter(
-    prefix="/profile",
     tags=["Profile"],
 )
 
@@ -101,7 +100,8 @@ router = APIRouter(
 class ProfileListingRequest(TokenModel):
     state: bool
 
-class ProfileVisibleRequest(TokenModel):
+class ProfilePrivacyEdit(TokenModel):
+    operation: str # What you want to edit
     state: bool
 
 class ProfileTrackWriter(UserModel):
@@ -117,23 +117,19 @@ class ProfileTrackPracticeWriter(UserModel):
     path: str
 
 # Profile
-@router.post("/visible")
-async def change_visibility(pvr: ProfileVisibleRequest):
+@router.patch("/profile/privacy")
+async def change_visibility(pvr: ProfilePrivacyEdit):
     profile_db = await db.fetchrow("SELECT username FROM login WHERE token = $1", pvr.token)
     if profile_db is None:
         return brsret(code = "INVALID_TOKEN")
-    await db.execute("UPDATE profile SET public = $1 WHERE username = $2", pvr.state, profile_db['username'])
-    return brsret(code = None)
+    if pvr.operation == "visible":
+        await db.execute("UPDATE profile SET public = $1 WHERE username = $2", pvr.state, profile_db['username'])
+        return brsret(code = None)
+    elif pvr.operation == "listing":
+        await db.execute("UPDATE profile SET listing = $1 WHERE username = $2", plr.state, profile_db['username'])
+        return brsret()
 
-@router.post("/listing")
-async def profile_listing(plr: ProfileListingRequest):
-    profile_db = await db.fetchrow("SELECT profile.username, profile.listing, login.status FROM profile INNER JOIN login ON profile.username = login.username WHERE login.token = $1", plr.token)
-    if profile_db is None:
-        return brsret(code = "INVALID_PROFILE")
-    await db.execute("UPDATE profile SET listing = $1 WHERE username = $2", plr.state, profile_db['username'])
-    return brsret()
-
-@router.get("/")
+@router.get("/profile")
 async def get_profile(username: str, token: str = None):
     # Get the profile
     profile_db = await db.fetchrow(
@@ -199,10 +195,8 @@ async def get_profile(username: str, token: str = None):
             "items": idict
     }
 
-# Track users progress
-# TODO: Add quizzes and other things
-@router.post("/track")
-async def profile_track_writer(tracker: ProfileTrackWriter):
+@router.put("/profile/progress")
+async def profile_progress_writer(tracker: ProfileTrackWriter):
     # First check if the user and token even exist
     profile_db = await db.fetchrow("SELECT mfa FROM login WHERE username = $1 AND token = $2", tracker.username, tracker.token)
     if profile_db is None:
@@ -234,8 +228,8 @@ async def profile_track_writer(tracker: ProfileTrackWriter):
     return brsret(code = None, debug = mode, items = items, new_badges = new_badges[0])
 
 
-@router.get("/track")
-async def profile_track_reader(tid: str, username: str):
+@router.get("/profile/progress")
+async def profile_progress_reader(tid: str, username: str):
     info = await db.fetchrow("SELECT progress, done FROM profile_topic WHERE username = $1 AND tid = $2", username, tid) # Get the page info
     if info is None or info["progress"] is None:
         return brsret(
@@ -256,8 +250,8 @@ async def profile_track_reader(tid: str, username: str):
         done = done,
     )
 
-@router.post("/track/practice")
-async def profile_track_practice_writer(tracker: ProfileTrackPracticeWriter):
+@router.put("/profile/progress/practice")
+async def profile_progress_practice_writer(tracker: ProfileTrackPracticeWriter):
     profile_db = await db.fetchrow("SELECT mfa FROM login WHERE username = $1 AND token = $2", tracker.username, tracker.token)
     if profile_db is None:
         return brsret(code = "USER_DOES_NOT_EXIST")

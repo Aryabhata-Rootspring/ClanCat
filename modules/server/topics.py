@@ -40,35 +40,34 @@ class SaveTopicPractice(UserModel):
     recommended_time: Optional[int] = 0
 
 router = APIRouter(
-    prefix="/topics",
     tags=["Topics"],
 )
 
-@router.get("/concepts/get/count")
-async def get_concept_count(tid: str):
-    concept_count = await db.fetch("SELECT COUNT(cid) FROM concepts WHERE tid = $1", tid)
-    return brsret(code = None, concept_count = concept_count[0]["count"])
+@router.get("/concepts")
+async def get_concept_count(operation: int, tid: Optional[str] = None, cid: Optional[int] = None):
+    """Operation 1: Concept Count; Operation 2: Get Concept; Operation 3: List Concepts"""
+    if operation not in [1, 2, 3]:
+        return brsret(code = "INVALID_OPERATION")
+    elif operation == 1: # Concept Count
+        concept_count = await db.fetch("SELECT COUNT(cid) FROM concepts WHERE tid = $1", tid)
+        return brsret(code = None, concept_count = concept_count[0]["count"])
+    elif operation == 2: # Get Concept
+        concept = await db.fetch("SELECT title, content FROM concepts WHERE tid = $1 ORDER BY cid ASC", tid)
+        if len(concept) == 0 or len(concept) < int(cid) or int(cid) <= 0:
+            return brsret(code = "INVALID_PARAMETERS")
+        return brsret(code = None, title = concept[int(cid) - 1]["title"], content = concept[int(cid) - 1]["content"])
+    elif operation == 3: # List Concept
+        concepts = await db.fetch("SELECT title FROM concepts WHERE tid = $1 ORDER BY title ASC", tid)
+        if len(concepts) == 0:
+            return brsret(code = "NO_CONCEPTS_FOUND")
+        cjson = {}
+        i = 1
+        for concept in concepts:
+            cjson[concept['title']] = i
+            i+=1
+        return brsret(code = None, concepts = cjson)
 
-@router.get("/concepts/get")
-async def get_concept(tid: str, cid: int):
-    concept = await db.fetch("SELECT title, content FROM concepts WHERE tid = $1 ORDER BY cid ASC", tid)
-    if len(concept) == 0 or len(concept) < int(cid) or int(cid) <= 0:
-        return brsret(code = "INVALID_PARAMETERS")
-    return brsret(code = None, title = concept[int(cid) - 1]["title"], content = concept[int(cid) - 1]["content"])
-
-@router.get("/concepts/list")
-async def list_concepts(tid: str):
-    concepts = await db.fetch("SELECT title FROM concepts WHERE tid = $1 ORDER BY title ASC", tid)
-    if len(concepts) == 0:
-        return brsret(code = "NO_CONCEPTS_FOUND")
-    cjson = {}
-    i = 1
-    for concept in concepts:
-        cjson[concept['title']] = i
-        i+=1
-    return brsret(code = None, concepts = cjson)
-
-@router.post("/concepts/new")
+@router.post("/concepts")
 async def new_concept(concept: ConceptNew, bt: BackgroundTasks):
     auth_check = await authorize_user(concept.username, concept.token)
     if auth_check == False:
@@ -92,7 +91,7 @@ async def new_concept(concept: ConceptNew, bt: BackgroundTasks):
     bt.add_task(server_watchdog) #Update the client
     return brsret(code = None, page_count = cid)
 
-@router.post("/concepts/save")
+@router.patch("/concepts")
 async def save_concept(save: SaveTopicConcept):
     auth_check = await authorize_user(save.username, save.token)
     if auth_check == False:
@@ -115,40 +114,42 @@ async def save_concept(save: SaveTopicConcept):
     )
     return brsret(code = None, outer_scope = {"message": "Successfully saved entity!"})
 
-@router.get("/practice/get/count")
-async def get_topic_practice_count(tid: str):
-    topic_practice = await db.fetch("SELECT COUNT(1) FROM topic_practice WHERE tid = $1", tid)
-    return brsret(code = None, practice_count = topic_practice[0]["count"])
-
-@router.get("/practice/get")
-async def get_concept_practice(tid: str, qid: int):
-    question = await db.fetch("""
-        SELECT type, question, correct_answer,
-        answers, solution, recommended_time
-        FROM topic_practice
-        WHERE tid = $1 AND qid = $2
-        ORDER BY qid ASC""",
-        tid,
-        qid
-    )
-    if len(question) == 0 or int(qid) <= 0:
-        return brsret(code = "NO_PRACTICE_QUESTIONS")
-    question = question[0] # Get the absolute practice question ID
-    if question["solution"] is None or len(question["solution"]) < 3:
-        solution = "There is no solution for this problem yet!"
+@router.get("/topics/practice")
+async def get_topic_practice_count(tid: str, operation: int, qid: Optional[int] = None):
+    """1 = Count; 2 = Get"""
+    if operation not in [1, 2]:
+        return brsret(code = "INVALID_OPERATION")
+    if operation == 1:
+        topic_practice = await db.fetch("SELECT COUNT(1) FROM topic_practice WHERE tid = $1", tid)
+        return brsret(code = None, practice_count = topic_practice[0]["count"])
     else:
-        solution = question["solution"]
-    return brsret(
-        code = None,
-        type = question["type"],
-        question = question["question"],
-        correct_answer = question["correct_answer"],
-        answers = question["answers"],
-        solution = solution,
-        recommended_time = question["recommended_time"],
-    )
+        question = await db.fetch("""
+            SELECT type, question, correct_answer,
+            answers, solution, recommended_time
+            FROM topic_practice
+            WHERE tid = $1 AND qid = $2
+            ORDER BY qid ASC""",
+            tid,
+            qid
+        )
+        if len(question) == 0 or int(qid) <= 0:
+            return brsret(code = "NO_PRACTICE_QUESTIONS")
+        question = question[0] # Get the absolute practice question ID
+        if question["solution"] is None or len(question["solution"]) < 3:
+            solution = "There is no solution for this problem yet!"
+        else:
+            solution = question["solution"]
+        return brsret(
+            code = None,
+            type = question["type"],
+            question = question["question"],
+            correct_answer = question["correct_answer"],
+            answers = question["answers"],
+            solution = solution,
+            recommended_time = question["recommended_time"],
+        )
 
-@router.post("/practice/new")
+@router.post("/topics/practice")
 async def new_topic_practice(topic_practice: TopicPracticeNew, bt: BackgroundTasks):
     auth_check = await authorize_user(topic_practice.username, topic_practice.token)
     if auth_check == False:
@@ -178,7 +179,7 @@ async def new_topic_practice(topic_practice: TopicPracticeNew, bt: BackgroundTas
     )
     return brsret(code = None, practice_count = qid)
 
-@router.post("/practice/save")
+@router.patch("/topics/practice")
 async def topic_practice_save(save: SaveTopicPractice):
     auth_check = await authorize_user(save.username, save.token)
     if auth_check == False:
@@ -196,33 +197,34 @@ async def topic_practice_save(save: SaveTopicPractice):
     )
     return brsret(code = None, outer_scope = {"message": "Successfully saved entity!"})
 
-@router.get("/get")
-async def get_topic(tid: str, simple: Optional[int] = 0):
+@router.get("/topics")
+async def get_topic(operation: int, tid: Optional[str] = None, simple: Optional[int] = 0):
     """NOTE: Simple determines whether to just fetch the name or to fetch both the name and the description"""
-    if simple == 0:
-        topic = await db.fetchrow("SELECT name, description FROM topics WHERE tid = $1", tid)
-    else:
-        topic = await db.fetchrow("SELECT name FROM topics WHERE tid = $1", tid)
-    if topic is None:
-        return brsret(code = "TOPIC_DOES_NOT_EXIST", html = "This topic does not exist yet")
-    if simple == 0:
-        if topic["description"] in ["", None]:
-            topic_desc = "<script>alert('This topic has not yet been configured yet!');</script>"
+    if operation not in [1, 2]:
+        return brsret(code = "INVALID_OPERATION")
+    if operation == 1: # Topics/get
+        if simple == 0:
+            topic = await db.fetchrow("SELECT name, description FROM topics WHERE tid = $1", tid)
         else:
-            topic_desc = topic["description"]
-        return brsret(code = None, name = topic["name"], description = topic_desc)
-    else:
-        return brsret(code = None, name = topic["name"])
+            topic = await db.fetchrow("SELECT name FROM topics WHERE tid = $1", tid)
+        if topic is None:
+            return brsret(code = "TOPIC_DOES_NOT_EXIST", html = "This topic does not exist yet")
+        if simple == 0:
+            if topic["description"] in ["", None]:
+                topic_desc = "<script>alert('This topic has not yet been configured yet!');</script>"
+            else:
+                topic_desc = topic["description"]
+            return brsret(code = None, name = topic["name"], description = topic_desc)
+        else:
+            return brsret(code = None, name = topic["name"])
+    elif operation == 2: # Topics/list
+        topics = await db.fetch("SELECT name, tid FROM topics ORDER BY name ASC")
+        tjson = {}
+        for topic in topics:
+            tjson[topic["name"]] = topic["tid"]
+        return brsret(code = None, topics = tjson)
 
-@router.get("/list")
-async def list_topics():
-    topics = await db.fetch("SELECT name, tid FROM topics ORDER BY name ASC")
-    tjson = {}
-    for topic in topics:
-        tjson[topic["name"]] = topic["tid"]
-    return brsret(code = None, topics = tjson)
-
-@router.post("/new")
+@router.post("/topics")
 async def new_topic(topic: TopicNew, bt: BackgroundTasks):
     auth_check = await authorize_user(topic.username, topic.token)
     if auth_check == False:
@@ -245,7 +247,7 @@ async def new_topic(topic: TopicNew, bt: BackgroundTasks):
     bt.add_task(server_watchdog)# Update the client
     return brsret(code = None, id = id)
 
-@router.post("/save")
+@router.patch("/topics")
 async def save_topic(save: SaveTopic):
     auth_check = await authorize_user(save.username, save.token)
     if auth_check == False:

@@ -5,19 +5,20 @@ class SubjectNew(UserModel):
     description: str
 
 router = APIRouter(
-    prefix="/subjects",
     tags=["Subjects"],
 )
 
-@router.get("/list")
-async def list_subjects():
+@router.get("/subjects")
+async def list_subjects(operation: int):
+    if operation not in [1]:
+        return brsret(code = "INVALID_OPERATION")
     subjects = await db.fetch("SELECT name, metaid FROM subjects")
     sjson = {}
     for subject in subjects:
         sjson[subject["name"]] = subject["metaid"]
     return brsret(code = None, subjects = sjson)
 
-@router.post("/new")
+@router.post("/subjects")
 async def new_subject(subject: SubjectNew, bt: BackgroundTasks):
     auth_check = await authorize_user(subject.username, subject.token)
     if auth_check == False:

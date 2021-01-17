@@ -18,35 +18,31 @@ SENDER_PASS = "onsybsptaicdvtwc"
 
 
 router = APIRouter(
-    prefix="/auth",
     tags=["Authentication"],
 )
 
 # Models
-class AuthUsernameEdit(MFAModel):
-    old_username: str
-    new_username: str
+class UserCredsEdit(TokenModel):
+    operation: int
+    new_username: Optional[str] = None
     password: str
+    new_password: Optional[str] = None
+    old_username: str
 
-class AuthPasswordEdit(MFAModel):
-    username: str
-    new_password: str
-    old_password: str
-
-class AuthResetRequest(BaseModel):
+class UserCredsReset(BaseModel):
+    operation: int
     username: Optional[str] = None
     email: Optional[str] = None
+    reset_token: Optional[str] = None
+    new_password: Optional[str] = None
 
-class AuthResetChange(TokenModel):
-    new_password: str
+class AuthLogin(UserPassModel):
+    otp: Optional[str] = None
 
-class AuthLoginRequest(UserPassModel):
-    pass
+class AuthMFANew(TokenModel):
+    operation: int
 
-class AuthMFANewRequest(TokenModel):
-    pass
-
-class AuthMFARequest(MFAModel):
+class AuthMFA(MFAModel):
     pass
 
 class AuthLogoutRequest(BaseModel):
@@ -87,7 +83,7 @@ async def update_login_attempts(username: str, reset: bool) -> bool:
             
     
 
-@router.post("/account/delete")
+@router.delete("/users")
 async def delete_account(request: AuthDeleteRequest, bt: BackgroundTasks):
     profile_db = await db.fetchrow(
         "SELECT mfa, mfa_shared_key FROM login WHERE token = $1 AND username = $2",
@@ -110,25 +106,31 @@ async def delete_disable_account_backend(token: str, username: str):
     # Delete the user from login and profile
     await db.execute("DELETE FROM login WHERE token = $1", token)
 
-@router.post("/account/edit/username")
-async def edit_account_username(request: AuthUsernameEdit, bt: BackgroundTasks):
+@router.patch("/users/creds")
+async def edit_account(request: UserCredsEdit, bt: BackgroundTasks):
+    """
+        Patch a users credentials given the operation, new_username, password, new_password and old_username, 1 = Username, 2 = Password
+    """
+    if request.operation not in [1, 2]:
+        return brsret(code = "INVALID_OPERATION")
+    elif request.operation == 1 and request.new_username is None:
+        return brsret(code = "NO_USERNAME_PROVIDED")
+    elif request.operation == 2 and request.new_password is None:
+        return brsret(code = "NO_PASSWORD_PROVIDED")
     profile_db = await db.fetchrow(
         "SELECT mfa, mfa_shared_key, password FROM login WHERE token = $1 AND username = $2",
         request.token,
         request.old_username
     )
-    new_account_db = await db.fetchrow(
-        "SELECT username FROM login WHERE username = $1",
-        request.new_username
-    )
+    if request.operation == 1:
+        new_account_db = await db.fetchrow("SELECT username FROM login WHERE username = $1",request.new_username)
+        if new_account_db is not None:
+            return brsret(code = "USERNAME_TAKEN", html = "That username has been taken. Please choose another one")
     if profile_db is None:
         return brsret(code = "INVALID_PROFILE", html = "Invalid Profile.", support = True)
-    if new_account_db is not None:
-        return brsret(code = "USERNAME_TAKEN", html = "That username has been taken. Please choose another one")
     if profile_db["password"] is None:
         # Invalid Username Or Password
         return brsret(code = "INVALID_USER_PASS", html = "Account Recovery is needed.", support = False)
-    print(verify_pwd(request.old_username, request.password, profile_db["password"]))
     if verify_pwd(request.old_username, request.password, profile_db["password"]) == False:
         return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
     if profile_db["mfa"] is True:
@@ -139,36 +141,14 @@ async def edit_account_username(request: AuthUsernameEdit, bt: BackgroundTasks):
             if otp.verify(request.otp) is False:
                 return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
     # Rehash the password
-    password = hash_pwd(request.new_username, request.password)
-    bt.add_task(edit_account_backend, "username", request.token, request.new_username, password, request.old_username)
-    return brsret()
-
-@router.post("/account/edit/password")
-async def edit_account_password(request: AuthPasswordEdit, bt: BackgroundTasks):
-    profile_db = await db.fetchrow(
-        "SELECT mfa, mfa_shared_key, password FROM login WHERE token = $1 AND username = $2",
-        request.token,
-        request.username
-    )
-    if profile_db is None:
-        return brsret(code = "INVALID_PROFILE", html = "Invalid Profile.", support = True)
-    if profile_db["password"] is None:
-        # Invalid Username Or Password
-        return brsret(code = "INVALID_USER_PASS", html = "Account Recovery is needed.", support = False)
-    if verify_pwd(request.username, request.old_password, profile_db["password"]) is False:
-        return brsret(code = "INVALID_USER_PASS", html = "Invalid username or password.", support = False)
-    if profile_db["mfa"] is True:
-        if request.otp is None:
-            return brsret(code = "MFA_NEEDED", mfaChallenge = "mfa")
-        else:
-            otp = pyotp.TOTP(profile_db["mfa_shared_key"])
-            if otp.verify(request.otp) is False:
-                return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
-    # Rehash the password
-    password = hash_pwd(request.username, request.new_password)
-    bt.add_task(edit_account_backend, "password", request.token, password)
-    return brsret()
-
+    if request.operation == 1:
+        password = hash_pwd(request.new_username, request.password)
+        bt.add_task(edit_account_backend, "username", request.token, request.new_username, password, request.old_username)
+        return brsret()
+    elif request.operation == 2:
+        password = hash_pwd(request.old_username, request.new_password)
+        bt.add_task(edit_account_backend, "password", request.token, password)
+        return brsret()
 
 async def edit_account_backend(mode: str, token: str, new_data: str, password: Optional[str] = None, old_username: Optional[str] = None):
     if mode == "username":
@@ -176,43 +156,60 @@ async def edit_account_backend(mode: str, token: str, new_data: str, password: O
     elif mode == "password":
         await db.execute(f"UPDATE login SET password = $1 WHERE token = $2", new_data, token)
 
-# Send a reset email (stage2 auth)
-@router.post("/reset/send", tags = ["Password Reset"])
-async def reset_password_send(reset: AuthResetRequest, background_tasks: BackgroundTasks):
-    if reset.username is None and reset.email is not None:
-        login_cred = await db.fetchrow(
-            "SELECT token, username FROM login WHERE email = $1", reset.email
-        )
-        if login_cred is None:
-            # Invalid Username Or Password
-            return brsret(code = "INVALID_EMAIL")
-
-        email = reset.email
-    elif reset.email is None and reset.username is not None:
-        login_cred = await db.fetchrow(
-            "SELECT token, username, email from login WHERE username = $1", reset.username
-        )
-
-        if login_cred is None:
-            # Invalid Username Or Password
-            return brsret(code = "INVAALID_USERNAME")
-
+# Post new passwords (credentials) Send a reset email (stage2 auth)
+@router.put("/users/creds", tags = ["Password Reset"])
+async def reset_password_send(reset: UserCredsReset, background_tasks: BackgroundTasks):
+    """
+        Put new users credentials given the operation, username, email and operation
+    """
+    if reset.operation not in [1, 2]:
+        return brsret(code = "INVALID_OPERATION")
+    if operation == 1: # Password reset email send
+        login_cred = await db.fetchrow("SELECT token, username, status, email FROM login WHERE (email = $1 OR username = $2) AND email IS NOT NULL AND username IS NOT NULL", reset.email)
         email = login_cred["email"]
-    else:
-            # Invalid Username Or Password
-            return brsret("NO_USERNAME_OR_EMAIL_PROVIDED")
+        if (reset.email is None and reset.username is None) or login_cred is None:
+            return brsret(code = "NO_ACCOUNT_FOUND")
+        if login_cred["status"] == 2:
+            return brsret(code = "ACCOUNT_DISABLED_TOS")
+        flag = True  # Flag to check if we have a good reset token yet
+        while flag:
+            reset_token = get_token(101)
+            if reset_token not in resetDict.values():
+                flag = False
+        resetDict[reset_token] = {"token": login_cred["token"], "username": login_cred['username'], "email": login_cred["email"]}
+        # Now send an email to the user
+        reset_link = SERVER_URL + "/reset/stage2?token=" + atok
+        reset_message = f"Subject: CCTP Password Reset\n\nUsername {login_cred['username']}\nPlease use {reset_link} to reset your password.\n\nIf you didn't authorize this action, please change your password immediately"
+        background_tasks.add_task(send_email, email, reset_message)
+        return brsret(code = None)
+    elif operation == 2: # Actual password change
+        if reset.token not in resetDict.keys():
+            # Reset Token Not Authorized
+            return brsret(code = "NOT_AUTHORIZED")
+        data = resetDict[reset.token]
+        login_cred = await db.fetchrow("SELECT username FROM login WHERE token = $1", data["token"])
+        if login_cred is None:
+            return brsret(code = "NO_ACCOUNT_FOUND")
+        username = login_cred["username"] 
+        password = hash_pwd(username, reset.new_password)
+        # Reset the token
+        del resetDict[reset.token]
+        flag = True
+        while flag:
+            new_token = uuid.uuid4()
+            login_creds = await db.fetchrow("SELECT username from login WHERE token = $1", new_token)
+            if login_creds is None:
+                flag = False
+        reset_message = "Subject: Your CCTP Password Was Just Reset\n\nYour CatPhi password was just reset\n\nIf you didn't authorize this action, please change your password immediately"
+        # Add the two background tasks and return
+        background_tasks.add_task(send_email, login_cred["email"], reset_message)
+        background_tasks.add_task(reset_backend, password, token, new_token)
+        return brsret()  # Success
 
-    url_flag = True  # Flag to check if we have a good url id yet
-    while url_flag:
-        atok = get_token(101)
-        if atok not in resetDict.values():
-            url_flag = False
-    resetDict[login_cred["token"]] = atok
-    # Now send an email to the user
-    reset_link = SERVER_URL + "/reset/stage2?token=" + atok
-    reset_message = f"Subject: CCTP Password Reset\n\nUsername {login_cred['username']}\nPlease use {reset_link} to reset your password.\n\nIf you didn't authorize this action, please change your password immediately"
-    background_tasks.add_task(send_email, email, reset_message)
-    return brsret(code = None)
+# Background task to update db on reset
+async def reset_backend(password: str, token: str, new_token: str):
+    await db.execute("UPDATE login SET password = $1, token = $3 WHERE token = $2", password, token, new_token)
+    await db.execute("UPDATE login SET status = 0 WHERE token = $1", new_token)
 
 def send_email(email: str, reset_message: str = ""):
     email_session = smtplib.SMTP("smtp.gmail.com", 587)
@@ -221,78 +218,25 @@ def send_email(email: str, reset_message: str = ""):
     email_session.sendmail(SENDER_EMAIL, email, reset_message)
     email_session.close()
 
-
-# Change the actual password (stage3 auth)
-@router.post("/reset/change", tags = ["Password Reset"])
-async def reset_password_change(reset: AuthResetChange, background_tasks: BackgroundTasks):
-    if reset.token not in resetDict.values():
-        # Reset Token Not Authorized
-        return {"error": "1001"}
-    # Change the password of the field related to that users
-    # account
-    token = None
-    for item in resetDict.items():
-        if item[1] == reset.token:
-            token = item[0]
-            break
-    login_cred = await db.fetchrow("SELECT username, status, email FROM login WHERE token = $1", token)
-    if login_cred is None:
-        return {"error": "1001"}
-    if int(login_cred["status"]) == 2:
-        return {"error": "1101"}
-    username = login_cred["username"]
-    password = hash_pwd(username, reset.new_password)
-    # Make sure we cant use the same token again
-    resetDict[token] = None
-
-    # Get a new token on reset
-    flag = True
-    while flag:
-        # Keep getting and checking token with DB
-        new_token = get_token(1037)
-        login_creds = await db.fetchrow(
-            "SELECT username from login WHERE token = $1", new_token
-        )
-        if login_creds is not None:
-            continue
-        flag = False
-    reset_message = "Subject: Your CCTP Password Was Just Reset\n\nYour CatPhi password was just reset\n\nIf you didn't authorize this action, please change your password immediately"
-    # Add the two background tasks and return
-    background_tasks.add_task(send_email, login_cred["email"], reset_message)
-    background_tasks.add_task(reset_backend, password, token, new_token)
-    return {"error": "1000"}  # Success
-
-# Background task to update db on reset
-async def reset_backend(password: str, token: str, new_token: str):
-    await db.execute("UPDATE login SET password = $1, token = $3 WHERE token = $2", password, token, new_token)
-    await db.execute("UPDATE login SET status = 0 WHERE token = $1", new_token)
-
-
 # This checks if the reset request is in resetDict and
 # returns the result
 
-
-@router.get("/reset/check/token", tags = ["Password Reset"])
-async def check_reset_token(token: str = None):
-    if token is None or token not in resetDict.values():
-        return brsret(code = False)
-    return brsret(code = True)
-
-
-@router.post("/login", response_model=AuthLoginResponse)
-async def login(login: AuthLoginRequest):
+@router.get("/users")
+async def login(login: AuthLogin):
     """
-    Login a user to CatPhi
+    Posts a login to a user to CatPhi
 
     - **username**: Account Username
     - **password**: Account Password
+    - **otp**: OTP
     \f
     :param username: User input.
     :param password: User input.
+    :param otp: User input.
     """
 
     login_creds = await db.fetchrow(
-        "SELECT attempts, token, status, scopes, password, mfa from login WHERE username = $1",
+        "SELECT attempts, token, status, scopes, password, mfa, mfa_shared_key from login WHERE username = $1",
         login.username
     )
     if login_creds is None:
@@ -303,14 +247,12 @@ async def login(login: AuthLoginRequest):
 
     # Check for MFA
     elif login_creds["mfa"] is True:
-        flag = True
-        while flag:
-            token = get_token(101)
-            if token not in mfaDict.values() and token not in mfaDict.keys():
-                flag = False
-        mfaDict[token] = login.username
-        return brsret(code = "MFA", mfaChallenge = "mfa", mfaToken = token)
-
+        if login.otp is None:
+            return brsret(code = "MFA", mfaChallenge = "mfa", mfaToken = token)
+        mfa_shared_key = login_creds["mfa_shared_key"]
+        otp = pyotp.TOTP(mfa_shared_key)
+        if otp.verify(mfa.otp) is False:
+            return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
     # Check status
     if login_creds["status"] in [None, 0]:
         pass
@@ -321,32 +263,8 @@ async def login(login: AuthLoginRequest):
     locked = await update_login_attempts(login.username, True)
     return brsret(token = login_creds["token"], scopes = login_creds["scopes"])
 
-
-@router.post("/mfa", tags = ["MFA"])
-async def multi_factor_authentication(mfa: AuthMFARequest):
-    if mfa.token not in mfaDict.keys():
-        return brsret(code = "FORBIDDEN", html = "Forbidden Request<br/>Try logging out and back in again", support = True) # Forbidden as mfa token is wrong
-    login_creds = await db.fetchrow(
-        "SELECT mfa_shared_key, token, status, scopes FROM login WHERE username = $1",
-        mfaDict[mfa.token],
-    )
-    if login_creds is None or login_creds["mfa_shared_key"] is None:
-        return brsret(code = "MFA_NOT_FOUND", html = "No MFA Shared Key was found.", support = True)
-    mfa_shared_key = login_creds["mfa_shared_key"]
-    otp = pyotp.TOTP(mfa_shared_key)
-    if otp.verify(mfa.otp) is False:
-        return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
-    del mfaDict[mfa.token]
-    if login_creds["status"] in [None, 0]:
-        pass
-    else:
-        # This account is flagged as disabled (1) or disabled-by-admin (2) or locked (3)
-        return brsret(code =  "ACCOUNT_DISABLED", status = login_creds["status"]) # Flagged or disabled account
-    return brsret(token = login_creds["token"], scopes = login_creds["scopes"])
-
-
-@router.post("/mfa/disable", tags = ["MFA"])
-async def multi_factor_authentication_disable(mfa: AuthMFARequest):
+@router.delete("/users/mfa", tags = ["MFA"])
+async def multi_factor_authentication_disable(mfa: AuthMFA):
     login_creds = await db.fetchrow(
         "SELECT mfa_shared_key FROM login WHERE token = $1",
         mfa.token,
@@ -361,33 +279,32 @@ async def multi_factor_authentication_disable(mfa: AuthMFARequest):
     return brsret(code = None)
 
 
-@router.post("/mfa/setup/1", tags = ["MFA"])
-async def multi_factor_authentication_generate_shared_key(token: AuthMFANewRequest):
-    login_creds = await db.fetchrow(
-            "SELECT mfa_shared_key, status, email FROM login WHERE token = $1",
-        token.token,
-    )
-    if login_creds is None or login_creds["status"] not in [None, 0]:
-        return brsret(code = "ACCOUNT_DISABLED_OR_DOES_NOT_EXIST") # Flagged or disabled account and/or account does not exist
-    key = pyotp.random_base32() # MFA Shared Key
-    mfaNewDict[token.token] = {"key": key, "email": login_creds["email"]}
-    return brsret(code = None, key = key)
+@router.patch("/users/mfa", tags = ["MFA"])
+async def multi_factor_authentication_generate_shared_key(token: AuthMFANew):
+    if operation not in [1, 2]:
+        return brsret(code = "INVALID_OPERATION")
+    if operation == 1:
+        login_creds = await db.fetchrow("SELECT mfa_shared_key, status, email FROM login WHERE token = $1", token.token)
+        if login_creds is None or login_creds["status"] not in [None, 0]:
+            return brsret(code = "ACCOUNT_DISABLED_OR_DOES_NOT_EXIST") # Flagged or disabled account and/or account does not exist
+        key = pyotp.random_base32() # MFA Shared Key
+        mfaNewDict[token.token] = {"key": key, "email": login_creds["email"]}
+        return brsret(code = None, key = key)
+    if operation == 2:
+        if mfa.token not in mfaNewDict.keys():
+            return brsret(code = "FORBIDDEN", html = "Forbidden Request", support = True) # The other steps have not yet been done yet
+        otp = pyotp.TOTP(mfaNewDict[mfa.token]["key"])
+        if otp.verify(mfa.otp) is False:
+            return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
+        await db.execute("UPDATE login SET mfa = $1, mfa_shared_key = $2 WHERE token = $3", True, mfaNewDict[mfa.token]["key"], mfa.token)
+        background_tasks.add_task(send_email, mfaNewDict[mfa.token]["email"], f"Hi there\n\nSomeone has just tried to enable MFA on your account. If it wasn't you, please disable (and/or re-enable) MFA immediately using your backup code.\n\nThank you and have a nice day!")
+        return brsret(code = None)
 
-
-@router.post("/mfa/setup/2", tags = ["MFA"])
-async def multi_factor_authentication_enable(mfa: AuthMFARequest, background_tasks: BackgroundTasks):
-    if mfa.token not in mfaNewDict.keys():
-        return brsret(code = "FORBIDDEN", html = "Forbidden Request", support = True) # The other steps have not yet been done yet
-    otp = pyotp.TOTP(mfaNewDict[mfa.token]["key"])
-    if otp.verify(mfa.otp) is False:
-        return brsret(code = "INVALID_OTP", html = "Invalid OTP. Please try again", support = False)
-    await db.execute("UPDATE login SET mfa = $1, mfa_shared_key = $2 WHERE token = $3", True, mfaNewDict[mfa.token]["key"], mfa.token)
-    background_tasks.add_task(send_email, mfaNewDict[mfa.token]["email"], f"Hi there\n\nSomeone has just tried to enable MFA on your account. If it wasn't you, please disable (and/or re-enable) MFA immediately using your backup code.\n\nThank you and have a nice day!")
-    return brsret(code = None)
-
-
-@router.post("/recovery")
+@router.post("/users/recovery")
 async def account_recovery(account: AuthRecoveryRequest):
+    """
+        Recover an account using backup key
+    """
     login_creds = await db.fetchrow(
         "SELECT username, status FROM login WHERE backup_key = $1",
         account.backup_key,
@@ -400,7 +317,7 @@ async def account_recovery(account: AuthRecoveryRequest):
     flag = True
     while flag:
         # Keep getting and checking token with DB (new token)
-        token = get_token(1037)
+        token = uuid.uuid4()
         __login_creds = await db.fetchrow(
             "SELECT username from login WHERE token = $1", token
         )
@@ -427,7 +344,7 @@ async def account_recovery(account: AuthRecoveryRequest):
     return brsret(code = None, html = f"Your account has successfully been recovered.<br/>Username: {login_creds['username']}<br/>Temporary Password: {def_password}<br/>New Backup Key: {backup_key}<br/>Change your password as soon as you login")
 
 
-@router.post("/register")
+@router.put("/users")
 async def register(register: AuthRegisterRequest, background_tasks: BackgroundTasks):
     username = register.username
     password = hash_pwd(username, register.password)
@@ -441,7 +358,7 @@ async def register(register: AuthRegisterRequest, background_tasks: BackgroundTa
     flag = True
     while flag:
         # Keep getting and checking token and account backup key with DB
-        token = get_token(1037)
+        token = uuid.uuid4()
         backup_key = ""
         for i in range(0, 3):
             backup_key += pyotp.random_hex()

@@ -21,7 +21,7 @@ async def new_subjects_get(request: Request):
 @csrf_protect
 async def new_subjects_post(request: Request, name: str = FastForm(None), description: str = FastForm(None)):
     x = requests.post(
-        api + "/subjects/new",
+        api + "/subjects",
         json={
             "username": request.session.get("username"),
             "token": request.session.get("token"),
